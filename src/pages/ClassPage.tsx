@@ -17,7 +17,9 @@ export function ClassPage() {
   const importRef = useRef<HTMLInputElement>(null); const [copied, setCopied] = useState(false);
   async function refresh() { setLoading(true); try { const data = await loadClass(classId); setSchoolClass(data.schoolClass); setSchool(data.school); setChildren(data.children); setOrders(data.orders); } catch (reason) { setError(humanError(reason)); } finally { setLoading(false); } }
   useEffect(() => { void refresh(); }, [classId]);
-  const publicUrl = schoolClass ? `${window.location.origin}/p/${schoolClass.public_token}` : "";
+  const publicUrl = schoolClass
+    ? new URL(`${import.meta.env.BASE_URL}p/${schoolClass.public_token}`, window.location.origin).toString()
+    : "";
   async function submitChild(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setPending(true); setError(""); const form = new FormData(event.currentTarget); const draft = { first_name: String(form.get("first_name") || "").trim(), last_name: String(form.get("last_name") || "").trim(), public_name: String(form.get("public_name") || "").trim() }; try { if (childModal) await updateChild(childModal.id, draft); else await createChild(classId, draft); setChildModal(undefined); setSuccess(childModal ? "Данные ребёнка обновлены" : "Ребёнок добавлен"); await refresh(); } catch (reason) { setError(humanError(reason)); } finally { setPending(false); } }
   async function archiveChild(child: Child) { if (!window.confirm(`Убрать ${child.public_name} из активного списка?`)) return; try { await updateChild(child.id, { status: "archived" }); setSuccess("Ребёнок перемещён в архив"); await refresh(); } catch (reason) { setError(humanError(reason)); } }
   async function handleImport(file?: File) { if (!file) return; setPending(true); setError(""); setSuccess(""); try { const rows = await parseChildrenFile(file); const result = await importChildren(classId, rows); setSuccess(`Импорт завершён: добавлено ${result.added}, пропущено дублей ${result.skipped}`); await refresh(); } catch (reason) { setError(humanError(reason)); } finally { setPending(false); if (importRef.current) importRef.current.value = ""; } }

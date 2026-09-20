@@ -6,6 +6,17 @@
     <meta name="theme-color" content="#f5f7fb" />
     <meta name="description" content="Vakha Studio — заявки родителей на школьную фотосессию" />
     <title>Vakha Studio — школьные фотозаказы</title>
+    <script>
+      (function (location) {
+        if (location.search.slice(0, 2) !== "?/") return;
+        var restored = location.search
+          .slice(2)
+          .split("&")
+          .map(function (part) { return part.replace(/~and~/g, "&"); })
+          .join("?");
+        window.history.replaceState(null, "", location.pathname + restored + location.hash);
+      })(window.location);
+    </script>
   </head>
   <body>
     <div id="root"></div>

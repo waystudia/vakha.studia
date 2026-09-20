@@ -25,6 +25,8 @@ npm run dev
 
 Откройте <http://127.0.0.1:5173/login>.
 
+Production: <https://waystudia.github.io/vakha.studia/>
+
 ## Проверка
 
 ```bash
