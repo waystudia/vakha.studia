@@ -31,6 +31,7 @@ npm run dev
 npm test
 npm run build
 npm run check
+supabase db query --linked --file supabase/tests/mvp_integration.sql
 ```
 
 Миграция Supabase находится в `supabase/migrations/`.
