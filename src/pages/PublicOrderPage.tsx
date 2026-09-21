@@ -1,5 +1,5 @@
 import { ArrowLeft, Camera, Check, CheckCircle2, LoaderCircle, Play, UserRound, Video } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { useParams } from "react-router-dom";
 import { Loader, Modal, Notice } from "../components/ui";
 import { humanError, money } from "../lib/helpers";
@@ -31,6 +31,7 @@ export function PublicOrderPage() {
   const requestKey = useRef(crypto.randomUUID());
 
   useEffect(() => { void (async () => { try { const payload = await getPublicClass(token); if (!payload) throw new Error("Ссылка недействительна или срок её действия истёк"); setData(payload); } catch (reason) { setError(humanError(reason)); } finally { setLoading(false); } })(); }, [token]);
+  useEffect(() => { if (!previewItem) return; const previousOverflow = document.body.style.overflow; document.body.style.overflow = "hidden"; return () => { document.body.style.overflow = previousOverflow; }; }, [previewItem]);
   const child = data?.children.find((item) => item.id === childId);
   const total = useMemo(() => data?.catalog.filter((item) => selected.includes(item.id)).reduce((sum, item) => sum + Number(item.price), 0) || 0, [data, selected]);
   const filterOptions = useMemo(() => { const result = new Set<string>(); data?.catalog.forEach((item) => { if (item.gender === "boys" || item.gender === "girls") result.add(item.gender); if (item.category) result.add(`category:${item.category}`); }); return [...result]; }, [data]);
@@ -38,7 +39,7 @@ export function PublicOrderPage() {
   const groupedItems = useMemo(() => { const groups = new Map<string, CatalogEntry[]>(); visibleItems.forEach((item) => { const key = genderLabel(item.gender) || item.category || "Другое"; groups.set(key, [...(groups.get(key) || []), item]); }); return [...groups.entries()]; }, [visibleItems]);
   function toggle(id: string) { setSelected((items) => items.includes(id) ? items.filter((item) => item !== id) : [...items, id]); }
   async function submit() { if (!childId || !selected.length || pending) return; setPending(true); setError(""); try { const order = await submitPublicOrder({ token, childId, itemIds: selected, requestKey: requestKey.current, note: "" }); setResult(order); setStep("done"); } catch (reason) { setError(humanError(reason)); } finally { setPending(false); } }
-  function renderCard(item: CatalogEntry) { const active = selected.includes(item.id); return <button className={`service-choice ${active ? "selected" : ""}`} key={item.id} onClick={() => toggle(item.id)}><span className="service-preview-button" role="button" tabIndex={0} aria-label={`Открыть ${item.name}`} onClick={(event) => { event.stopPropagation(); setPreviewItem(item); }} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); event.stopPropagation(); setPreviewItem(item); } }}>{item.preview_video_url ? <video muted playsInline poster={item.preview_url || undefined} src={item.preview_video_url} /> : item.preview_url ? <img src={item.preview_url} alt="" /> : <ServiceIcon type={item.type} />}<span className="preview-hint">Смотреть</span></span><div className="service-copy"><strong>{item.name}</strong></div><b>{money(item.price)}</b><span className="service-check">{active && <Check size={17} />}</span></button>; }
+  function renderCard(item: CatalogEntry) { const active = selected.includes(item.id); const openPreview = (event: MouseEvent | KeyboardEvent) => { event.preventDefault(); event.stopPropagation(); setPreviewItem(item); }; return <button className={`service-choice ${active ? "selected" : ""}`} key={item.id} onClick={() => toggle(item.id)}><span className="service-preview-button">{item.preview_video_url ? <video muted playsInline poster={item.preview_url || undefined} src={item.preview_video_url} /> : item.preview_url ? <img src={item.preview_url} alt="" /> : <ServiceIcon type={item.type} />}<span className="preview-hint" role="button" tabIndex={0} aria-label={`Открыть ${item.name}`} onClick={openPreview} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") openPreview(event); }}>Смотреть</span></span><div className="service-copy"><strong>{item.name}</strong></div><b>{money(item.price)}</b><span className="service-check">{active && <Check size={17} />}</span></button>; }
   if (loading) return <main className="public-page"><Loader label="Открываем класс…" /></main>;
   if (error && !data) return <main className="public-page"><section className="public-error"><div className="error-illustration">!</div><h1>Ссылка недоступна</h1><p>{error}</p><span>Попросите учителя отправить актуальную ссылку.</span></section></main>;
   if (!data) return null;
