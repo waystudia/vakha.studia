@@ -282,6 +282,7 @@ export async function importCatalogItems(userId: string, items: CatalogZipItem[]
       short_description: item.shortDescription,
       type: item.type,
       category: item.category,
+      gender: item.gender,
       price: item.price,
       preview_url: previewUrl,
       preview_video_url: previewVideoUrl,

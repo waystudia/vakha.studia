@@ -13,10 +13,10 @@ async function catalogFile(catalog: unknown) {
 
 describe("CRM Photo catalog ZIP", () => {
   it("читает услуги и превью из реального формата catalog_export.zip", async () => {
-    const file = await catalogFile({ services: [{ id: "photo", name: "Обычные фото", price: 400, shortDescription: "Школьные снимки", previewImage: "assets/images/photo.png" }] });
+    const file = await catalogFile({ services: [{ id: "photo", name: "Обычные фото", price: 400, gender: "girls", shortDescription: "Школьные снимки", previewImage: "assets/images/photo.png" }] });
     const items = await parseCrmCatalogZip(file);
     expect(items).toHaveLength(1);
-    expect(items[0]).toMatchObject({ sourceId: "photo", name: "Обычные фото", price: 400, type: "photo" });
+    expect(items[0]).toMatchObject({ sourceId: "photo", name: "Обычные фото", price: 400, type: "photo", gender: "girls" });
     expect(items[0].previewImage?.type).toBe("image/png");
   });
 

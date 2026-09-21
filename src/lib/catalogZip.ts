@@ -91,6 +91,7 @@ export async function parseCrmCatalogZip(file: File): Promise<CatalogZipItem[]> 
       shortDescription: String(service.shortDescription || "").trim(),
       description: String(service.description || "").trim(),
       category: String(service.category || "").trim(),
+      gender: String(service.gender || "unisex").trim().toLowerCase(),
       type: inferType(service),
       popular: Boolean(service.popular),
       previewImagePath,

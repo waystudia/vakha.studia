@@ -61,6 +61,7 @@ export interface CatalogItem {
   short_description: string;
   type: string;
   category: string;
+  gender: string;
   price: number;
   preview_url: string;
   preview_video_url: string;
@@ -111,6 +112,7 @@ export interface PublicClassPayload {
     short_description: string;
     type: string;
     category: string;
+    gender: string;
     price: number;
     preview_url: string;
     preview_video_url: string;
@@ -134,6 +136,7 @@ export interface CatalogZipItem {
   shortDescription: string;
   description: string;
   category: string;
+  gender: string;
   type: string;
   popular: boolean;
   previewImagePath: string;
