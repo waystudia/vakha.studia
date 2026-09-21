@@ -12,6 +12,7 @@ interface CrmCatalogService {
   popular?: boolean;
   previewImage?: string;
   previewVideo?: string;
+  presentation?: { parentPreviewMode?: string };
 }
 
 interface CrmCatalogFile {
@@ -43,6 +44,10 @@ function mimeForPath(path: string) {
     mp4: "video/mp4",
     webm: "video/webm",
   }[extension || ""] || "application/octet-stream";
+}
+
+function parentPreviewMode(value: unknown): "auto" | "print" | "digital" {
+  return value === "print" || value === "digital" ? value : "auto";
 }
 
 function blobPart(bytes: Uint8Array) {
@@ -96,6 +101,7 @@ export async function parseCrmCatalogZip(file: File): Promise<CatalogZipItem[]> 
       popular: Boolean(service.popular),
       previewImagePath,
       previewVideoPath,
+      parentPreviewMode: parentPreviewMode(service.presentation?.parentPreviewMode),
       previewImage: imageEntry
         ? new Blob([blobPart(await imageEntry.async("uint8array"))], { type: mimeForPath(previewImagePath) })
         : undefined,

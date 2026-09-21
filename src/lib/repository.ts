@@ -286,6 +286,7 @@ export async function importCatalogItems(userId: string, items: CatalogZipItem[]
       price: item.price,
       preview_url: previewUrl,
       preview_video_url: previewVideoUrl,
+      parent_preview_mode: item.parentPreviewMode,
       is_active: true,
       sort_order: index,
       source: "crm_photo_zip",

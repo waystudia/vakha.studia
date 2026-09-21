@@ -65,6 +65,7 @@ export interface CatalogItem {
   price: number;
   preview_url: string;
   preview_video_url: string;
+  parent_preview_mode: "auto" | "print" | "digital";
   is_active: boolean;
   sort_order: number;
   source: string;
@@ -116,6 +117,7 @@ export interface PublicClassPayload {
     price: number;
     preview_url: string;
     preview_video_url: string;
+    parent_preview_mode: "auto" | "print" | "digital";
   }>;
 }
 
@@ -143,4 +145,5 @@ export interface CatalogZipItem {
   previewVideoPath: string;
   previewImage?: Blob;
   previewVideo?: Blob;
+  parentPreviewMode: "auto" | "print" | "digital";
 }
