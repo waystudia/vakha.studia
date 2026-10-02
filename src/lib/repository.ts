@@ -298,10 +298,30 @@ export async function importCatalogItems(userId: string, items: CatalogZipItem[]
   return items.length;
 }
 
-export async function updateCatalogItem(id: string, input: Partial<Pick<CatalogItem, "name" | "description" | "short_description" | "price" | "is_active" | "sort_order">>) {
+export async function updateCatalogItem(id: string, input: Partial<Pick<CatalogItem, "name" | "description" | "short_description" | "category" | "price" | "is_active" | "sort_order">>) {
   const { data, error } = await supabase.from("catalog_items").update(input).eq("id", id).select("*").single();
   fail(error);
   return data as CatalogItem;
+}
+
+async function removeCatalogAssets(items: CatalogItem[]) {
+  const paths = items.flatMap((item) => [item.preview_url, item.preview_video_url].map((url) => {
+    const marker = "/storage/v1/object/public/catalog-previews/";
+    const index = url.indexOf(marker);
+    return index >= 0 ? decodeURIComponent(url.slice(index + marker.length)) : "";
+  }).filter(Boolean));
+  if (!paths.length) return;
+  const { error } = await supabase.storage.from("catalog-previews").remove(paths);
+  fail(error);
+}
+
+export async function deleteCatalogItems(ids: string[]) {
+  if (!ids.length) return;
+  const current = await loadCatalog();
+  const removing = current.filter((item) => ids.includes(item.id));
+  const { error } = await supabase.from("catalog_items").delete().in("id", ids);
+  fail(error);
+  await removeCatalogAssets(removing);
 }
 
 export async function loadOrders(): Promise<ParentOrder[]> {
