@@ -1,8 +1,9 @@
-import { ArrowLeft, ChevronRight, CirclePlus, GraduationCap, UserRound } from "lucide-react";
+import { ArrowLeft, ChevronRight, CirclePlus, Download, GraduationCap, UserRound } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { EmptyState, FormActions, Loader, Modal, Notice } from "../components/ui";
 import { createClass, loadSchool } from "../lib/repository";
+import { downloadCrmTransfer } from "../lib/crmTransfer";
 import { humanError } from "../lib/helpers";
 import type { ClassWithStats, School } from "../lib/types";
 
@@ -16,7 +17,7 @@ export function SchoolPage() {
   if (loading) return <div className="page"><Loader label="Загружаем школу…"/></div>;
   if (!school) return <div className="page"><Notice kind="error">Школа не найдена</Notice></div>;
   return <div className="page"><Link className="back-link" to="/admin/schools"><ArrowLeft size={17}/>Все школы</Link>
-    <header className="page-header"><div><span className="eyebrow">{school.city}</span><h1>{school.name}</h1><p>{school.address || "Адрес не указан"}{school.contact_name ? ` · ${school.contact_name}` : ""}</p></div><button className="button button-primary" onClick={() => setModal(true)}><CirclePlus size={19}/>Добавить класс</button></header>
+    <header className="page-header"><div><span className="eyebrow">{school.city}</span><h1>{school.name}</h1><p>{school.address || "Адрес не указан"}{school.contact_name ? ` · ${school.contact_name}` : ""}</p></div><div className="inline-actions"><button className="button button-secondary" onClick={() => void downloadCrmTransfer({ kind: "school", id: schoolId })} disabled={!classes.length}><Download size={18}/>ZIP для CRM Photo</button><button className="button button-primary" onClick={() => setModal(true)}><CirclePlus size={19}/>Добавить класс</button></div></header>
     {error && <Notice kind="error">{error}</Notice>}
     <section className="section-card"><div className="section-title"><div><h2>Классы</h2><p>Дети, заявки и ссылка для каждого класса</p></div></div>
       {classes.length === 0 ? <EmptyState icon={<GraduationCap/>} title="Классов пока нет" text="Добавьте первый класс и список детей." action={<button className="button button-primary" onClick={() => setModal(true)}>Добавить класс</button>}/> : <div className="class-list">{classes.map((item) => <Link to={`/admin/classes/${item.id}`} className="class-row" key={item.id}><div className="class-badge">{item.name}</div><div className="class-info"><strong>{item.photo_session_name}</strong><span><UserRound size={14}/>{item.teacher_name || "Учитель не указан"} · {item.academic_year}</span></div><div className="class-stats"><span><strong>{item.children_count}</strong> детей</span><span><strong>{item.orders_count}</strong> заявок</span><span className={item.missing_orders_count ? "warning-text" : "success-text"}><strong>{item.missing_orders_count}</strong> без заявки</span></div><ChevronRight/></Link>)}</div>}

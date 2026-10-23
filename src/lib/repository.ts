@@ -6,7 +6,10 @@ import type {
   Child,
   ClassWithStats,
   ParentOrder,
+  Profile,
+  PublicCatalogPayload,
   PublicClassPayload,
+  PublicOrderPayload,
   PublicOrderResult,
   School,
   SchoolClass,
@@ -43,6 +46,25 @@ export async function signUp(email: string, password: string, fullName: string) 
 export async function signOut() {
   const { error } = await supabase.auth.signOut();
   fail(error);
+}
+
+export async function getProfile(userId?: string): Promise<Profile> {
+  let query = supabase.from("profiles").select("*");
+  if (userId) query = query.eq("id", userId);
+  const { data, error } = await query.maybeSingle();
+  fail(error);
+  if (data) return data as Profile;
+  const user = await currentUser();
+  if (!user) throw new Error("Профиль не найден");
+  const { data: created, error: createError } = await supabase.from("profiles").upsert({ id: user.id, full_name: user.user_metadata?.full_name || "" }).select("*").single();
+  fail(createError);
+  return created as Profile;
+}
+
+export async function updateProfile(id: string, input: Partial<Pick<Profile, "company_name" | "manager_name" | "whatsapp_phone" | "whatsapp_template" | "watermark_text" | "watermark_image" | "watermark_opacity">>) {
+  const { data, error } = await supabase.from("profiles").update(input).eq("id", id).select("*").single();
+  fail(error);
+  return data as Profile;
 }
 
 export async function ensureDemoData(userId: string) {
@@ -343,6 +365,18 @@ export async function getPublicClass(token: string): Promise<PublicClassPayload 
   const { data, error } = await supabase.rpc("get_public_class", { p_token: token });
   fail(error);
   return data as PublicClassPayload | null;
+}
+
+export async function getPublicCatalog(token: string): Promise<PublicCatalogPayload | null> {
+  const { data, error } = await supabase.rpc("get_public_catalog", { p_token: token });
+  fail(error);
+  return data as PublicCatalogPayload | null;
+}
+
+export async function getPublicOrder(token: string): Promise<PublicOrderPayload | null> {
+  const { data, error } = await supabase.rpc("get_public_order", { p_token: token });
+  fail(error);
+  return data as PublicOrderPayload | null;
 }
 
 export async function submitPublicOrder(input: {

@@ -78,6 +78,25 @@ export interface SelectedOrderItem {
   name: string;
   price: number;
   type: string;
+  preview_url?: string;
+  preview_video_url?: string;
+  category?: string;
+}
+
+export interface Profile {
+  id: string;
+  full_name: string;
+  company_name: string;
+  manager_name: string;
+  whatsapp_phone: string;
+  whatsapp_template: string;
+  watermark_text: string;
+  watermark_image: string;
+  watermark_opacity: number;
+  public_catalog_token: string;
+  role: "admin";
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ParentOrder {
@@ -99,6 +118,7 @@ export interface ParentOrder {
 
 export interface PublicClassPayload {
   school: { name: string; city: string };
+  whatsapp?: { phone?: string; company?: string; manager?: string; template?: string };
   class: {
     id: string;
     name: string;
@@ -129,6 +149,18 @@ export interface PublicOrderResult {
   total_amount: number;
   child_name: string;
   class_name: string;
+  public_token: string;
+}
+
+export interface PublicCatalogPayload {
+  company_name: string;
+  watermark: { text: string; image: string; opacity: number };
+  catalog: PublicClassPayload["catalog"];
+}
+
+export interface PublicOrderPayload extends PublicOrderResult {
+  school_name: string;
+  created_at: string;
 }
 
 export interface CatalogZipItem {

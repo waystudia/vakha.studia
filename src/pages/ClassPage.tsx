@@ -6,6 +6,7 @@ import { EmptyState, FormActions, Loader, Modal, Notice } from "../components/ui
 import { parseChildrenFile } from "../lib/childrenImport";
 import { downloadCsv, formatDateTime, humanError, orderStatusLabels } from "../lib/helpers";
 import { createChild, importChildren, loadClass, updateChild } from "../lib/repository";
+import { downloadCrmTransfer } from "../lib/crmTransfer";
 import type { Child, ParentOrder, School, SchoolClass } from "../lib/types";
 
 export function ClassPage() {
@@ -30,7 +31,7 @@ export function ClassPage() {
   if (!schoolClass || !school) return <div className="page"><Notice kind="error">Класс не найден</Notice></div>;
   const orderedChildIds = new Set(orders.filter((order) => order.status !== "cancelled").map((order) => order.child_id));
   return <div className="page"><Link className="back-link" to={`/admin/schools/${school.id}`}><ArrowLeft size={17}/>{school.name}</Link>
-    <header className="page-header"><div><span className="eyebrow">{school.name} · {schoolClass.academic_year}</span><h1>Класс {schoolClass.name}</h1><p>{schoolClass.teacher_name || "Классный руководитель не указан"}</p></div><button className="button button-secondary" onClick={exportOrders} disabled={!orders.length}><Download size={18}/>Экспорт заявок</button></header>
+    <header className="page-header"><div><span className="eyebrow">{school.name} · {schoolClass.academic_year}</span><h1>Класс {schoolClass.name}</h1><p>{schoolClass.teacher_name || "Классный руководитель не указан"}</p></div><div className="inline-actions"><button className="button button-secondary" onClick={exportOrders} disabled={!orders.length}><Download size={18}/>Экспорт заявок CSV</button><button className="button button-primary" onClick={() => void downloadCrmTransfer({ kind: "class", id: classId })}><Download size={18}/>ZIP для CRM Photo</button></div></header>
     {error && <Notice kind="error">{error}</Notice>}{success && <Notice>{success}</Notice>}
     <div className="metric-grid"><div className="metric"><span>Детей</span><strong>{children.length}</strong></div><div className="metric"><span>Заявок</span><strong>{orders.filter((o) => o.status !== "cancelled").length}</strong></div><div className="metric metric-warning"><span>Без заявки</span><strong>{children.filter((c) => !orderedChildIds.has(c.id)).length}</strong></div></div>
     <section className="share-card"><div className="share-copy"><span className="eyebrow">ССЫЛКА ДЛЯ РОДИТЕЛЕЙ</span><h2>Класс готов к приёму заявок</h2><p>Передайте ссылку классному руководителю. Родители увидят только публичные имена.</p><div className="public-url"><Link2 size={19}/><span>{publicUrl}</span></div><div className="inline-actions"><button className="button button-primary" onClick={() => void copyLink()}>{copied ? <Check size={18}/> : <Clipboard size={18}/>} {copied ? "Скопировано" : "Копировать ссылку"}</button><button className="button button-secondary" onClick={() => void shareLink()}><Send size={18}/>Отправить учителю</button></div></div><div className="qr-box"><QRCodeSVG value={publicUrl} size={148} level="M"/><small>Наведите камеру</small></div></section>
