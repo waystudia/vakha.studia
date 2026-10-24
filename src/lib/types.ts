@@ -154,6 +154,7 @@ export interface PublicOrderResult {
 
 export interface PublicCatalogPayload {
   company_name: string;
+  whatsapp?: { phone?: string; company?: string; manager?: string };
   watermark: { text: string; image: string; opacity: number };
   catalog: PublicClassPayload["catalog"];
 }
