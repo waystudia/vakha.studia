@@ -1,0 +1,5 @@
+.public-catalog-video-phone{position:absolute;z-index:2;right:.45rem;bottom:.45rem;width:34%;aspect-ratio:9/18.6;overflow:hidden;padding:3px;border:2px solid #111827;border-radius:11px;background:#111827;box-shadow:0 7px 16px rgba(12,24,45,.4);transform:rotate(5deg)}
+.public-catalog-video-phone::after{position:absolute;top:50%;left:50%;width:24px;height:24px;border-radius:50%;background:rgba(16,30,55,.78);content:"▶";color:#fff;font-size:.68rem;line-height:24px;text-align:center;transform:translate(-50%,-50%)}
+.public-catalog-video-phone video{width:100%;height:100%;object-fit:cover;border-radius:7px;background:#111827}
+
+@media(max-width:640px){.public-catalog-video-phone{right:.35rem;bottom:.35rem;width:36%}}

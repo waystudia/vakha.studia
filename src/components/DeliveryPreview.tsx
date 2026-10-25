@@ -13,7 +13,7 @@ export function DeliveryPreview({ imageUrl = "", videoUrl = "", title, mode = "a
 
   return <section className="delivery-preview" aria-label={`Итог услуги: ${title}`}>
     <div className={`delivery-preview-stage ${showPrint && showPhone ? "has-phone-overlay" : ""}`}>
-      {showPrint && <figure className="delivery-paper"><img src={imageUrl} alt={`Распечатанное фото A4: ${title}`} /></figure>}
+      {showPrint && <figure className="delivery-paper"><img src={imageUrl} alt={`Распечатанное фото A4: ${title}`} /><figcaption className="delivery-lamination">Ламинация · защита</figcaption></figure>}
       {showPhone && <figure className={`delivery-phone ${showPrint ? "overlay" : "standalone"}`}>
         <div className="delivery-phone-screen">
           {phoneHasVideo
