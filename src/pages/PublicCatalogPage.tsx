@@ -11,6 +11,18 @@ import type { PublicCatalogPayload } from "../lib/types";
 
 type CatalogItem = PublicCatalogPayload["catalog"][number];
 
+const CATEGORY_ORDER = ["Детские образы", "ИИ-видео", "Фото с видео"];
+
+function catalogCategories(items: CatalogItem[]) {
+  return [...new Set(items.map((item) => item.category.trim()).filter(Boolean))].sort((left, right) => {
+    const leftIndex = CATEGORY_ORDER.indexOf(left);
+    const rightIndex = CATEGORY_ORDER.indexOf(right);
+    const leftRank = leftIndex === -1 ? CATEGORY_ORDER.length : leftIndex;
+    const rightRank = rightIndex === -1 ? CATEGORY_ORDER.length : rightIndex;
+    return leftRank - rightRank || left.localeCompare(right, "ru-RU");
+  });
+}
+
 type DeliveryFeature = { label: string; tone: "photo" | "print" | "lamination" | "qr" | "video" };
 
 function deliveryFeatures(item: CatalogItem): DeliveryFeature[] {
@@ -38,15 +50,19 @@ export function PublicCatalogPage() {
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<CatalogItem | null>(null);
   const [gender, setGender] = useState<CatalogGender>("all");
+  const [category, setCategory] = useState("all");
   const [selected, setSelected] = useState<string[]>([]);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   useEffect(() => { void (async () => { try { const payload = await getPublicCatalog(token); if (!payload) throw new Error("Ссылка на каталог недействительна"); setData(payload); } catch (reason) { setError(humanError(reason)); } finally { setLoading(false); } })(); }, [token]);
   useEffect(() => { document.body.style.overflow = preview || checkoutOpen ? "hidden" : ""; return () => { document.body.style.overflow = ""; }; }, [preview, checkoutOpen]);
 
-  const sections = useMemo(() => buildCatalogSections(data?.catalog || [], gender), [data, gender]);
+  const categories = useMemo(() => catalogCategories(data?.catalog || []), [data]);
+  const filteredCatalog = useMemo(() => (data?.catalog || []).filter((item) => category === "all" || item.category === category), [data, category]);
+  const sections = useMemo(() => buildCatalogSections(filteredCatalog, gender), [filteredCatalog, gender]);
   const selectedItems = useMemo(() => data?.catalog.filter((item) => selected.includes(item.id)) || [], [data, selected]);
   const total = useMemo(() => selectedItems.reduce((sum, item) => sum + Number(item.price), 0), [selectedItems]);
+  useEffect(() => { if (category !== "all" && !categories.includes(category)) setCategory("all"); }, [categories, category]);
   if (loading) return <main className="public-page"><Loader label="Открываем каталог…" /></main>;
   if (error || !data) return <main className="public-page"><section className="public-error"><div className="error-illustration">!</div><h1>Каталог недоступен</h1><p>{error || "Ссылка недействительна"}</p></section></main>;
 
@@ -74,7 +90,7 @@ export function PublicCatalogPage() {
   return <main className="public-page"><div className="public-shell public-catalog-shell">
     <header className="public-header"><div className="public-logo"><span className="brand-mark">VS</span><div><strong>{data.company_name || "Vakha Studio"}</strong><small>Каталог услуг</small></div></div><span className="step-indicator">Для заказа</span></header>
     <section className="public-content public-catalog-content"><span className="eyebrow">Vakha Studio · услуги</span><h1>Каталог</h1><p className="public-lead">Выберите подходящий формат съёмки</p>
-      {data.catalog.length > 0 && <><div className="catalog-gender-tabs" role="group" aria-label="Категория ребёнка"><button className={gender === "all" ? "active" : ""} onClick={() => setGender("all")}>Все</button><button className={gender === "boys" ? "active" : ""} onClick={() => setGender("boys")}>Мальчики</button><button className={gender === "girls" ? "active" : ""} onClick={() => setGender("girls")}>Девочки</button></div><div className="catalog-section-list">{mainSections.map(renderSection)}{genderSections.length > 0 && <div className="catalog-gender-columns">{genderSections.map((section) => <section className="catalog-section catalog-gender-column" key={section.id}><h2>{section.title}</h2><div className="public-catalog-grid">{section.items.map((item) => renderCard(item))}</div></section>)}</div>}</div></>}
+      {data.catalog.length > 0 && <><div className="catalog-filter-groups"><div className="catalog-gender-tabs" role="group" aria-label="Для кого услуга"><button type="button" aria-pressed={gender === "all"} className={gender === "all" ? "active" : ""} onClick={() => setGender("all")}>Все</button><button type="button" aria-pressed={gender === "boys"} className={gender === "boys" ? "active" : ""} onClick={() => setGender("boys")}>Мальчикам</button><button type="button" aria-pressed={gender === "girls"} className={gender === "girls" ? "active" : ""} onClick={() => setGender("girls")}>Девочкам</button></div><div className="catalog-category-tabs" role="group" aria-label="Категория услуги"><button type="button" aria-pressed={category === "all"} className={category === "all" ? "active" : ""} onClick={() => setCategory("all")}>Все категории</button>{categories.map((itemCategory) => <button type="button" aria-pressed={category === itemCategory} className={category === itemCategory ? "active" : ""} key={itemCategory} onClick={() => setCategory(itemCategory)}>{itemCategory}</button>)}</div></div><div className="catalog-section-list">{mainSections.map(renderSection)}{genderSections.length > 0 && <div className="catalog-gender-columns">{genderSections.map((section) => <section className="catalog-section catalog-gender-column" key={section.id}><h2>{section.title}</h2><div className="public-catalog-grid">{section.items.map((item) => renderCard(item))}</div></section>)}</div>}</div></>}
       {!data.catalog.length && <Notice kind="info">Каталог пока пуст.</Notice>}
     </section>
     {selected.length > 0 && <div className="order-dock catalog-order-dock"><div><span>Выбрано: {selected.length}</span><strong>Итого: {money(total)}</strong></div><button className="button button-primary" onClick={() => setCheckoutOpen(true)}><ShoppingBag size={18} />Оформить заказ</button></div>}
