@@ -10,6 +10,12 @@ import type { PublicCatalogPayload } from "../lib/types";
 
 type CatalogItem = PublicCatalogPayload["catalog"][number];
 
+function deliverySummary(item: CatalogItem) {
+  if (item.short_description?.trim()) return item.short_description.trim();
+  if (item.preview_video_url) return item.category === "Фото с видео" ? "Фотомонтаж · распечатка A4 · ламинация · видео · оживление" : "Фотомонтаж · ламинация · ИИ-видео · оживление";
+  return item.preview_url ? "Фотомонтаж · распечатка A4 · ламинация" : "Цифровой результат";
+}
+
 export function PublicCatalogPage() {
   const { token = "" } = useParams();
   const [data, setData] = useState<PublicCatalogPayload | null>(null);
@@ -40,7 +46,7 @@ export function PublicCatalogPage() {
         <div className="public-watermark">{watermark.image && <img src={watermark.image} alt="" style={{ opacity: watermark.opacity }} />}{watermark.text && <span style={{ opacity: watermark.opacity }}>{watermark.text}</span>}</div>
         {!related && <button className="public-catalog-add" type="button" aria-label={active ? `Убрать ${item.name} из заказа` : `Добавить ${item.name} в заказ`} onClick={(event) => { event.stopPropagation(); toggle(item.id); }}>{active ? <Check size={18} /> : <Plus size={19} />}</button>}
       </div>
-      <div className="public-catalog-copy"><strong title={item.name}>{item.name}</strong><b>{money(item.price)}</b></div>
+      <div className="public-catalog-copy"><div className="public-catalog-title"><strong title={item.name}>{item.name}</strong><b>{money(item.price)}</b></div><small>{deliverySummary(item)}</small></div>
     </article>;
   };
   const renderSection = (section: typeof sections[number]) => <section className="catalog-section" key={section.id}><h2>{section.title}</h2>{section.notice && <div className="catalog-video-notice"><Video size={20} /><span>{section.notice}</span></div>}{section.items.length > 0 && <div className="public-catalog-grid">{section.items.map((item) => renderCard(item))}</div>}{section.relatedItems?.length ? <><h3 className="catalog-related-title">{section.relatedTitle}</h3><div className="public-catalog-grid">{section.relatedItems.map((item) => renderCard(item, true))}</div></> : null}</section>;
@@ -57,7 +63,7 @@ export function PublicCatalogPage() {
       {!data.catalog.length && <Notice kind="info">Каталог пока пуст.</Notice>}
     </section>
     {selected.length > 0 && <div className="order-dock catalog-order-dock"><div><span>Выбрано: {selected.length}</span><strong>Итого: {money(total)}</strong></div><button className="button button-primary" onClick={() => setCheckoutOpen(true)}><ShoppingBag size={18} />Оформить заказ</button></div>}
-    {preview && <Modal title={preview.name} onClose={() => setPreview(null)}><section className="delivery-preview-copy"><h3>Что получат родители</h3><p>{preview.preview_url ? "Фотомонтаж · распечатка · ламинация" : "Цифровой результат"}{preview.preview_video_url ? " · QR-оживление · персональное видео" : ""}</p></section><DeliveryPreview imageUrl={preview.preview_url} videoUrl={preview.preview_video_url} title={preview.name} mode={preview.parent_preview_mode} /><div className="public-preview-actions"><strong>{money(preview.price)}</strong><button className="button button-primary" onClick={() => toggle(preview.id)}>{selected.includes(preview.id) ? <><Check size={18} />Добавлено</> : <><Plus size={18} />Добавить к заказу</>}</button></div></Modal>}
+    {preview && <Modal title={preview.name} onClose={() => setPreview(null)}><section className="delivery-preview-copy"><h3>Что получат родители</h3><p>{deliverySummary(preview)}</p></section><DeliveryPreview imageUrl={preview.preview_url} videoUrl={preview.preview_video_url} title={preview.name} mode={preview.parent_preview_mode} /><div className="public-preview-actions"><strong>{money(preview.price)}</strong><button className="button button-primary" onClick={() => toggle(preview.id)}>{selected.includes(preview.id) ? <><Check size={18} />Добавлено</> : <><Plus size={18} />Добавить к заказу</>}</button></div></Modal>}
     {checkoutOpen && <Modal title="Оформить заказ" onClose={() => setCheckoutOpen(false)}><div className="catalog-checkout"><p>Вы отправите менеджеру список выбранных услуг и итоговую сумму.</p><div className="catalog-checkout-items">{selectedItems.map((item) => <div key={item.id}><span>{item.name}</span><strong>{money(item.price)}</strong></div>)}</div><div className="catalog-checkout-total"><span>Итого</span><strong>{money(total)}</strong></div>{whatsappUrl ? <a className="button button-primary button-wide" href={whatsappUrl} target="_blank" rel="noreferrer"><ShoppingBag size={18} />Перейти в WhatsApp</a> : <Notice kind="info">Менеджер ещё не подключил WhatsApp для приёма заказов.</Notice>}</div></Modal>}
   </div></main>;
 }
