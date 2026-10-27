@@ -20,6 +20,11 @@ export function DeliveryPreview({ imageUrl = "", videoUrl = "", title, mode = "a
     const video = videoRef.current;
     if (!video) return;
     setVideoError(false);
+    // Preview loops on catalog cards are muted by browser policy. A parent
+    // explicitly pressing this control expects the full, audible result.
+    video.muted = false;
+    video.defaultMuted = false;
+    video.volume = 1;
     try {
       await video.play();
     } catch {
