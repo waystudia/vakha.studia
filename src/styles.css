@@ -40,12 +40,12 @@
 .catalog-select{top:.45rem;right:.45rem;width:44px;height:44px}
 
 /* Universal A4 print + phone mockup: a real video is played inside the phone over the printed photograph. */
-.delivery-preview-stage{min-height:340px;padding:28px;perspective:1000px;background:linear-gradient(145deg,#edf2f8,#dfe8f3)}
-.delivery-paper{width:min(67%,330px);overflow:visible;padding:0;border:0;border-radius:2px;background:#fff;box-shadow:0 19px 30px rgba(13,25,43,.25);transform:rotateX(3deg) rotateY(-4deg) rotateZ(-2deg);transform-style:preserve-3d}
+.delivery-preview-stage{min-height:340px;padding:28px;background:linear-gradient(145deg,#edf2f8,#dfe8f3)}
+.delivery-paper{width:min(67%,330px);overflow:visible;padding:0;border:0;border-radius:2px;background:#fff;box-shadow:0 19px 30px rgba(13,25,43,.25);transform:none}
 .delivery-paper::after{inset:0;z-index:4;border-radius:2px;background:linear-gradient(118deg,rgba(255,255,255,.5) 0%,rgba(255,255,255,.12) 22%,transparent 43%,rgba(255,255,255,.26) 72%,rgba(255,255,255,.06) 100%)}
 .delivery-paper img{display:block;border-radius:2px;background:#fff}
 .delivery-lamination{top:10px;left:10px}
-.delivery-photo-phone{position:absolute;z-index:5;right:-13%;bottom:4%;display:grid;gap:5px;width:43%;margin:0;color:#fff;text-align:center;transform:rotateY(-15deg) rotateZ(7deg);transform-origin:center bottom;transform-style:preserve-3d}
+.delivery-photo-phone{position:absolute;z-index:5;right:-2%;bottom:4%;display:grid;gap:5px;width:39%;margin:0;color:#fff;text-align:center;transform:none}
 .delivery-photo-phone .delivery-phone-screen{width:100%;aspect-ratio:9/18.6;overflow:hidden;padding:7px 4px 6px;border:4px solid #101217;border-radius:25px;background:#101217;box-shadow:0 17px 24px rgba(10,15,26,.48),inset 0 0 0 1px rgba(255,255,255,.1)}
 .delivery-photo-phone .delivery-phone-screen::before{top:5px;height:11px}
 .delivery-photo-phone .delivery-phone-screen video{width:100%;height:100%;border-radius:17px;background:#111827;object-fit:cover}
@@ -55,4 +55,4 @@
 .delivery-phone-play svg{position:relative;z-index:1}
 .delivery-photo-phone.is-playing .delivery-phone-play{opacity:0;pointer-events:none}
 .delivery-preview-stage.has-phone-overlay .delivery-phone.overlay{display:none}
-@media(max-width:640px){.delivery-preview-stage{min-height:330px;padding:22px}.delivery-paper{width:min(70%,300px)}.delivery-paper::after{inset:0}.delivery-lamination{top:10px;left:10px}.delivery-photo-phone{right:-10%;bottom:4%;width:42%}}
+@media(max-width:640px){.delivery-preview-stage{min-height:330px;padding:22px}.delivery-paper{width:min(70%,300px)}.delivery-paper::after{inset:0}.delivery-lamination{top:10px;left:10px}.delivery-photo-phone{right:-2%;bottom:4%;width:39%}}
