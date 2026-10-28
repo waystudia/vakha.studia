@@ -37,3 +37,4 @@
 .catalog-delivery i:nth-child(4){background:#f1eaff;color:#6c44a5}
 .catalog-delivery i:nth-child(5){background:#ffe9ee;color:#a63c54}
 @media(max-width:640px){.catalog-grid{gap:.75rem}.catalog-card{grid-template-rows:minmax(0,1fr) 110px}.catalog-body{padding:.55rem .6rem}.catalog-title h2,.catalog-title strong{font-size:.9rem}.catalog-delivery>span{font-size:.62rem}.catalog-delivery i{font-size:.54rem}}
+.catalog-select{top:.45rem;right:.45rem;width:44px;height:44px}
