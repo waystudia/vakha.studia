@@ -39,18 +39,20 @@
 @media(max-width:640px){.catalog-grid{gap:.75rem}.catalog-card{grid-template-rows:minmax(0,1fr) 110px}.catalog-body{padding:.55rem .6rem}.catalog-title h2,.catalog-title strong{font-size:.9rem}.catalog-delivery>span{font-size:.62rem}.catalog-delivery i{font-size:.54rem}}
 .catalog-select{top:.45rem;right:.45rem;width:44px;height:44px}
 
-/* Shared printed-photo mockup: the video lives inside the photo instead of floating outside it. */
-.delivery-preview-stage{min-height:320px;padding:20px;background:linear-gradient(145deg,#edf2f8,#dfe8f3)}
-.delivery-paper{width:min(70%,330px);overflow:hidden;transform:rotate(-1deg)}
-.delivery-paper::after{z-index:4}
-.delivery-photo-phone{position:absolute;z-index:5;right:6%;bottom:7%;display:grid;gap:4px;width:36%;margin:0;color:#fff;text-align:center}
-.delivery-photo-phone .delivery-phone-screen{width:100%;aspect-ratio:9/18.6;overflow:hidden;padding:7px 4px 6px;border:3px solid #111827;border-radius:24px;background:#111827;box-shadow:0 12px 20px rgba(13,15,25,.35)}
+/* Universal A4 print + phone mockup: a real video is played inside the phone over the printed photograph. */
+.delivery-preview-stage{min-height:340px;padding:28px;background:linear-gradient(145deg,#edf2f8,#dfe8f3)}
+.delivery-paper{width:min(67%,330px);overflow:visible;padding:11px;border:2px solid #050505;background:#17191d;box-shadow:0 19px 30px rgba(13,25,43,.34),inset 0 0 0 1px rgba(255,255,255,.14);transform:rotate(-1.5deg)}
+.delivery-paper::after{inset:11px;z-index:4}
+.delivery-paper img{display:block;background:#fff}
+.delivery-lamination{top:21px;left:21px}
+.delivery-photo-phone{position:absolute;z-index:5;right:-13%;bottom:4%;display:grid;gap:5px;width:43%;margin:0;color:#fff;text-align:center;transform:rotate(5deg);transform-origin:center bottom}
+.delivery-photo-phone .delivery-phone-screen{width:100%;aspect-ratio:9/18.6;overflow:hidden;padding:7px 4px 6px;border:4px solid #101217;border-radius:25px;background:#101217;box-shadow:0 17px 24px rgba(10,15,26,.48),inset 0 0 0 1px rgba(255,255,255,.1)}
 .delivery-photo-phone .delivery-phone-screen::before{top:5px;height:11px}
 .delivery-photo-phone .delivery-phone-screen video{width:100%;height:100%;border-radius:17px;background:#111827;object-fit:cover}
-.delivery-photo-phone>span{justify-self:center;padding:3px 6px;border-radius:999px;background:rgba(17,24,39,.84);font-size:.56rem;font-weight:800;line-height:1.1;white-space:nowrap}
+.delivery-photo-phone>span{justify-self:center;padding:3px 7px;border-radius:999px;background:rgba(17,24,39,.88);font-size:.58rem;font-weight:800;line-height:1.1;white-space:nowrap}
 .delivery-phone-play{position:absolute;inset:0;border:0;border-radius:17px;display:grid;place-items:center;background:linear-gradient(180deg,rgba(15,23,42,.06),rgba(15,23,42,.42));color:#fff;transition:opacity .16s ease}
 .delivery-phone-play::before{position:absolute;width:34px;height:34px;border-radius:50%;background:rgba(15,23,42,.76);content:""}
 .delivery-phone-play svg{position:relative;z-index:1}
 .delivery-photo-phone.is-playing .delivery-phone-play{opacity:0;pointer-events:none}
 .delivery-preview-stage.has-phone-overlay .delivery-phone.overlay{display:none}
-@media(max-width:640px){.delivery-preview-stage{min-height:300px;padding:16px}.delivery-paper{width:min(74%,300px)}.delivery-photo-phone{right:5%;bottom:6%;width:37%}}
+@media(max-width:640px){.delivery-preview-stage{min-height:330px;padding:22px}.delivery-paper{width:min(70%,300px);padding:9px}.delivery-paper::after{inset:9px}.delivery-lamination{top:17px;left:17px}.delivery-photo-phone{right:-10%;bottom:4%;width:42%}}
