@@ -1,4 +1,4 @@
-import { Play, RotateCcw } from "lucide-react";
+import { Pause, Play, RotateCcw } from "lucide-react";
 import { useRef, useState } from "react";
 import { catalogMediaUrl } from "../lib/mediaUrl";
 
@@ -12,6 +12,7 @@ export function DeliveryPreview({ imageUrl = "", videoUrl = "", title, mode = "a
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoError, setVideoError] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const showPrint = mode !== "digital" && Boolean(imageUrl);
   const showPhone = mode !== "print" && Boolean(videoUrl || (!showPrint && imageUrl));
   if (!showPrint && !showPhone) return null;
@@ -37,23 +38,29 @@ export function DeliveryPreview({ imageUrl = "", videoUrl = "", title, mode = "a
     video.load();
     void startVideo();
   };
+  const toggleVideo = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) void startVideo();
+    else video.pause();
+  };
 
   return <section className="delivery-preview" aria-label={`Итог услуги: ${title}`}>
     <div className={`delivery-preview-stage ${showPrint && showPhone ? "has-phone-overlay" : ""}`}>
-      {showPrint && <figure className="delivery-paper"><img src={imageUrl} alt={`Распечатанное фото A4: ${title}`} /><figcaption className="delivery-lamination">Ламинация · защита</figcaption></figure>}
-      {showPhone && <figure className={`delivery-phone ${showPrint ? "overlay" : "standalone"}`}>
+      {showPrint && <figure className="delivery-paper"><img src={imageUrl} alt={`Распечатанное фото A4: ${title}`} /><figcaption className="delivery-lamination">Ламинация · защита</figcaption>{phoneHasVideo && <div className={`delivery-photo-phone ${isPlaying ? "is-playing" : ""}`}><div className="delivery-phone-screen"><video ref={videoRef} playsInline preload="metadata" poster={imageUrl || undefined} src={catalogMediaUrl(videoUrl)} aria-label={`Видео оживляет фото услуги ${title}`} onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} onEnded={() => setIsPlaying(false)} onError={() => { setVideoError(true); setIsPlaying(false); }} /><button type="button" className="delivery-phone-play" aria-label={`Запустить видео услуги ${title}`} onClick={() => void startVideo()}><Play size={18} fill="currentColor" /></button></div><span>Видео на фото</span></div>}</figure>}
+      {showPhone && !showPrint && <figure className="delivery-phone standalone">
         <div className="delivery-phone-screen">
           {phoneHasVideo
-            ? <video ref={videoRef} controls playsInline preload="metadata" poster={imageUrl || undefined} src={catalogMediaUrl(videoUrl)} aria-label={`Видео услуги ${title}`} onError={() => setVideoError(true)} />
+            ? <video ref={videoRef} controls playsInline preload="metadata" poster={imageUrl || undefined} src={catalogMediaUrl(videoUrl)} aria-label={`Видео услуги ${title}`} onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} onEnded={() => setIsPlaying(false)} onError={() => { setVideoError(true); setIsPlaying(false); }} />
             : <img src={imageUrl} alt={`Цифровое фото: ${title}`} />}
         </div>
         <figcaption>{phoneHasVideo ? "Видео открывается на телефоне" : "Цифровое фото"}</figcaption>
       </figure>}
     </div>
     {phoneHasVideo && <div className="delivery-video-actions">
-      <button className="button button-secondary" type="button" onClick={videoError ? retryVideo : () => void startVideo()}>
-        {videoError ? <RotateCcw size={17} /> : <Play size={17} fill="currentColor" />}
-        {videoError ? "Повторить видео" : "Посмотреть видео"}
+      <button className="button button-secondary" type="button" onClick={videoError ? retryVideo : toggleVideo}>
+        {videoError ? <RotateCcw size={17} /> : isPlaying ? <Pause size={17} fill="currentColor" /> : <Play size={17} fill="currentColor" />}
+        {videoError ? "Повторить видео" : isPlaying ? "Поставить на паузу" : "Посмотреть видео"}
       </button>
       {videoError && <p role="alert">Видео не загрузилось. Нажмите «Повторить видео» или обновите страницу.</p>}
     </div>}

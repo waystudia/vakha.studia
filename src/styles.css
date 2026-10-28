@@ -38,3 +38,19 @@
 .catalog-delivery i:nth-child(5){background:#ffe9ee;color:#a63c54}
 @media(max-width:640px){.catalog-grid{gap:.75rem}.catalog-card{grid-template-rows:minmax(0,1fr) 110px}.catalog-body{padding:.55rem .6rem}.catalog-title h2,.catalog-title strong{font-size:.9rem}.catalog-delivery>span{font-size:.62rem}.catalog-delivery i{font-size:.54rem}}
 .catalog-select{top:.45rem;right:.45rem;width:44px;height:44px}
+
+/* Shared printed-photo mockup: the video lives inside the photo instead of floating outside it. */
+.delivery-preview-stage{min-height:320px;padding:20px;background:linear-gradient(145deg,#edf2f8,#dfe8f3)}
+.delivery-paper{width:min(70%,330px);overflow:hidden;transform:rotate(-1deg)}
+.delivery-paper::after{z-index:4}
+.delivery-photo-phone{position:absolute;z-index:5;right:6%;bottom:7%;display:grid;gap:4px;width:36%;margin:0;color:#fff;text-align:center}
+.delivery-photo-phone .delivery-phone-screen{width:100%;aspect-ratio:9/18.6;overflow:hidden;padding:7px 4px 6px;border:3px solid #111827;border-radius:24px;background:#111827;box-shadow:0 12px 20px rgba(13,15,25,.35)}
+.delivery-photo-phone .delivery-phone-screen::before{top:5px;height:11px}
+.delivery-photo-phone .delivery-phone-screen video{width:100%;height:100%;border-radius:17px;background:#111827;object-fit:cover}
+.delivery-photo-phone>span{justify-self:center;padding:3px 6px;border-radius:999px;background:rgba(17,24,39,.84);font-size:.56rem;font-weight:800;line-height:1.1;white-space:nowrap}
+.delivery-phone-play{position:absolute;inset:0;border:0;border-radius:17px;display:grid;place-items:center;background:linear-gradient(180deg,rgba(15,23,42,.06),rgba(15,23,42,.42));color:#fff;transition:opacity .16s ease}
+.delivery-phone-play::before{position:absolute;width:34px;height:34px;border-radius:50%;background:rgba(15,23,42,.76);content:""}
+.delivery-phone-play svg{position:relative;z-index:1}
+.delivery-photo-phone.is-playing .delivery-phone-play{opacity:0;pointer-events:none}
+.delivery-preview-stage.has-phone-overlay .delivery-phone.overlay{display:none}
+@media(max-width:640px){.delivery-preview-stage{min-height:300px;padding:16px}.delivery-paper{width:min(74%,300px)}.delivery-photo-phone{right:5%;bottom:6%;width:37%}}
