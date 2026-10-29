@@ -5,7 +5,6 @@ import { DeliveryPreview } from "../components/DeliveryPreview";
 import { Loader, Modal, Notice } from "../components/ui";
 import { buildCatalogSections, type CatalogGender } from "../lib/catalogSections";
 import { humanError, money } from "../lib/helpers";
-import { catalogMediaUrl } from "../lib/mediaUrl";
 import { getPublicCatalog } from "../lib/repository";
 import type { PublicCatalogPayload } from "../lib/types";
 
@@ -77,8 +76,7 @@ export function PublicCatalogPage() {
     const active = selected.includes(item.id);
     return <article className={`public-catalog-card ${active ? "selected" : ""} ${related ? "catalog-related-card" : ""}`} key={item.id} onClick={() => setPreview(item)}>
       <div className="public-catalog-image">
-        {item.preview_url ? <img src={item.preview_url} alt="" /> : <ImageIcon size={40} />}
-        {item.preview_video_url && <span className="public-catalog-video-phone" aria-label={`Видео-превью услуги ${item.name}`}><video muted playsInline autoPlay loop preload="metadata" poster={item.preview_url || undefined} src={catalogMediaUrl(item.preview_video_url)} /></span>}
+        {item.preview_url ? <img src={item.preview_url} alt="" loading="lazy" decoding="async" /> : <ImageIcon size={40} />}
         <div className="public-watermark">{watermark.image && <img src={watermark.image} alt="" style={{ opacity: watermark.opacity }} />}{watermark.text && <span style={{ opacity: watermark.opacity }}>{watermark.text}</span>}</div>
         {!related && <button className="public-catalog-add" type="button" aria-label={active ? `Убрать ${item.name} из заказа` : `Добавить ${item.name} в заказ`} onClick={(event) => { event.stopPropagation(); toggle(item.id); }}>{active ? <Check size={18} /> : <Plus size={19} />}</button>}
       </div>
