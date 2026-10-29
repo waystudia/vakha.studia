@@ -1,4 +1,4 @@
-import { Check, Image as ImageIcon, Plus, ShoppingBag, Video } from "lucide-react";
+import { Check, Image as ImageIcon, Plus, ShoppingBag, Sparkles, Video } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { DeliveryPreview } from "../components/DeliveryPreview";
@@ -43,6 +43,11 @@ function DeliveryFeatures({ item }: { item: CatalogItem }) {
   return <div className="delivery-feature-list" aria-label="Что получат родители">{deliveryFeatures(item).map((feature) => <span className={`delivery-feature delivery-feature-${feature.tone}`} key={feature.label}>{feature.label}</span>)}</div>;
 }
 
+function AiVideoOption({ item }: { item: CatalogItem }) {
+  if (item.preview_video_url || !item.preview_url || item.category !== "Детские образы") return null;
+  return <div className="public-catalog-ai-option"><Sparkles size={14} aria-hidden="true" /><span><strong>Можно оживить фото</strong><br />Нейросетевое видео</span></div>;
+}
+
 export function PublicCatalogPage() {
   const { token = "" } = useParams();
   const [data, setData] = useState<PublicCatalogPayload | null>(null);
@@ -77,7 +82,7 @@ export function PublicCatalogPage() {
         <div className="public-watermark">{watermark.image && <img src={watermark.image} alt="" style={{ opacity: watermark.opacity }} />}{watermark.text && <span style={{ opacity: watermark.opacity }}>{watermark.text}</span>}</div>
         {!related && <button className="public-catalog-add" type="button" aria-label={active ? `Убрать ${item.name} из заказа` : `Добавить ${item.name} в заказ`} onClick={(event) => { event.stopPropagation(); toggle(item.id); }}>{active ? <Check size={18} /> : <Plus size={19} />}</button>}
       </div>
-      <div className="public-catalog-copy"><div className="public-catalog-title"><strong title={item.name}>{item.name}</strong><b>{money(item.price)}</b></div><DeliveryFeatures item={item} /></div>
+      <div className="public-catalog-copy"><div className="public-catalog-title"><strong title={item.name}>{item.name}</strong><b>{money(item.price)}</b></div><DeliveryFeatures item={item} /><AiVideoOption item={item} /></div>
     </article>;
   };
   const renderSection = (section: typeof sections[number]) => <section className="catalog-section" key={section.id}><h2>{section.title}</h2>{section.notice && <div className="catalog-video-notice"><Video size={20} /><span>{section.notice}</span></div>}{section.items.length > 0 && <div className="public-catalog-grid">{section.items.map((item) => renderCard(item))}</div>}{section.relatedItems?.length ? <><h3 className="catalog-related-title">{section.relatedTitle}</h3><div className="public-catalog-grid">{section.relatedItems.map((item) => renderCard(item, true))}</div></> : null}</section>;

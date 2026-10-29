@@ -56,3 +56,11 @@
 .delivery-photo-phone.is-playing .delivery-phone-play{opacity:0;pointer-events:none}
 .delivery-preview-stage.has-phone-overlay .delivery-phone.overlay{display:none}
 @media(max-width:640px){.delivery-preview-stage{min-height:330px;padding:22px}.delivery-paper{width:min(70%,300px)}.delivery-paper::after{inset:0}.delivery-lamination{top:10px;left:10px}.delivery-photo-phone{right:-2%;bottom:4%;width:39%}}
+
+/* Keep the parallel boys/girls columns aligned and advertise the optional AI-video upgrade. */
+.catalog-gender-column h2{min-height:2.3em}
+.public-catalog-ai-option{align-self:end;display:flex;align-items:center;gap:.28rem;min-width:0;color:#7047a7;font-size:.58rem;line-height:1.2}
+.public-catalog-ai-option svg{flex:0 0 auto;color:#9a63d3}
+.public-catalog-ai-option span{min-width:0}
+.public-catalog-ai-option strong{display:inline;font:inherit;font-weight:800;color:#7047a7}
+@media(max-width:640px){.public-catalog-ai-option{font-size:.56rem}}
