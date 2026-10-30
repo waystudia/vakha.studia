@@ -1,10 +1,11 @@
-import { Check, Image as ImageIcon, Plus, ShoppingBag, Sparkles, Video } from "lucide-react";
+import { Check, Image as ImageIcon, Play, Plus, ShoppingBag, Sparkles, Video } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { DeliveryPreview } from "../components/DeliveryPreview";
 import { Loader, Modal, Notice } from "../components/ui";
 import { buildCatalogSections, type CatalogGender } from "../lib/catalogSections";
 import { humanError, money } from "../lib/helpers";
+import { catalogMediaUrl } from "../lib/mediaUrl";
 import { getPublicCatalog } from "../lib/repository";
 import type { PublicCatalogPayload } from "../lib/types";
 
@@ -47,6 +48,23 @@ function AiVideoOption({ item }: { item: CatalogItem }) {
   return <div className="public-catalog-ai-option"><Sparkles size={14} aria-hidden="true" /><span><strong>Можно оживить фото</strong><br />Нейросетевое видео</span></div>;
 }
 
+function CatalogVideoPhone({ item }: { item: CatalogItem }) {
+  const [playing, setPlaying] = useState(false);
+  if (!item.preview_url || !item.preview_video_url) return null;
+
+  return <button
+    type="button"
+    className={`public-catalog-video-phone ${playing ? "is-playing" : ""}`}
+    aria-label={`${playing ? "Видео запущено" : "Запустить видео"} услуги ${item.name}`}
+    onClick={(event) => { event.stopPropagation(); setPlaying(true); }}
+  >
+    {playing
+      ? <video autoPlay playsInline preload="auto" poster={item.preview_url} src={catalogMediaUrl(item.preview_video_url)} onEnded={() => setPlaying(false)} onError={() => setPlaying(false)} />
+      : <img src={item.preview_url} alt="" loading="lazy" decoding="async" />}
+    {!playing && <span className="public-catalog-video-play"><Play size={12} fill="currentColor" /></span>}
+  </button>;
+}
+
 export function PublicCatalogPage() {
   const { token = "" } = useParams();
   const [data, setData] = useState<PublicCatalogPayload | null>(null);
@@ -77,6 +95,7 @@ export function PublicCatalogPage() {
     return <article className={`public-catalog-card ${active ? "selected" : ""} ${related ? "catalog-related-card" : ""}`} key={item.id} onClick={() => setPreview(item)}>
       <div className="public-catalog-image">
         {item.preview_url ? <img src={item.preview_url} alt="" loading="lazy" decoding="async" /> : <ImageIcon size={40} />}
+        <CatalogVideoPhone item={item} />
         <div className="public-watermark">{watermark.image && <img src={watermark.image} alt="" style={{ opacity: watermark.opacity }} />}{watermark.text && <span style={{ opacity: watermark.opacity }}>{watermark.text}</span>}</div>
         {!related && <button className="public-catalog-add" type="button" aria-label={active ? `Убрать ${item.name} из заказа` : `Добавить ${item.name} в заказ`} onClick={(event) => { event.stopPropagation(); toggle(item.id); }}>{active ? <Check size={18} /> : <Plus size={19} />}</button>}
       </div>

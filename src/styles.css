@@ -45,7 +45,7 @@
 .delivery-paper::after{inset:0;z-index:4;border-radius:2px;background:linear-gradient(118deg,rgba(255,255,255,.5) 0%,rgba(255,255,255,.12) 22%,transparent 43%,rgba(255,255,255,.26) 72%,rgba(255,255,255,.06) 100%)}
 .delivery-paper img{display:block;border-radius:2px;background:#fff}
 .delivery-lamination{top:10px;left:10px}
-.delivery-photo-phone{position:absolute;z-index:5;right:-2%;bottom:4%;display:grid;gap:5px;width:39%;margin:0;color:#fff;text-align:center;transform:none}
+.delivery-photo-phone{position:absolute;z-index:5;right:0;bottom:4%;display:grid;gap:5px;width:32%;margin:0;color:#fff;text-align:center;transform:rotate(4deg);transform-origin:80% 90%}
 .delivery-photo-phone .delivery-phone-screen{width:100%;aspect-ratio:9/18.6;overflow:hidden;padding:7px 4px 6px;border:4px solid #101217;border-radius:25px;background:#101217;box-shadow:0 17px 24px rgba(10,15,26,.48),inset 0 0 0 1px rgba(255,255,255,.1)}
 .delivery-photo-phone .delivery-phone-screen::before{top:5px;height:11px}
 .delivery-photo-phone .delivery-phone-screen video{width:100%;height:100%;border-radius:17px;background:#111827;object-fit:cover}
@@ -55,7 +55,15 @@
 .delivery-phone-play svg{position:relative;z-index:1}
 .delivery-photo-phone.is-playing .delivery-phone-play{opacity:0;pointer-events:none}
 .delivery-preview-stage.has-phone-overlay .delivery-phone.overlay{display:none}
-@media(max-width:640px){.delivery-preview-stage{min-height:330px;padding:22px}.delivery-paper{width:min(70%,300px)}.delivery-paper::after{inset:0}.delivery-lamination{top:10px;left:10px}.delivery-photo-phone{right:-2%;bottom:4%;width:39%}}
+@media(max-width:640px){.delivery-preview-stage{min-height:330px;padding:18px}.delivery-paper{width:min(84%,300px)}.delivery-paper::after{inset:0}.delivery-lamination{top:10px;left:10px}.delivery-photo-phone{right:0;bottom:4%;width:31%;transform:rotate(5deg)}}
+
+/* Video previews stay lightweight: the real file is mounted only after a tap. */
+.public-catalog-video-phone{position:absolute;z-index:2;right:.45rem;bottom:.45rem;width:32%;min-width:44px;max-width:58px;aspect-ratio:9/18.6;overflow:hidden;padding:3px;border:2px solid #101217;border-radius:13px;background:#101217;color:#fff;box-shadow:0 5px 13px rgba(10,15,26,.38);transform:rotate(4deg);transform-origin:80% 90%;touch-action:manipulation}
+.public-catalog-video-phone>img,.public-catalog-video-phone>video{display:block;width:100%;height:100%;border-radius:9px;object-fit:cover}
+.public-catalog-video-play{position:absolute;inset:0;display:grid;place-items:center;background:linear-gradient(180deg,rgba(15,23,42,.04),rgba(15,23,42,.34))}
+.public-catalog-video-play::before{position:absolute;width:26px;height:26px;border-radius:50%;background:rgba(15,23,42,.76);content:""}
+.public-catalog-video-play svg{position:relative;z-index:1}
+.public-catalog-video-phone.is-playing{transform:rotate(2deg)}
 
 /* Keep the parallel boys/girls columns aligned and advertise the optional AI-video upgrade. */
 .catalog-gender-column h2{min-height:2.3em}
