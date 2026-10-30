@@ -65,6 +65,9 @@
 .public-catalog-video-play svg{position:relative;z-index:1}
 .public-catalog-video-phone.is-playing{transform:rotate(2deg)}
 
+/* Keep the audience filter on one line even on 320px-wide phones. */
+@media(max-width:420px){.public-catalog-content .catalog-gender-tabs{display:grid;grid-template-columns:.65fr 1.2fr 1.1fr;gap:.35rem;width:100%}.public-catalog-content .catalog-gender-tabs button{min-width:0;padding:.45rem .2rem;font-size:.78rem}}
+
 /* Keep the parallel boys/girls columns aligned and advertise the optional AI-video upgrade. */
 .catalog-gender-column h2{min-height:2.3em}
 .public-catalog-ai-option{align-self:end;display:flex;align-items:center;gap:.28rem;min-width:0;color:#7047a7;font-size:.58rem;line-height:1.2}
