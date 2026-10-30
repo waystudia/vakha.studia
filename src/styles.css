@@ -65,8 +65,8 @@
 .public-catalog-video-play svg{position:relative;z-index:1}
 .public-catalog-video-phone.is-playing{transform:rotate(2deg)}
 
-/* Keep the audience filter on one line even on 320px-wide phones. */
-@media(max-width:420px){.public-catalog-content .catalog-gender-tabs{display:grid;grid-template-columns:.65fr 1.2fr 1.1fr;gap:.35rem;width:100%}.public-catalog-content .catalog-gender-tabs button{min-width:0;padding:.45rem .2rem;font-size:.78rem}}
+/* Keep all catalog filters in one compact panel on narrow phones. */
+@media(max-width:420px){.public-catalog-content .catalog-filter-groups{gap:.5rem;margin:.65rem 0 .85rem;padding:.55rem;border:1px solid #e1e8f2;border-radius:16px;background:#f8fafd}.public-catalog-content .catalog-gender-tabs{display:grid;grid-template-columns:.65fr 1.2fr 1.1fr;gap:.5rem;width:100%}.public-catalog-content .catalog-category-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem;width:100%}.public-catalog-content .catalog-gender-tabs button,.public-catalog-content .catalog-category-tabs button{min-width:0;min-height:44px;padding:.35rem .15rem;font-size:.72rem}.public-catalog-content .catalog-category-tabs button{width:100%}}
 
 /* Keep the parallel boys/girls columns aligned and advertise the optional AI-video upgrade. */
 .catalog-gender-column h2{min-height:2.3em}
