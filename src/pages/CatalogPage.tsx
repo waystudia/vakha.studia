@@ -34,7 +34,7 @@ export function CatalogPage({ userId }: { userId: string }) {
     if (!file) return; setPending(true); setError(""); setSuccess("");
     try {
       setProgress("Читаем архив…"); const parsed = await parseCrmCatalogZip(file); const before = replaceImport ? await loadCatalog() : [];
-      const count = await importCatalogItems(userId, parsed, (done, total) => setProgress(`Импорт ${done} из ${total}`));
+      const count = await importCatalogItems(userId, parsed, (done, total) => setProgress(`Сжатие и импорт ${Math.min(done + 1, total)} из ${total}. Держите вкладку открытой — обработка видео может занять время.`));
       if (replaceImport) { const keep = new Set(parsed.map((item) => item.sourceId)); await deleteCatalogItems(before.filter((item) => !keep.has(item.source_id)).map((item) => item.id)); }
       setSuccess(replaceImport ? `Каталог заменён: ${count} услуг` : `Импортировано услуг: ${count}`); setProgress(""); await refresh();
     } catch (reason) { setError(humanError(reason)); setProgress(""); } finally { setPending(false); setReplaceImport(false); if (input.current) input.current.value = ""; }

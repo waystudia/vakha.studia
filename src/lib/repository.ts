@@ -1,5 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
+import { optimizeCatalogImage, optimizeCatalogVideo } from "./optimizeCatalogMedia";
 import type {
   CatalogItem,
   CatalogZipItem,
@@ -266,19 +267,22 @@ export async function loadCatalog(): Promise<CatalogItem[]> {
 
 function extensionForBlob(blob: Blob, fallbackPath: string) {
   const fromPath = fallbackPath.split(".").pop()?.replace(/[^a-z0-9]/gi, "").toLowerCase();
-  if (fromPath) return fromPath;
   if (blob.type === "image/png") return "png";
   if (blob.type === "image/webp") return "webp";
   if (blob.type === "video/mp4") return "mp4";
+  if (fromPath) return fromPath;
   return "jpg";
 }
 
 async function uploadCatalogAsset(userId: string, sourceId: string, kind: string, blob: Blob | undefined, originalPath: string) {
   if (!blob) return "";
   const safeSource = sourceId.replace(/[^a-z0-9_-]/gi, "-").slice(0, 80);
-  const path = `${userId}/${safeSource}/${kind}.${extensionForBlob(blob, originalPath)}`;
+  const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
+  const version = Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, 20);
+  const path = `${userId}/${safeSource}/${kind}-${version}.${extensionForBlob(blob, originalPath)}`;
   const { error } = await supabase.storage.from("catalog-previews").upload(path, blob, {
     contentType: blob.type,
+    cacheControl: "31536000",
     upsert: true,
   });
   fail(error);
@@ -289,12 +293,13 @@ export async function importCatalogItems(userId: string, items: CatalogZipItem[]
   const existing = await loadCatalog();
   const existingBySource = new Map(existing.map((item) => [item.source_id, item]));
   for (const [index, item] of items.entries()) {
+    onProgress?.(index, items.length);
     const previous = existingBySource.get(item.sourceId);
     const previewUrl = item.previewImage
-      ? await uploadCatalogAsset(userId, item.sourceId, "preview", item.previewImage, item.previewImagePath)
+      ? await uploadCatalogAsset(userId, item.sourceId, "preview", await optimizeCatalogImage(item.previewImage), item.previewImagePath)
       : previous?.preview_url || "";
     const previewVideoUrl = item.previewVideo
-      ? await uploadCatalogAsset(userId, item.sourceId, "preview-video", item.previewVideo, item.previewVideoPath)
+      ? await uploadCatalogAsset(userId, item.sourceId, "preview-video", await optimizeCatalogVideo(item.previewVideo), item.previewVideoPath)
       : previous?.preview_video_url || "";
     const payload = {
       owner_id: userId,
