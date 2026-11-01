@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Loader } from "../components/ui";
 import { humanError, money } from "../lib/helpers";
-import { getPublicOrder } from "../lib/repository";
+import { getPublicOrder } from "../lib/publicRepository";
 import type { PublicOrderPayload } from "../lib/types";
 
 export function PublicOrderDetailsPage() {

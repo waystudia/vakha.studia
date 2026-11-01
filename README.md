@@ -41,3 +41,14 @@ supabase db query --linked --file supabase/tests/mvp_integration.sql
 ## Формат ZIP-каталога
 
 Поддержан фактический экспорт CRM Photo: `catalog.json`, `assets/images/*` и `assets/videos/*`. Повторный импорт обновляет услуги по исходному ID без создания дублей.
+
+### CRM deployment (zakaz.khanzama.ru)
+
+`VITE_CRM_MODE=true npm run build` retains the existing parent-order design and
+uses the same-origin CRM public API, without loading the Supabase app. Deploy
+`dist/` to `/srv/vakha-studia/releases/<release>` and atomically set `current`.
+Caddy serves SPA routes and proxies only `/api/v1/public/*` to the CRM API.
+Schools, children, services and previews are managed in CRM; no second catalog
+is imported into this deployment. The default build and legacy Supabase remain
+unchanged. The root page asks parents to use a class link; it lists no children.
+Old source: `/Users/abdulkadyrov2002/Documents/vakha-studia-preserved-20261101/source-before-crm.tar`.
