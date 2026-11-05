@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 
 export default defineConfig({
+  define: { "import.meta.env.VITE_PARENT_INTRO_VERSION": JSON.stringify(createHash("sha256").update(readFileSync("public/media/khan-zama-intro.mp4")).digest("hex").slice(0, 16)) },
   base: process.env.VITE_BASE_PATH || "/",
   plugins: [react(), {
     name: "offline-catalog-shell",
