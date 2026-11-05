@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+vi.mock('./repository', () => ({loadCatalog: vi.fn(), loadClass: vi.fn(), loadSchool: vi.fn()}));
 import { studentRecord, orderRecord } from './crmTransfer';
 import type { Child, ParentOrder } from './types';
 describe('CRM order transfer', () => {
