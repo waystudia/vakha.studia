@@ -1,5 +1,5 @@
 import { CatalogInquiry } from "../components/CatalogInquiry";
-import { Video, Maximize } from "lucide-react";
+import { Video, Maximize, ShoppingBag } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { OfflineCatalogControls } from "../components/OfflineCatalogControls";
@@ -35,6 +35,7 @@ export function PublicCatalogPage({ catalogToken, presentation = false, internal
   const immersive = presentation || params.get("offline") === "1";
   const readOnly = immersive;
   const [selected, setSelected] = useState<string[]>([]);
+  const [inquiryOpen, setInquiryOpen] = useState(false);
   const toggle = (id: string) => setSelected(old => old.includes(id) ? old.filter(value => value !== id) : [...old, id]);
   const [data, setData] = useState<PublicCatalogPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -97,9 +98,10 @@ export function PublicCatalogPage({ catalogToken, presentation = false, internal
       {immersive && (readOnly && localCopy ? <details className="offline-manage"><summary>Управление сохранённой копией</summary><OfflineCatalogControls token={token} data={data} online={online} onUpdated={latest => { setData(latest); if (params.get("offline") === "1") setLocalCopy(true); }} /></details> : <OfflineCatalogControls token={token} data={data} online={online} onUpdated={latest => { setData(latest); if (params.get("offline") === "1") setLocalCopy(true); }} />)}
       {data.catalog.length > 0 && <><div className="catalog-filter-groups"><div className="catalog-gender-tabs" role="group" aria-label="Для кого услуга"><button type="button" aria-pressed={gender === "all"} className={gender === "all" ? "active" : ""} onClick={() => setGender("all")}>Все</button><button type="button" aria-pressed={gender === "boys"} className={gender === "boys" ? "active" : ""} onClick={() => setGender("boys")}>Мальчикам</button><button type="button" aria-pressed={gender === "girls"} className={gender === "girls" ? "active" : ""} onClick={() => setGender("girls")}>Девочкам</button></div><div className="catalog-category-tabs" role="group" aria-label="Категория услуги"><button type="button" aria-pressed={category === "all"} className={category === "all" ? "active" : ""} onClick={() => setCategory("all")}>Все категории</button>{categories.map((itemCategory) => <button type="button" aria-pressed={category === itemCategory} className={category === itemCategory ? "active" : ""} key={itemCategory} onClick={() => setCategory(itemCategory)}>{itemCategory}</button>)}</div></div><div className="catalog-section-list">{mainSections.map(renderSection)}{genderSections.length > 0 && <div className="catalog-gender-columns">{genderSections.map((section) => <section className="catalog-section catalog-gender-column" key={section.id}><h2>{section.title}</h2><div className="public-catalog-grid">{section.items.map((item) => renderCard(item))}</div></section>)}</div>}</div></>}
       {!data.catalog.length && <Notice kind="info">Каталог пока пуст.</Notice>}
-      {!immersive && <CatalogInquiry token={token} selected={selected} />}
     </section>
-    {preview && <CatalogViewer immersive={immersive} readOnly={readOnly} items={data.catalog} initialId={preview.id} initialGender={gender} initialCategory={category} selected={selected} onToggle={id => { toggle(id); setPreview(null); requestAnimationFrame(() => document.getElementById("catalog-inquiry")?.scrollIntoView({behavior:"smooth"})); }} onClose={() => setPreview(null)} />}
+    {!immersive && selected.length > 0 && <aside className="catalog-order-dock" aria-label="Выбранные услуги"><div><strong>Выбрано: {selected.length}</strong><span>Оформите заявку для школы или садика</span></div><button className="button button-primary" type="button" onClick={()=>setInquiryOpen(true)}><ShoppingBag size={18}/>Оформить заявку</button></aside>}
+    {!immersive && <CatalogInquiry token={token} selected={selected} open={inquiryOpen} onClose={()=>setInquiryOpen(false)} />}
+    {preview && <CatalogViewer immersive={immersive} readOnly={readOnly} items={data.catalog} initialId={preview.id} initialGender={gender} initialCategory={category} selected={selected} onToggle={id => { toggle(id); setPreview(null); }} onClose={() => setPreview(null)} />}
 
   </div></main>;
 }

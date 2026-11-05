@@ -16,7 +16,9 @@ describe('separate general catalog modes', () => {
   expect(screen.getByRole('button',{name:/Добавить.*заказ/})).toBeTruthy();
   expect(screen.getByLabelText('Телефон')).toBeTruthy();
   fireEvent.click(screen.getByRole('button',{name:/Добавить.*заказ/}));
-  expect(screen.getByText('Выбрано услуг: 1')).toBeTruthy();
+  expect(screen.getByText('Выбрано: 1')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button',{name:'Оформить заявку'}));
+  expect(screen.getByRole('dialog',{name:'Оформить заявку'})).toBeTruthy();
  });
  it('provides a slideshow entry for the staff presentation', async () => {
   render(<MemoryRouter><PublicCatalogPage catalogToken="test" presentation internal /></MemoryRouter>);
