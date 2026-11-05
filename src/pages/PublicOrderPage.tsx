@@ -1,7 +1,8 @@
-import { ArrowLeft, Camera, Check, CheckCircle2, LoaderCircle, Play, Plus, UserRound, Video } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
+import { ArrowLeft, Camera, CheckCircle2, LoaderCircle, Play, UserRound, Video } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Loader, Notice } from "../components/ui";
+import { ServiceCard } from "../components/ServiceCard";
 import { CatalogViewer } from "../components/CatalogViewer";
 import { humanError, money } from "../lib/helpers";
 import { buildCatalogSections, type CatalogGender } from "../lib/catalogSections";
@@ -43,7 +44,7 @@ export function PublicOrderPage() {
     const phone = (config.phone || "").replace(/\D/g, "");
     return phone ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}` : "";
   }
-  function renderCard(item: CatalogEntry, previewOnly = false) { const active = selected.includes(item.id); const openPreview = (event: MouseEvent | KeyboardEvent) => { event.preventDefault(); event.stopPropagation(); setPreviewItem(item); }; return <article className={`service-choice ${active ? "selected" : ""} ${previewOnly ? "service-choice-preview-only" : ""}`} key={item.id} role="button" tabIndex={0} onClick={() => setPreviewItem(item)} onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) openPreview(event); }}><span className="service-preview-button">{item.preview_url ? <img src={item.preview_url} alt="" loading="lazy" decoding="async" /> : <ServiceIcon type={item.type} />}<span className="preview-hint">Смотреть</span></span><div className="service-copy"><strong>{item.name}</strong>{previewOnly && <span>Доступно для другой категории</span>}</div><b>{money(item.price)}</b>{!previewOnly && <button type="button" className="service-check" aria-label={active ? `Убрать ${item.name}` : `Выбрать ${item.name}`} onClick={(event) => { event.stopPropagation(); toggle(item.id); }}>{active ? <Check size={17} /> : <Plus size={19} />}</button>}</article>; }
+  function renderCard(item: CatalogEntry, previewOnly = false) { return <ServiceCard key={item.id} item={item} selected={selected.includes(item.id)} related={previewOnly} onOpen={() => setPreviewItem(item)} onToggle={() => toggle(item.id)} />; }
   if (loading) return <main className="public-page"><Loader label="Открываем класс…" /></main>;
   if (error && !data) return <main className="public-page"><section className="public-error"><div className="error-illustration">!</div><h1>Ссылка недоступна</h1><p>{error}</p><span>Попросите учителя отправить актуальную ссылку.</span></section></main>;
   if (!data) return null;

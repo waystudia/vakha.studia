@@ -1,6 +1,7 @@
-import { Check, Image as ImageIcon, Play, Plus, ShoppingBag, Sparkles, Video } from "lucide-react";
+import { ShoppingBag, Video } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import { ServiceCard } from "../components/ServiceCard";
 import { CatalogViewer } from "../components/CatalogViewer";
 import { Loader, Modal, Notice } from "../components/ui";
 import { buildCatalogSections, type CatalogGender } from "../lib/catalogSections";
@@ -20,45 +21,6 @@ function catalogCategories(items: CatalogItem[]) {
     const rightRank = rightIndex === -1 ? CATEGORY_ORDER.length : rightIndex;
     return leftRank - rightRank || left.localeCompare(right, "ru-RU");
   });
-}
-
-type DeliveryFeature = { label: string; tone: "photo" | "print" | "lamination" | "qr" | "video" };
-
-function deliveryFeatures(item: CatalogItem): DeliveryFeature[] {
-  if (!item.preview_url) return [{ label: "Цифровой результат", tone: "photo" }];
-  const features: DeliveryFeature[] = [
-    { label: "Фотомонтаж", tone: "photo" },
-    { label: "Распечатка A4", tone: "print" },
-    { label: "Ламинация", tone: "lamination" },
-  ];
-  if (item.preview_video_url) {
-    features.push({ label: "QR-оживление", tone: "qr" });
-    features.push({ label: item.category === "Фото с видео" ? "Интервью ребёнка" : "Персональное ИИ-видео", tone: "video" });
-  }
-  return features;
-}
-
-function DeliveryFeatures({ item }: { item: CatalogItem }) {
-  return <div className="delivery-feature-list" aria-label="Что получат родители">{deliveryFeatures(item).map((feature) => <span className={`delivery-feature delivery-feature-${feature.tone}`} key={feature.label}>{feature.label}</span>)}</div>;
-}
-
-function AiVideoOption({ item }: { item: CatalogItem }) {
-  if (item.preview_video_url || !item.preview_url || item.category !== "Детские образы") return null;
-  return <div className="public-catalog-ai-option"><Sparkles size={14} aria-hidden="true" /><span><strong>Можно оживить фото</strong><br />Нейросетевое видео</span></div>;
-}
-
-function CatalogVideoPhone({ item, onOpen }: { item: CatalogItem; onOpen: () => void }) {
-  if (!item.preview_url || !item.preview_video_url) return null;
-
-  return <button
-    type="button"
-    className="public-catalog-video-phone"
-    aria-label={`Смотреть видео услуги ${item.name}`}
-    onClick={(event) => { event.stopPropagation(); onOpen(); }}
-  >
-    <img src={item.preview_url} alt="" loading="lazy" decoding="async" />
-    <span className="public-catalog-video-play"><Play size={12} fill="currentColor" /></span>
-  </button>;
 }
 
 export function PublicCatalogPage() {
@@ -86,18 +48,7 @@ export function PublicCatalogPage() {
 
   const watermark = data.watermark;
   const toggle = (id: string) => setSelected((items) => items.includes(id) ? items.filter((item) => item !== id) : [...items, id]);
-  const renderCard = (item: CatalogItem, related = false) => {
-    const active = selected.includes(item.id);
-    return <article className={`public-catalog-card ${active ? "selected" : ""} ${related ? "catalog-related-card" : ""}`} key={item.id} role="button" tabIndex={0} onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setPreview(item); } }} onClick={() => setPreview(item)}>
-      <div className="public-catalog-image">
-        {item.preview_url ? <img src={item.preview_url} alt="" loading="lazy" decoding="async" /> : <ImageIcon size={40} />}
-        <CatalogVideoPhone item={item} onOpen={() => setPreview(item)} />
-        <div className="public-watermark">{watermark.image && <img src={watermark.image} alt="" style={{ opacity: watermark.opacity }} />}{watermark.text && <span style={{ opacity: watermark.opacity }}>{watermark.text}</span>}</div>
-        {!related && <button className="public-catalog-add" type="button" aria-label={active ? `Убрать ${item.name} из заказа` : `Добавить ${item.name} в заказ`} onClick={(event) => { event.stopPropagation(); toggle(item.id); }}>{active ? <Check size={18} /> : <Plus size={19} />}</button>}
-      </div>
-      <div className="public-catalog-copy"><div className="public-catalog-title"><strong title={item.name}>{item.name}</strong><b>{money(item.price)}</b></div><DeliveryFeatures item={item} /><AiVideoOption item={item} /></div>
-    </article>;
-  };
+  const renderCard = (item: CatalogItem, related = false) => <ServiceCard key={item.id} item={item} selected={selected.includes(item.id)} related={related} watermark={watermark} onOpen={() => setPreview(item)} onToggle={() => toggle(item.id)} />;
   const renderSection = (section: typeof sections[number]) => <section className="catalog-section" key={section.id}><h2>{section.title}</h2>{section.notice && <div className="catalog-video-notice"><Video size={20} /><span>{section.notice}</span></div>}{section.items.length > 0 && <div className="public-catalog-grid">{section.items.map((item) => renderCard(item))}</div>}{section.relatedItems?.length ? <><h3 className="catalog-related-title">{section.relatedTitle}</h3><div className="public-catalog-grid">{section.relatedItems.map((item) => renderCard(item, true))}</div></> : null}</section>;
   const mainSections = gender === "all" ? sections.filter((section) => !section.id.startsWith("visual-")) : sections;
   const genderSections = gender === "all" ? sections.filter((section) => section.id.startsWith("visual-")) : [];
