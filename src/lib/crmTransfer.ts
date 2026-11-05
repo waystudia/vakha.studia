@@ -6,8 +6,8 @@ type TransferScope = { kind: "class" | "school"; id: string };
 
 function safeName(value: string) { return String(value || "export").replace(/[^a-zA-Z0-9а-яА-ЯёЁ_-]+/g, "_").slice(0, 80); }
 function serviceRecord(item: CatalogItem) { return { id: item.source_id || item.id, serviceId: item.source_id || item.id, title: item.name, name: item.name, price: Number(item.price), description: item.description || item.short_description || "", shortDescription: item.short_description || "", category: item.category || "", gender: item.gender || "unisex", type: item.type || "photo", previewSrc: item.preview_url || "", previewVideoSrc: item.preview_video_url || "" }; }
-function studentRecord(child: Child, classId: string, orders: ParentOrder[]) { const order = orders.find((item) => item.child_id === child.id && item.status !== "cancelled"); const selected = order?.selected_items || []; const serviceIds = selected.map((item) => item.id); return { id: child.id, studentId: child.id, classId, firstName: child.first_name, lastName: child.last_name, publicName: child.public_name, qrId: child.id, catalogId: serviceIds[0] || "", catalogIds: serviceIds, selectedServices: selected.map((item) => ({ serviceId: item.id, quantity: 1, comment: "", name: item.name, price: Number(item.price) })), paymentStatus: "unpaid", orderStatus: order?.status || "", status: order?.status || "" }; }
-function orderRecord(order: ParentOrder) { return { id: order.id, orderId: order.id, studentId: order.child_id, status: order.status, catalogId: order.selected_items[0]?.id || "", catalogIds: order.selected_items.map((item) => item.id), items: order.selected_items.map((item) => ({ id: `${order.id}_${item.id}`, taskId: `${order.id}_${item.id}`, type: item.id, serviceId: item.id, title: item.name, price: Number(item.price), status: order.status })), totalAmount: Number(order.total_amount), comment: order.parent_note || "", createdAt: order.created_at, updatedAt: order.updated_at }; }
+export function studentRecord(child: Child, classId: string, orders: ParentOrder[]) { const order = orders.find((item) => item.child_id === child.id && item.status !== "cancelled"); const selected = order?.selected_items || []; const serviceIds = selected.map((item) => item.id); return { id: child.crm_source_id || child.id, studentId: child.crm_source_id || child.id, classId, firstName: child.first_name, lastName: child.last_name, publicName: child.public_name,  catalogId: serviceIds[0] || "", catalogIds: serviceIds, selectedServices: selected.map((item) => ({ serviceId: item.id, quantity: item.quantity || 1, comment: item.comment || "", name: item.name, price: Number(item.price) })), paymentStatus: "unpaid", orderStatus: order?.status || "", status: order?.status || "" }; }
+export function orderRecord(order: ParentOrder) { return { id: order.id, orderId: order.id, studentId: order.child_id, status: order.status, catalogId: order.selected_items[0]?.id || "", catalogIds: order.selected_items.map((item) => item.id), items: order.selected_items.map((item) => ({ id: `${order.id}_${item.id}`, taskId: `${order.id}_${item.id}`, type: item.id, serviceId: item.id, title: item.name, price: Number(item.price), quantity: item.quantity || 1, comment: item.comment || "", status: order.status })), totalAmount: Number(order.total_amount), comment: order.parent_note || "", createdAt: order.created_at, updatedAt: order.updated_at }; }
 
 export async function downloadCrmTransfer(scope: TransferScope) {
   const schoolData = scope.kind === "school" ? await loadSchool(scope.id) : null;
@@ -19,10 +19,16 @@ export async function downloadCrmTransfer(scope: TransferScope) {
   const classPayloads = await Promise.all(classes.map((item) => loadClass(item.id)));
   if (!school || !classPayloads.length) throw new Error("Нет данных для экспорта");
   const catalog = await loadCatalog();
-  const projectId = `vakha-school-${school.id}`;
+  const serviceMap = new Map(catalog.map(item => [item.id, item.source_id || item.id]));
+  for (const payload of classPayloads) {
+    const studentMap = new Map(payload.children.map(child => [child.id, child.crm_source_id || child.id]));
+    payload.orders = payload.orders.map(order => ({...order, child_id: studentMap.get(order.child_id) || order.child_id, selected_items: order.selected_items.map(item => ({...item, id: serviceMap.get(item.id) || item.id}))}));
+    payload.children = payload.children.map(child => ({...child, id: studentMap.get(child.id) || child.id}));
+  }
+  const projectId = school.crm_source_id || `vakha-school-${school.id}`;
   const projects = [{ id: projectId, projectId, name: school.name, schoolName: school.name, city: school.city, address: school.address, createdAt: school.created_at, updatedAt: school.updated_at }];
-  const classRecords = classPayloads.map(({ schoolClass }) => ({ id: schoolClass.id, classId: schoolClass.id, projectId, name: schoolClass.name, academicYear: schoolClass.academic_year, teacherName: schoolClass.teacher_name, schoolName: school.name }));
-  const children = classPayloads.flatMap(({ schoolClass, children: list, orders }) => list.map((child) => studentRecord(child, schoolClass.id, orders)));
+  const classRecords = classPayloads.map(({ schoolClass }) => ({ id: schoolClass.crm_source_id || schoolClass.id, classId: schoolClass.crm_source_id || schoolClass.id, projectId, name: schoolClass.name, academicYear: schoolClass.academic_year, teacherName: schoolClass.teacher_name, schoolName: school.name }));
+  const children = classPayloads.flatMap(({ schoolClass, children: list, orders }) => list.map((child) => studentRecord(child, schoolClass.crm_source_id || schoolClass.id, orders)));
   const orders = classPayloads.flatMap(({ orders: list }) => list.map(orderRecord));
   const usedServices = new Set(children.flatMap((child) => child.catalogIds));
   const services = catalog.filter((item) => !usedServices.size || usedServices.has(item.id) || usedServices.has(item.source_id)).map(serviceRecord);

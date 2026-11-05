@@ -2,6 +2,7 @@ export type RecordStatus = "active" | "archived";
 export type OrderStatus = "new" | "confirmed" | "in_progress" | "ready" | "cancelled";
 
 export interface School {
+  crm_source_id?: string;
   crm_archive_path?: string;
   id: string;
   owner_id: string;
@@ -21,6 +22,7 @@ export interface SchoolWithStats extends School {
 }
 
 export interface SchoolClass {
+  crm_source_id?: string;
   id: string;
   owner_id: string;
   school_id: string;
@@ -44,6 +46,7 @@ export interface ClassWithStats extends SchoolClass {
 }
 
 export interface Child {
+  crm_source_id?: string;
   id: string;
   owner_id: string;
   class_id: string;
@@ -130,7 +133,7 @@ export interface PublicClassPayload {
     academic_year: string;
     photo_session_name: string;
   };
-  children: Array<{ id: string; public_name: string }>;
+  children: Array<{ id: string; public_name: string; orders?: Array<{status: OrderStatus; items: Array<{name: string; quantity?: number}>}> }>;
   catalog: Array<{
     id: string;
     name: string;

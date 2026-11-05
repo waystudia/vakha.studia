@@ -75,3 +75,4 @@
 .public-catalog-ai-option span{min-width:0}
 .public-catalog-ai-option strong{display:inline;font:inherit;font-weight:800;color:#7047a7}
 @media(max-width:640px){.public-catalog-ai-option{font-size:.56rem}}
+.child-choice-copy {min-width:0;flex:1;display:grid;gap:5px;text-align:left}.child-choice-copy small{font-size:12px;line-height:1.4;color:var(--muted,#62708a);overflow-wrap:anywhere}.child-choice-copy strong{white-space:normal;overflow-wrap:anywhere}

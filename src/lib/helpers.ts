@@ -62,3 +62,5 @@ export function downloadCsv(fileName: string, rows: unknown[][]) {
   link.click();
   URL.revokeObjectURL(url);
 }
+
+export function fullChildName(child?: {last_name: string; first_name: string; public_name: string}) { return child ? [child.last_name, child.first_name].filter(Boolean).join(' ') || child.public_name : ''; }
