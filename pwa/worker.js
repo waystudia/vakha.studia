@@ -49,6 +49,10 @@ self.addEventListener('fetch', event => {
   if (request.mode === 'navigate') {
     if (route !== 'offline-catalog' && !/^catalog\/[^/]+\/?$/.test(route)) return;
     event.respondWith((async () => {
+      try {
+        const latest = await fetch(new URL('index.html', BASE).href, { cache: 'no-store' });
+        if (latest.ok) return latest;
+      } catch { /* Fall back to the complete saved shell without a connection. */ }
       const shell = await caches.open(SHELL);
       return await shell.match(new URL('index.html', BASE).href) || fetch(request);
     })());

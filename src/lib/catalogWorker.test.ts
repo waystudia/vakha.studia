@@ -24,6 +24,13 @@ function worker() {
 }
 
 describe('catalog-only service worker', () => {
+  it('loads the current online shell rather than pinning an old installed interface', async () => {
+    const w = worker();
+    w.network.mockResolvedValueOnce(new Response('<html>updated</html>') as never);
+    const response = await w.request('https://studio.test/app/catalog/token', undefined, 'navigate');
+    expect(await response?.text()).toContain('updated');
+  });
+
   it('opens the saved launcher/catalog offline but never supplies admin or parent HTML', async () => {
     const app = worker();
     expect(await (await app.request('https://studio.test/app/offline-catalog', {}, 'navigate'))?.text()).toContain('catalog');
