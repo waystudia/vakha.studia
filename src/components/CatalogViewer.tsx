@@ -180,7 +180,7 @@ export function CatalogViewer({ items, initialId, initialGender = "all", initial
     {immersive && <nav className="presentation-nav" aria-label="Перелистывание услуг"><button type="button" aria-label="Предыдущая услуга" disabled={!visible.length || activeIndex === 0} onClick={() => move(activeIndex - 1)}><ArrowUp size={22} /></button><button type="button" aria-label="Следующая услуга" disabled={!visible.length || activeIndex === visible.length - 1} onClick={() => move(activeIndex + 1)}><ArrowDown size={22} /></button></nav>}
     <div ref={scroller} className="service-gallery-scroll" onScroll={syncActive}>
       {visible.map((item, index) => <article key={item.id} data-item-id={item.id} className="service-gallery-slide" aria-label={item.name}>
-        <div className="service-gallery-heading"><div><h2>{item.name}</h2><p>{item.short_description || item.category}</p></div><strong>{money(item.price)}</strong></div>
+        <div className="service-gallery-heading"><div><h2>{item.name}</h2><p>{item.category}</p></div><strong>{money(item.price)}</strong></div>
         <div className={`service-gallery-media ${item.preview_video_url ? "has-video" : ""}`}>
           {item.preview_url ? <GalleryPhoto item={item} />
             : !item.preview_video_url && <div className="service-gallery-no-media"><ImageIcon size={40} /><p>Пример результата пока не добавлен.</p></div>}
