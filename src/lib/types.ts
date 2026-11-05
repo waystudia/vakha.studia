@@ -2,6 +2,7 @@ export type RecordStatus = "active" | "archived";
 export type OrderStatus = "new" | "confirmed" | "in_progress" | "ready" | "cancelled";
 
 export interface School {
+  crm_archive_path?: string;
   id: string;
   owner_id: string;
   name: string;
@@ -26,6 +27,8 @@ export interface SchoolClass {
   name: string;
   academic_year: string;
   teacher_name: string;
+  teacher_phone?: string;
+  teacher_contacts?: string;
   photo_session_name: string;
   public_token: string;
   public_expires_at: string | null;
@@ -74,6 +77,8 @@ export interface CatalogItem {
 }
 
 export interface SelectedOrderItem {
+  quantity?: number;
+  comment?: string;
   id: string;
   name: string;
   price: number;

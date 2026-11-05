@@ -1,3 +1,4 @@
+import { CrmProjectImport } from "../components/CrmProjectImport";
 import { Building2, ChevronRight, CirclePlus, MapPin, Pencil, Users } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -13,6 +14,7 @@ export function SchoolsPage() {
   const [editing, setEditing] = useState<SchoolWithStats | null | undefined>(undefined);
   const [pending, setPending] = useState(false);
   const navigate = useNavigate();
+  const [importing,setImporting]=useState(false);
 
   async function refresh() {
     setLoading(true); setError("");
@@ -38,7 +40,7 @@ export function SchoolsPage() {
   }
 
   return <div className="page">
-    <header className="page-header"><div><span className="eyebrow">АДМИНИСТРИРОВАНИЕ</span><h1>Школы</h1><p>Создавайте школы, классы и ссылки для родителей.</p></div><button className="button button-primary" onClick={() => setEditing(null)}><CirclePlus size={19}/>Создать школу</button></header>
+    <header className="page-header"><div><span className="eyebrow">АДМИНИСТРИРОВАНИЕ</span><h1>Школы</h1><p>Создавайте школы, классы и ссылки для родителей.</p></div><div className="inline-actions"><button className="button button-secondary" onClick={()=>setImporting(true)}>Импорт из CRM Photo</button><button className="button button-primary" onClick={() => setEditing(null)}><CirclePlus size={19}/>Создать школу</button></div></header>
     {error && <Notice kind="error">{error}</Notice>}
     {loading ? <Loader label="Загружаем школы…"/> : schools.length === 0 ? <EmptyState icon={<Building2/>} title="Школ пока нет" text="Создайте первую школу, затем добавьте класс и список детей." action={<button className="button button-primary" onClick={() => setEditing(null)}>Создать школу</button>}/> :
       <div className="school-grid">{schools.map((school) => <article className="school-card" key={school.id}>
@@ -47,6 +49,7 @@ export function SchoolsPage() {
         <div className="card-meta">Создана {formatDate(school.created_at)}</div>
         <div className="card-actions"><Link className="button button-primary" to={`/admin/schools/${school.id}`}>Открыть<ChevronRight size={17}/></Link><button className="icon-button" onClick={() => setEditing(school)} title="Изменить"><Pencil size={18}/></button><button className="text-danger" onClick={() => void archive(school)}>Архивировать</button></div>
       </article>)}</div>}
+    {importing && <CrmProjectImport onClose={()=>setImporting(false)} onDone={()=>{setImporting(false);void refresh();}}/>}
     {editing !== undefined && <Modal title={editing ? "Изменить школу" : "Создать школу"} onClose={() => setEditing(undefined)}><form className="form-stack" onSubmit={submit}>
       <label>Название школы *<input name="name" required minLength={2} defaultValue={editing?.name || ""} placeholder="Например, Лицей №12"/></label>
       <label>Город *<input name="city" required minLength={2} defaultValue={editing?.city || ""} placeholder="Москва"/></label>
