@@ -5,8 +5,7 @@
 @media(max-width:640px){.public-catalog-video-phone{right:.35rem;bottom:.35rem;width:36%}}
 
 /* Parent class links use the same photo-and-details cards as the public catalog. */
-.service-list>.public-catalog-card{height:100%;text-align:left}
+.service-list>.public-catalog-card{height:100%;text-align:left;grid-template-rows:auto minmax(142px,auto)}
 .public-catalog-video-phone{max-width:none}
-.public-catalog-card{grid-template-rows:auto minmax(142px,auto)}
-.public-catalog-title strong{display:block;-webkit-line-clamp:unset}
+.service-list .public-catalog-title strong{display:block;-webkit-line-clamp:unset}
 @media(max-width:360px){.public-catalog-title{grid-template-columns:minmax(0,1fr);gap:6px}.public-catalog-title b{justify-self:start}}
