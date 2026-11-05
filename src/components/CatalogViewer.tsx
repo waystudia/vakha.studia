@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowDown, ArrowUp, Check, Image as ImageIcon, Maximize, Plus, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Image as ImageIcon, Maximize, Plus, X, SlidersHorizontal, ChevronUp, ChevronDown, Scan } from "lucide-react";
 import { buildCatalogSections, type CatalogGender } from "../lib/catalogSections";
 import { catalogMediaUrl } from "../lib/mediaUrl";
 import { money } from "../lib/helpers";
@@ -56,12 +56,14 @@ function PhoneVideo({ item, active }: { item: ViewerItem; active: boolean }) {
 
 type Props = {
   items: ViewerItem[]; initialId: string; initialGender?: CatalogGender; initialCategory?: string;
-  selected: string[]; onToggle: (id: string) => void; onClose: () => void;
+  immersive?: boolean; selected: string[]; onToggle: (id: string) => void; onClose: () => void;
 };
 
 /** An overlay owns one history entry; the source page stays mounted underneath it. */
-export function CatalogViewer({ items, initialId, initialGender = "all", initialCategory = "all", selected, onToggle, onClose }: Props) {
+export function CatalogViewer({ items, initialId, initialGender = "all", initialCategory = "all", selected, onToggle, onClose, immersive = false }: Props) {
   const [gender, setGender] = useState<CatalogGender>(() => viewerItems(items, initialGender, initialCategory).some(item => item.id === initialId) ? initialGender : "all");
+  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [fitted, setFitted] = useState(false);
   const [category, setCategory] = useState(initialCategory);
   const [activeId, setActiveId] = useState(initialId);
   const categories = useMemo(() => [...new Set(items.map(item => item.category).filter(Boolean))], [items]);
@@ -147,7 +149,7 @@ export function CatalogViewer({ items, initialId, initialGender = "all", initial
     if (current?.dataset.itemId) setActiveId(current.dataset.itemId);
   }
 
-  return createPortal(<div ref={root} className="service-gallery" role="dialog" aria-modal="true" aria-label="Просмотр услуг" tabIndex={-1}
+  return createPortal(<div ref={root} className={`service-gallery ${immersive ? "service-gallery-presentation" : ""} ${fitted ? "is-fitted" : ""}`} role="dialog" aria-modal="true" aria-label="Просмотр услуг" tabIndex={-1}
     onKeyDown={event => {
       if (event.key === "Escape") { event.preventDefault(); close(); }
       if (event.key === "Tab") {
@@ -162,18 +164,20 @@ export function CatalogViewer({ items, initialId, initialGender = "all", initial
     }}>
     <header className="service-gallery-header">
       <div className="service-gallery-toolbar"><strong>Каталог услуг</strong><span aria-live="polite">{visible.length ? `${activeIndex + 1} / ${visible.length}` : "0 услуг"}</span>
-        <button type="button" aria-label="Предыдущая услуга" disabled={!visible.length || activeIndex === 0} onClick={() => move(activeIndex - 1)}><ArrowUp size={20} /></button>
-        <button type="button" aria-label="Следующая услуга" disabled={!visible.length || activeIndex === visible.length - 1} onClick={() => move(activeIndex + 1)}><ArrowDown size={20} /></button>
+        {immersive && <><button type="button" className="presentation-filter-toggle" aria-expanded={filtersOpen} aria-controls="presentation-gender presentation-categories" onClick={() => setFiltersOpen(value => !value)}><SlidersHorizontal size={15} />Фильтры{filtersOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</button><button type="button" className="presentation-fit-toggle" aria-pressed={fitted} onClick={() => setFitted(value => !value)}><Scan size={16} />{fitted ? "Заполнить экран" : "Фото целиком"}</button></>}
+        {!immersive && <><button type="button" aria-label="Предыдущая услуга" disabled={!visible.length || activeIndex === 0} onClick={() => move(activeIndex - 1)}><ArrowUp size={20} /></button>
+        <button type="button" aria-label="Следующая услуга" disabled={!visible.length || activeIndex === visible.length - 1} onClick={() => move(activeIndex + 1)}><ArrowDown size={20} /></button></>}
         <button type="button" aria-label="Закрыть просмотр" onClick={close}><X size={22} /></button>
       </div>
-      <div className="service-gallery-filters" role="group" aria-label="Для кого услуга">
+      <div id={immersive ? "presentation-gender" : undefined} hidden={immersive && !filtersOpen} className="service-gallery-filters" role="group" aria-label="Для кого услуга">
         {([['all', 'Все'], ['boys', 'Мальчикам'], ['girls', 'Девочкам']] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={gender === value} onClick={() => setGender(value)}>{label}</button>)}
       </div>
-      <div className="service-gallery-filters" role="group" aria-label="Категория услуги">
+      <div id={immersive ? "presentation-categories" : undefined} hidden={immersive && !filtersOpen} className="service-gallery-filters" role="group" aria-label="Категория услуги">
         <button type="button" aria-pressed={category === "all"} onClick={() => setCategory("all")}>Все категории</button>
         {categories.map(value => <button key={value} type="button" aria-pressed={category === value} onClick={() => setCategory(value)}>{value}</button>)}
       </div>
     </header>
+    {immersive && <nav className="presentation-nav" aria-label="Перелистывание услуг"><button type="button" aria-label="Предыдущая услуга" disabled={!visible.length || activeIndex === 0} onClick={() => move(activeIndex - 1)}><ArrowUp size={22} /></button><button type="button" aria-label="Следующая услуга" disabled={!visible.length || activeIndex === visible.length - 1} onClick={() => move(activeIndex + 1)}><ArrowDown size={22} /></button></nav>}
     <div ref={scroller} className="service-gallery-scroll" onScroll={syncActive}>
       {visible.map((item, index) => <article key={item.id} data-item-id={item.id} className="service-gallery-slide" aria-label={item.name}>
         <div className="service-gallery-heading"><div><h2>{item.name}</h2><p>{item.short_description || item.category}</p></div><strong>{money(item.price)}</strong></div>

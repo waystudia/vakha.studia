@@ -30,6 +30,18 @@ beforeEach(() => {
 afterEach(async () => { cleanup(); await new Promise(resolve => requestAnimationFrame(() => resolve(null))); vi.restoreAllMocks(); });
 
 describe("fullscreen catalog journey", () => {
+  it("lets the general catalog hide filters over a full-screen photo and fit the entire image", async () => {
+    render(<MemoryRouter><CatalogViewer immersive items={items} initialId="class" selected={[]} onToggle={() => {}} onClose={() => {}} /></MemoryRouter>);
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog.classList.contains("service-gallery-presentation")).toBe(true);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Фильтры" }));
+    expect(within(dialog).queryByRole("group", { name: "Категория услуги" })).toBeNull();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Фильтры" }));
+    expect(within(dialog).getByRole("group", { name: "Категория услуги" })).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Фото целиком" }));
+    expect(dialog.classList.contains("is-fitted")).toBe(true);
+    expect(within(dialog).getByRole("button", { name: "Заполнить экран" })).toBeTruthy();
+  });
   it("filters by gender/category without duplicating unisex services", () => {
     expect(viewerItems(items, "boys", "Фото").map(item => item.id)).toEqual(["boy", "class"]);
     expect(viewerItems(items, "girls", "ИИ-видео").map(item => item.id)).toEqual(["girl"]);
@@ -41,6 +53,7 @@ describe("fullscreen catalog journey", () => {
     source.focus(); fireEvent.click(source);
     const dialog = await screen.findByRole("dialog", { name: "Просмотр услуг" });
     expect(document.body.style.position).toBe("fixed");
+    expect(dialog.classList.contains("service-gallery-presentation")).toBe(false);
     expect(dialog.querySelector(".service-gallery-scroll")?.scrollTop).toBe(2000);
     fireEvent.click(within(dialog).getByRole("article", { name: "Общее фото класса" }).querySelector("button")!);
     expect(screen.getByLabelText("Выбранные услуги").textContent).toBe("class");

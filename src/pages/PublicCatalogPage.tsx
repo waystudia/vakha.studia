@@ -63,7 +63,7 @@ export function PublicCatalogPage() {
       {!data.catalog.length && <Notice kind="info">Каталог пока пуст.</Notice>}
     </section>
     {selected.length > 0 && <div className="order-dock catalog-order-dock"><div><span>Выбрано: {selected.length}</span><strong>Итого: {money(total)}</strong></div><button className="button button-primary" onClick={() => setCheckoutOpen(true)}><ShoppingBag size={18} />Оформить заказ</button></div>}
-    {preview && <CatalogViewer items={data.catalog} initialId={preview.id} initialGender={gender} initialCategory={category} selected={selected} onToggle={toggle} onClose={() => setPreview(null)} />}
+    {preview && <CatalogViewer immersive items={data.catalog} initialId={preview.id} initialGender={gender} initialCategory={category} selected={selected} onToggle={toggle} onClose={() => setPreview(null)} />}
     {checkoutOpen && <Modal title="Оформить заказ" onClose={() => setCheckoutOpen(false)}><div className="catalog-checkout"><p>Вы отправите менеджеру список выбранных услуг и итоговую сумму.</p><div className="catalog-checkout-items">{selectedItems.map((item) => <div key={item.id}><span>{item.name}</span><strong>{money(item.price)}</strong></div>)}</div><div className="catalog-checkout-total"><span>Итого</span><strong>{money(total)}</strong></div>{whatsappUrl ? <a className="button button-primary button-wide" href={whatsappUrl} target="_blank" rel="noreferrer"><ShoppingBag size={18} />Перейти в WhatsApp</a> : <Notice kind="info">Менеджер ещё не подключил WhatsApp для приёма заказов.</Notice>}</div></Modal>}
   </div></main>;
 }

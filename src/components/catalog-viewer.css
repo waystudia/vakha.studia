@@ -18,3 +18,36 @@
 .service-gallery-empty,.service-gallery-no-media{padding:40px 16px;text-align:center;color:#4c607c}.service-gallery-empty h2{font-size:1.15rem}
 @media(min-width:700px){.service-gallery-media.has-video{grid-template-columns:minmax(0,1fr) minmax(200px,32%)}.service-gallery-phone{width:min(100%,calc((100dvh - 350px)*.5625))}.service-gallery-photo img{max-height:calc(100dvh - 320px)}}
 @media(max-width:420px){.service-gallery-toolbar{gap:4px}.service-gallery-toolbar>strong{font-size:.9rem}.service-gallery-toolbar>span{font-size:.75rem}.service-gallery-slide{padding-top:18px;gap:16px}.service-gallery-heading{gap:10px}.service-gallery-heading p{font-size:.8rem}.service-gallery-footer small{max-width:16ch}.service-gallery-footer .button{padding:10px;font-size:.8rem}}
+
+/* Presentation belongs only to the general catalog; class ordering keeps its viewer. */
+.service-gallery-presentation{background:#10151e;color:#fff}
+.service-gallery-presentation .service-gallery-header{position:absolute;inset:0 0 auto;padding:max(10px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 0 max(12px,env(safe-area-inset-left));background:none;border:0;pointer-events:none}
+.service-gallery-presentation .service-gallery-toolbar{max-width:none;min-height:44px;gap:8px;margin-bottom:4px}
+.service-gallery-presentation .service-gallery-toolbar>strong{display:none}
+.service-gallery-presentation .service-gallery-toolbar>span{margin-right:auto;text-shadow:0 1px 4px #000;font-size:.75rem}
+.service-gallery-presentation .service-gallery-toolbar button,.service-gallery-presentation .service-gallery-filters button,.presentation-nav button,.service-gallery-presentation .service-gallery-footer .button{pointer-events:auto;border:1px solid #ffffffb3;border-radius:999px;background:transparent;color:#fff;box-shadow:0 1px 5px #0005;text-shadow:0 1px 3px #000,0 0 5px #000;font-weight:600}
+.service-gallery-presentation .service-gallery-toolbar button{padding:6px 12px;min-width:44px;min-height:36px;font-size:.72rem}
+.service-gallery-presentation .service-gallery-toolbar button:last-child{padding:6px;min-height:40px;min-width:40px}
+.service-gallery-presentation .service-gallery-filters{max-width:none;gap:6px;pointer-events:auto;scrollbar-width:none;mask-image:linear-gradient(to right,#000 96%,transparent)}
+.service-gallery-presentation .service-gallery-filters[hidden]{display:none}
+.service-gallery-presentation .service-gallery-filters button{min-height:34px;padding:5px 12px;font-size:.72rem;letter-spacing:.01em}
+.service-gallery-presentation .service-gallery-filters button[aria-pressed=true]{border:2px solid #fff;padding:4px 11px;background:transparent;text-decoration:underline;text-underline-offset:4px}
+.service-gallery-presentation .service-gallery-scroll{height:100%;flex:1;scroll-snap-type:y mandatory;scrollbar-width:none}
+.service-gallery-presentation .service-gallery-slide{position:relative;width:100%;height:100%;height:100dvh;min-height:100dvh;max-width:none;margin:0;padding:0;border:0;display:block;overflow:hidden;scroll-snap-stop:always}
+.service-gallery-presentation .service-gallery-media{position:absolute;inset:0;display:block;width:100%;height:100%}
+.service-gallery-presentation .service-gallery-photo{position:absolute;inset:0;margin:0;width:100%;height:100%}
+.service-gallery-presentation .service-gallery-photo img{width:100%;height:100%;max-height:none;min-height:0;object-fit:cover;object-position:center 20%}
+.service-gallery-presentation.is-fitted .service-gallery-photo img{object-fit:contain}
+.service-gallery-presentation .service-gallery-photo figcaption{display:none}
+.service-gallery-presentation .service-gallery-heading{position:absolute;z-index:1;bottom:max(24px,env(safe-area-inset-bottom));left:max(18px,env(safe-area-inset-left));right:190px;display:block;color:#fff;text-shadow:0 2px 5px #000,0 0 8px #0008;pointer-events:none}
+.service-gallery-presentation .service-gallery-heading h2{font-size:clamp(1.1rem,2.5vw,1.7rem);margin:0 0 4px}.service-gallery-presentation .service-gallery-heading p{display:none}.service-gallery-presentation .service-gallery-heading>strong{font-size:.9rem}
+.service-gallery-presentation .service-gallery-footer{position:absolute;z-index:1;right:max(18px,env(safe-area-inset-right));bottom:max(24px,env(safe-area-inset-bottom));margin:0}.service-gallery-presentation .service-gallery-footer>span{display:none}.service-gallery-presentation .service-gallery-footer .button{min-height:40px;padding:8px 13px;font-size:.75rem;box-shadow:0 1px 5px #0005}
+.presentation-nav{position:absolute;z-index:3;inset:45% max(10px,env(safe-area-inset-right)) auto max(10px,env(safe-area-inset-left));display:flex;justify-content:space-between;pointer-events:none}
+.presentation-nav button{display:grid;place-items:center;width:42px;height:64px;cursor:pointer}.presentation-nav button:disabled{opacity:.25}
+.service-gallery-presentation .service-gallery-phone{position:absolute;right:6%;bottom:16%;width:clamp(125px,23vw,240px);margin:0;z-index:1}
+.service-gallery-presentation .service-gallery-phone figcaption{color:#fff;text-shadow:0 1px 4px #000}.service-gallery-presentation .service-gallery-phone figcaption>span{display:none}.service-gallery-presentation .service-gallery-phone button{border:1px solid #ffffffb3;border-radius:999px;background:#10151e66;color:#fff}
+.service-gallery-presentation .service-gallery-empty{color:#fff;padding-top:180px}.service-gallery-presentation .service-gallery-no-media{position:absolute;inset:0;display:grid;place-content:center;background:#10151e;color:#fff}
+@media(max-width:420px){.service-gallery-presentation .service-gallery-toolbar{gap:5px}.service-gallery-presentation .service-gallery-toolbar button{padding:6px 8px;font-size:.65rem}.service-gallery-presentation .service-gallery-heading{right:150px}.service-gallery-presentation .service-gallery-heading h2{font-size:1.1rem}.service-gallery-presentation .service-gallery-footer .button{padding:8px;font-size:.68rem}.service-gallery-presentation .service-gallery-phone{width:clamp(125px,36vw,165px);right:10%;bottom:17%}}
+@media(max-height:520px){.service-gallery-presentation .service-gallery-phone{width:min(22vw,140px);bottom:16%}.service-gallery-presentation .service-gallery-phone figcaption{margin-top:3px}}
+
+.service-gallery-presentation button svg{filter:drop-shadow(0 1px 2px #000a)}
