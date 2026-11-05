@@ -45,3 +45,13 @@ it('restores a completed viewing without forcing autoplay again', () => {
  expect(second.container.querySelector('video')!.autoplay).toBe(false);
  expect(screen.getByText('Видео просмотрено. Теперь можно выбрать фотографии.')).toBeTruthy();
 });
+
+it('counts natural playback even when the browser throttles timeupdate events', () => {
+ vi.spyOn(HTMLMediaElement.prototype,'play').mockResolvedValue();
+ const complete=vi.fn();const {container}=render(<ParentIntro onComplete={complete}/>);const video=container.querySelector('video')!;
+ Object.defineProperty(video,'duration',{value:56,configurable:true});
+ for(const time of [1,9,29,56]) {video.currentTime=time;fireEvent.timeUpdate(video);}
+ fireEvent.ended(video);
+ expect(complete).toHaveBeenCalledTimes(1);
+ expect(hasWatchedParentIntro()).toBe(true);
+});

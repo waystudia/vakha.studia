@@ -5,7 +5,6 @@ import { parentIntroVersion, rememberParentIntro } from '../lib/parentIntroProgr
 export function ParentIntro({onComplete, watched = false}: {onComplete: () => void; watched?: boolean}) {
   const video = useRef<HTMLVideoElement>(null);
   const furthest = useRef(0);
-  const last = useRef(0);
   const completed = useRef(watched);
   const [blocked, setBlocked] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -42,8 +41,8 @@ export function ParentIntro({onComplete, watched = false}: {onComplete: () => vo
     <div className="parent-intro-player" style={{width: `min(100%, ${52 * aspect}dvh)`}}><video ref={video} src={`${import.meta.env.BASE_URL}media/khan-zama-intro.mp4?v=${parentIntroVersion}`} autoPlay={!watched} controls controlsList="nodownload noplaybackrate" playsInline preload="auto"
       onLoadedMetadata={() => { const player = video.current; if (player && player.videoWidth > 0 && player.videoHeight > 0) setAspect(player.videoWidth / player.videoHeight); }}
       onPlay={() => setBlocked(false)}
-      onSeeking={() => { const player = video.current; if (player && !completed.current && player.currentTime > furthest.current + 0.5) player.currentTime = furthest.current; last.current = player?.currentTime || 0; }}
-      onTimeUpdate={() => { const player = video.current; if (!player || player.seeking) return; const now = player.currentTime; if (now >= last.current && now - last.current <= 1.5 && now <= furthest.current + 1.5) furthest.current = Math.max(furthest.current, now); last.current = now; }}
+      onSeeking={() => { const player = video.current; if (player && !completed.current && player.currentTime > furthest.current + 0.5) player.currentTime = furthest.current; }}
+      onTimeUpdate={() => { const player = video.current; if (!player || player.seeking) return; furthest.current = Math.max(furthest.current, player.currentTime); }}
       onEnded={() => { const player = video.current; if (!completed.current && player && Number.isFinite(player.duration) && furthest.current >= player.duration - 1.5) { completed.current = true; setDone(true); rememberParentIntro(); onComplete(); } }}
       onError={() => { setFailed(true); setBlocked(true); }} />
       {blocked && <button className="parent-intro-start" onClick={start}>{failed ? 'Повторить загрузку видео' : '▶ Смотреть видео со звуком'}</button>}
