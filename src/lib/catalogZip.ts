@@ -7,10 +7,12 @@ interface CrmCatalogService {
   price?: number | string;
   shortDescription?: string;
   description?: string;
+  prompt?: string;
   category?: string;
   gender?: string;
   popular?: boolean;
   previewImage?: string;
+  originalImage?: string;
   previewVideo?: string;
   presentation?: { parentPreviewMode?: string };
 }
@@ -85,8 +87,10 @@ export async function parseCrmCatalogZip(file: File): Promise<CatalogZipItem[]> 
     seen.add(sourceId);
 
     const previewImagePath = normalizePath(service.previewImage || "");
+    const originalImagePath = normalizePath(service.originalImage || "");
     const previewVideoPath = normalizePath(service.previewVideo || "");
     const imageEntry = previewImagePath ? zip.file(previewImagePath) : null;
+    const originalEntry = originalImagePath ? zip.file(originalImagePath) : null;
     const videoEntry = previewVideoPath ? zip.file(previewVideoPath) : null;
 
     items.push({
@@ -94,17 +98,28 @@ export async function parseCrmCatalogZip(file: File): Promise<CatalogZipItem[]> 
       name,
       price: Math.max(0, Number(service.price || 0)),
       shortDescription: String(service.shortDescription || "").trim(),
-      description: String(service.description || "").trim(),
+      description: (() => {
+        const description = String(service.description || "").trim();
+        const prompt = String(service.prompt || "").trim();
+        if (!prompt || description.includes(prompt)) return description;
+        return [description, `Запрос для создания образа:\n${prompt}`].filter(Boolean).join("\n\n");
+      })(),
       category: String(service.category || "").trim(),
       gender: String(service.gender || "unisex").trim().toLowerCase(),
       type: inferType(service),
       popular: Boolean(service.popular),
       previewImagePath,
+      originalImagePath,
       previewVideoPath,
       parentPreviewMode: parentPreviewMode(service.presentation?.parentPreviewMode),
       previewImage: imageEntry
         ? new Blob([blobPart(await imageEntry.async("uint8array"))], { type: mimeForPath(previewImagePath) })
         : undefined,
+      originalImage: originalEntry
+        ? new Blob([blobPart(await originalEntry.async("uint8array"))], { type: mimeForPath(originalImagePath) })
+        : imageEntry
+          ? new Blob([blobPart(await imageEntry.async("uint8array"))], { type: mimeForPath(previewImagePath) })
+          : undefined,
       previewVideo: videoEntry
         ? new Blob([blobPart(await videoEntry.async("uint8array"))], { type: mimeForPath(previewVideoPath) })
         : undefined,

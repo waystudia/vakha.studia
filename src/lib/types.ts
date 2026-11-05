@@ -70,6 +70,7 @@ export interface CatalogItem {
   gender: string;
   price: number;
   preview_url: string;
+  original_url: string;
   preview_video_url: string;
   parent_preview_mode: "auto" | "print" | "digital";
   is_active: boolean;
@@ -183,8 +184,10 @@ export interface CatalogZipItem {
   type: string;
   popular: boolean;
   previewImagePath: string;
+  originalImagePath: string;
   previewVideoPath: string;
   previewImage?: Blob;
+  originalImage?: Blob;
   previewVideo?: Blob;
   parentPreviewMode: "auto" | "print" | "digital";
 }

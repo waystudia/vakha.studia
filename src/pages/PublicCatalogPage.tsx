@@ -14,7 +14,7 @@ import type { PublicCatalogPayload } from "../lib/types";
 
 type CatalogItem = PublicCatalogPayload["catalog"][number];
 
-const CATEGORY_ORDER = ["Детские образы", "ИИ-видео", "Фото с видео"];
+const CATEGORY_ORDER = ["Детские образы", "Игровые фотомонтажи", "ИИ-видео", "Фото с видео"];
 
 function catalogCategories(items: CatalogItem[]) {
   return [...new Set(items.map((item) => item.category.trim()).filter(Boolean))].sort((left, right) => {

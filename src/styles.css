@@ -23,7 +23,7 @@
 .catalog-grid{grid-auto-rows:1fr}
 .catalog-card{display:grid;grid-template-rows:minmax(0,1fr) 116px!important;aspect-ratio:3/5!important}
 .catalog-preview{height:auto!important;aspect-ratio:auto!important;min-height:0}
-.catalog-preview img{object-fit:cover!important}
+.catalog-preview img{object-fit:contain!important;background:#eef3f8}
 .catalog-body{display:grid;grid-template-rows:auto 1fr;gap:.38rem;padding:.62rem .7rem!important}
 .catalog-title{align-items:start;gap:.4rem}
 .catalog-title h2{display:-webkit-box;margin:0;font-size:.98rem!important;line-height:1.14;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:2}
@@ -95,3 +95,6 @@ body.catalog-sheet-open{overflow:hidden}
 .catalog-inquiry-sheet header{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1rem}.catalog-inquiry-sheet header h2{margin:0 0 .2rem;font-size:1.35rem}.catalog-inquiry-sheet header p{margin:0;font-size:.86rem;line-height:1.35}.catalog-inquiry-sheet form,.catalog-inquiry-sheet fieldset{display:grid;gap:.85rem}.catalog-inquiry-sheet fieldset{min-width:0;margin:0;padding:0;border:0}.catalog-inquiry-sheet label{display:grid;gap:.35rem;color:var(--text);font-size:.82rem;font-weight:800}.catalog-inquiry-sheet input,.catalog-inquiry-sheet textarea{width:100%;border:1px solid #d8e1ee;border-radius:12px;background:#f9fbfe;padding:.75rem .85rem;color:var(--text);outline:none}.catalog-inquiry-sheet input:focus,.catalog-inquiry-sheet textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(54,127,242,.14)}.catalog-inquiry-name{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}.catalog-inquiry-consent{display:flex!important;align-items:flex-start;gap:.55rem!important;color:var(--muted)!important;font-weight:600!important;line-height:1.35}.catalog-inquiry-consent input{width:18px;height:18px;margin:.05rem 0 0;padding:0;accent-color:var(--blue)}
 @media(max-width:640px){.catalog-order-dock{gap:.55rem;padding:.62rem}.catalog-order-dock span{display:none}.catalog-order-dock .button{min-height:46px;padding:.65rem .8rem}.catalog-inquiry-sheet{max-height:92vh;padding-right:1rem;padding-left:1rem}.catalog-inquiry-name{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.catalog-order-dock{animation:catalog-dock-fade .16s ease both}.catalog-inquiry-backdrop{transition-duration:.16s}.catalog-inquiry-sheet{transform:none;opacity:0;transition:opacity .16s ease}.catalog-inquiry-layer[data-open="true"] .catalog-inquiry-sheet{opacity:1}@keyframes catalog-dock-fade{from{opacity:0}to{opacity:1}}}
+
+/* Catalog previews are lightweight, but every frame must remain fully visible. */
+.public-catalog-image>img,.service-preview-button img,.child-order-previews img{object-fit:contain;background:#eef3f8}

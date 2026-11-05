@@ -17,6 +17,7 @@ import type {
   SchoolWithStats,
 } from "./types";
 import { makePublicName } from "./helpers";
+import { GAME_CATALOG_SERVICE_IDS, gameCatalogServices } from "./gameCatalogServices";
 
 function fail(error: { message: string } | null) {
   if (error) throw new Error(error.message);
@@ -129,6 +130,32 @@ export async function ensureDemoData(userId: string) {
       source: "demo",
     }));
     const { error } = await supabase.from("catalog_items").insert(defaults);
+    fail(error);
+  }
+
+  const { data: existingGameServices, error: gameServicesError } = await supabase
+    .from("catalog_items")
+    .select("id,source_id,original_url")
+    .eq("owner_id", userId)
+    .in("source_id", [...GAME_CATALOG_SERVICE_IDS]);
+  fail(gameServicesError);
+  const existingGameIds = new Set((existingGameServices || []).map((item) => item.source_id));
+  const publicBaseUrl = new URL(import.meta.env.BASE_URL, window.location.origin).href;
+  const systemGameServices = gameCatalogServices(userId, publicBaseUrl);
+  const missingGameServices = systemGameServices
+    .filter((item) => !existingGameIds.has(item.source_id));
+  if (missingGameServices.length) {
+    const { error } = await supabase.from("catalog_items").insert(missingGameServices);
+    fail(error);
+  }
+  for (const existing of existingGameServices || []) {
+    if (existing.original_url) continue;
+    const bundled = systemGameServices.find((item) => item.source_id === existing.source_id);
+    if (!bundled) continue;
+    const { error } = await supabase.from("catalog_items")
+      .update({ original_url: bundled.original_url })
+      .eq("id", existing.id)
+      .eq("owner_id", userId);
     fail(error);
   }
 }
@@ -289,6 +316,21 @@ async function uploadCatalogAsset(userId: string, sourceId: string, kind: string
   return supabase.storage.from("catalog-previews").getPublicUrl(path).data.publicUrl;
 }
 
+async function uploadCatalogOriginal(userId: string, sourceId: string, blob: Blob | undefined, originalPath: string) {
+  if (!blob) return "";
+  const safeSource = sourceId.replace(/[^a-z0-9_-]/gi, "-").slice(0, 80);
+  const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
+  const version = Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, 20);
+  const path = `${userId}/${safeSource}/original-${version}.${extensionForBlob(blob, originalPath)}`;
+  const { error } = await supabase.storage.from("catalog-originals").upload(path, blob, {
+    contentType: blob.type,
+    cacheControl: "31536000",
+    upsert: true,
+  });
+  fail(error);
+  return supabase.storage.from("catalog-originals").getPublicUrl(path).data.publicUrl;
+}
+
 export async function importCatalogItems(userId: string, items: CatalogZipItem[], onProgress?: (done: number, total: number) => void) {
   const existing = await loadCatalog();
   const existingBySource = new Map(existing.map((item) => [item.source_id, item]));
@@ -298,6 +340,9 @@ export async function importCatalogItems(userId: string, items: CatalogZipItem[]
     const previewUrl = item.previewImage
       ? await uploadCatalogAsset(userId, item.sourceId, "preview", await optimizeCatalogImage(item.previewImage), item.previewImagePath)
       : previous?.preview_url || "";
+    const originalUrl = item.originalImage
+      ? await uploadCatalogOriginal(userId, item.sourceId, item.originalImage, item.originalImagePath || item.previewImagePath)
+      : previous?.original_url || "";
     const previewVideoUrl = item.previewVideo
       ? await uploadCatalogAsset(userId, item.sourceId, "preview-video", await optimizeCatalogVideo(item.previewVideo), item.previewVideoPath)
       : previous?.preview_video_url || "";
@@ -312,6 +357,7 @@ export async function importCatalogItems(userId: string, items: CatalogZipItem[]
       gender: item.gender,
       price: item.price,
       preview_url: previewUrl,
+      original_url: originalUrl,
       preview_video_url: previewVideoUrl,
       parent_preview_mode: item.parentPreviewMode,
       is_active: true,
@@ -337,9 +383,19 @@ async function removeCatalogAssets(items: CatalogItem[]) {
     const index = url.indexOf(marker);
     return index >= 0 ? decodeURIComponent(url.slice(index + marker.length)) : "";
   }).filter(Boolean));
-  if (!paths.length) return;
-  const { error } = await supabase.storage.from("catalog-previews").remove(paths);
-  fail(error);
+  if (paths.length) {
+    const { error } = await supabase.storage.from("catalog-previews").remove(paths);
+    fail(error);
+  }
+  const originalPaths = items.map((item) => {
+    const marker = "/storage/v1/object/public/catalog-originals/";
+    const index = item.original_url.indexOf(marker);
+    return index >= 0 ? decodeURIComponent(item.original_url.slice(index + marker.length)) : "";
+  }).filter(Boolean);
+  if (originalPaths.length) {
+    const { error: originalError } = await supabase.storage.from("catalog-originals").remove(originalPaths);
+    fail(originalError);
+  }
 }
 
 export async function deleteCatalogItems(ids: string[]) {
