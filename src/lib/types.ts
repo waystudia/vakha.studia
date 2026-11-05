@@ -133,7 +133,7 @@ export interface PublicClassPayload {
     academic_year: string;
     photo_session_name: string;
   };
-  children: Array<{ id: string; public_name: string; orders?: Array<{status: OrderStatus; items: Array<{name: string; quantity?: number}>}> }>;
+  children: Array<{ id: string; public_name: string; orders?: Array<{status: OrderStatus; items: Array<{id?: string; name: string; quantity?: number; preview_url?: string}>}> }>;
   catalog: Array<{
     id: string;
     name: string;

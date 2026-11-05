@@ -1,44 +1,36 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from 'react';
 import './ParentIntro.css';
 
-export function ParentIntro({ onClose }: { onClose: () => void }) {
+export function ParentIntro({onComplete}: {onComplete: () => void}) {
   const video = useRef<HTMLVideoElement>(null);
-  const [muted, setMuted] = useState(false);
+  const furthest = useRef(0);
+  const last = useRef(0);
+  const completed = useRef(false);
   const [blocked, setBlocked] = useState(false);
-  const [paused, setPaused] = useState(false);
-  const [watched, setWatched] = useState(0);
-  const canSkip = watched >= 10;
+  const [failed, setFailed] = useState(false);
+  const [done, setDone] = useState(false);
   useEffect(() => {
     const player = video.current;
     if (!player) return;
     player.muted = false;
-    player.play().catch(() => { player.pause(); player.currentTime = 0; setBlocked(true); });
+    void player.play().catch(() => setBlocked(true));
   }, []);
-  useEffect(() => {
-    // Count real playback time, not seeking or time spent on the start screen.
-    const timer = window.setInterval(() => {
-      const player = video.current;
-      if (player && !player.paused && !player.ended && player.readyState >= 3 && !document.hidden)
-        setWatched(value => Math.min(10, value + 0.25));
-    }, 250);
-    return () => window.clearInterval(timer);
-  }, []);
-  useEffect(() => {
-    const escape = (e: KeyboardEvent) => { if (e.key === 'Escape' && canSkip) onClose(); };
-    document.addEventListener('keydown', escape);
-    return () => document.removeEventListener('keydown', escape);
-  }, [onClose, canSkip]);
   function start() {
     const player = video.current;
     if (!player) return;
-    player.currentTime = 0;
     player.muted = false;
-    setMuted(false);
-    player.play().then(() => setBlocked(false)).catch(() => setBlocked(true));
+    if (failed) { player.load(); setFailed(false); }
+    void player.play().then(() => setBlocked(false)).catch(() => setBlocked(true));
   }
   return <section className="parent-intro" aria-label="Знакомство со студией Хан Зама">
-    <header><strong>Khan Zama</strong>{canSkip ? <button onClick={onClose}>Пропустить →</button> : <span>Пропустить через {Math.ceil(10 - watched)} с</span>}</header>
-    <video ref={video} src={`${import.meta.env.BASE_URL}media/khan-zama-intro.mp4`} muted={muted} playsInline preload="auto" onPlay={() => setPaused(false)} onPause={() => setPaused(true)} onEnded={onClose} onError={onClose} />
-    <footer>{blocked ? <button autoFocus onClick={start}>Смотреть со звуком</button> : <><button onClick={() => { const player = video.current; if (!player) return; if (player.paused) player.play().catch(() => setBlocked(true)); else player.pause(); }}>{paused ? 'Продолжить' : 'Пауза'}</button><button onClick={() => setMuted(!muted)}>{muted ? 'Включить звук' : 'Выключить звук'}</button></>}</footer>
+    <p className="parent-intro-message" role="status">{done ? 'Видео просмотрено. Теперь можно выбрать фотографии.' : 'Вы сможете посмотреть каталог фотографий после полного просмотра видео. Пока можно выбрать ребёнка ниже.'}</p>
+    <div className="parent-intro-player"><video ref={video} src={`${import.meta.env.BASE_URL}media/khan-zama-intro.mp4`} autoPlay controls controlsList="nodownload noplaybackrate" playsInline preload="auto"
+      onPlay={() => setBlocked(false)}
+      onSeeking={() => { const player = video.current; if (player && !completed.current && player.currentTime > furthest.current + 0.5) player.currentTime = furthest.current; last.current = player?.currentTime || 0; }}
+      onTimeUpdate={() => { const player = video.current; if (!player || player.seeking) return; const now = player.currentTime; if (now >= last.current && now - last.current <= 1.5 && now <= furthest.current + 1.5) furthest.current = Math.max(furthest.current, now); last.current = now; }}
+      onEnded={() => { const player = video.current; if (!completed.current && player && Number.isFinite(player.duration) && furthest.current >= player.duration - 1.5) { completed.current = true; setDone(true); onComplete(); } }}
+      onError={() => { setFailed(true); setBlocked(true); }} />
+      {blocked && <button className="parent-intro-start" onClick={start}>{failed ? 'Повторить загрузку видео' : '▶ Смотреть видео со звуком'}</button>}
+    </div>
   </section>;
 }
