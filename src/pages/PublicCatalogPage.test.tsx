@@ -8,12 +8,15 @@ vi.mock('../components/CatalogViewer', async importOriginal => ({...await import
 import { PublicCatalogPage } from './PublicCatalogPage';
 afterEach(cleanup);
 describe('separate general catalog modes', () => {
- it('opens an ordinary view for parents without child selection or checkout', async () => {
+ it('allows institutions to select services and fill a contact request', async () => {
   render(<MemoryRouter><PublicCatalogPage catalogToken="test" /></MemoryRouter>);
   fireEvent.click(await screen.findByRole('button',{name:'Смотреть услугу: Фото'}));
-  expect(screen.getByRole('dialog',{name:'Обычный просмотр'}).textContent).toBe('Только просмотр');
+  expect(screen.getByRole('dialog',{name:'Обычный просмотр'}).textContent).toBe('Выбор заказа');
   expect(screen.queryByRole('button',{name:'Открыть слайд-шоу'})).toBeNull();
-  expect(screen.queryByRole('button',{name:/Добавить.*заказ/})).toBeNull();
+  expect(screen.getByRole('button',{name:/Добавить.*заказ/})).toBeTruthy();
+  expect(screen.getByLabelText('Телефон')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button',{name:/Добавить.*заказ/}));
+  expect(screen.getByText('Выбрано услуг: 1')).toBeTruthy();
  });
  it('provides a slideshow entry for the staff presentation', async () => {
   render(<MemoryRouter><PublicCatalogPage catalogToken="test" presentation internal /></MemoryRouter>);

@@ -21,6 +21,7 @@ export function AdminLayout() {
           <NavLink to="/admin/catalog" onClick={close}><BookOpen size={20} />Каталог услуг</NavLink>
           <NavLink to="/admin/presentation" onClick={close}><MonitorPlay size={20} />Каталог для показа</NavLink>
           <NavLink to="/admin/public-catalog" onClick={close}><Eye size={20} />Каталог для родителей</NavLink>
+          <NavLink to="/admin/inquiries" onClick={close}><Building2 size={20} />Новые школы и садики</NavLink>
           <NavLink to="/admin/orders" onClick={close}><ClipboardList size={20} />Заявки</NavLink>
           <NavLink to="/admin/profile" onClick={close}><UserRound size={20} />Профиль и WhatsApp</NavLink>
         </nav>
