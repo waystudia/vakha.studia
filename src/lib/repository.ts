@@ -378,6 +378,28 @@ export async function getPublicCatalog(token: string): Promise<PublicCatalogPayl
   return data as PublicCatalogPayload | null;
 }
 
+export async function submitCatalogInquiry(input: {
+  token: string;
+  requestKey: string;
+  institution: FormDataEntryValue | null;
+  contactName: string;
+  phone: FormDataEntryValue | null;
+  itemIds: string[];
+  note: FormDataEntryValue | null;
+}) {
+  const { data, error } = await supabase.rpc("submit_catalog_inquiry", {
+    p_token: input.token,
+    p_request_key: input.requestKey,
+    p_institution: input.institution,
+    p_contact_name: input.contactName,
+    p_phone: input.phone,
+    p_item_ids: input.itemIds,
+    p_note: input.note,
+  });
+  fail(error);
+  return data as string;
+}
+
 export async function getPublicOrder(token: string): Promise<PublicOrderPayload | null> {
   const { data, error } = await supabase.rpc("get_public_order", { p_token: token });
   fail(error);

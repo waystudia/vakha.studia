@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-vi.mock('../lib/repository', () => ({getPublicCatalog: vi.fn(async () => ({company_name:'Vakha Studio',watermark:{text:'',image:'',opacity:1},catalog:[{id:'photo',name:'Фото',price:350,category:'Фото',gender:'unisex',type:'photo',preview_url:'/photo.jpg',preview_video_url:'',parent_preview_mode:'print'}]}))}));
+vi.mock('../lib/repository', () => ({getPublicCatalog: vi.fn(async () => ({company_name:'Vakha Studio',watermark:{text:'',image:'',opacity:1},catalog:[{id:'photo',name:'Фото',price:350,category:'Фото',gender:'unisex',type:'photo',preview_url:'/photo.jpg',preview_video_url:'',parent_preview_mode:'print'}]})),submitCatalogInquiry:vi.fn()}));
 vi.mock('../lib/offlineCatalog', () => ({loadSavedCatalog: vi.fn(async () => null)}));
 vi.mock('../components/OfflineCatalogControls', () => ({OfflineCatalogControls: () => null}));
 vi.mock('../components/CatalogViewer', async importOriginal => ({...await importOriginal<object>(),CatalogViewer: ({immersive,readOnly}: {immersive:boolean;readOnly:boolean}) => <div role="dialog" aria-label={immersive ? 'Показ с прозрачными кнопками' : 'Обычный просмотр'}>{readOnly ? 'Только просмотр' : 'Выбор заказа'}</div>}));
