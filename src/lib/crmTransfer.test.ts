@@ -9,6 +9,6 @@ describe('CRM order transfer', () => {
     // Matching uses the normalized original identity supplied by the exporter.
     const matched=studentRecord({id:'crm-child',crm_source_id:'crm-child'} as Child,'crm-class',[order]);
     expect(matched.selectedServices).toEqual([{serviceId:'crm-service',quantity:2,comment:'Две копии',name:'Фото',price:350}]);
-    expect(orderRecord(order).items[0]).toMatchObject({id:'order-1_crm-service',serviceId:'crm-service',quantity:2,comment:'Две копии'});
+    expect(orderRecord(order).items[0]).toMatchObject({id:'order_crm-child_crm-service',serviceId:'crm-service',quantity:2,comment:'Две копии'});
   });
 });
