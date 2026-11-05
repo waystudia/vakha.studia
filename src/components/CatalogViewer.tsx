@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowDown, ArrowUp, Check, Image as ImageIcon, Maximize, Plus, X, SlidersHorizontal, ChevronUp, ChevronDown, Scan } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Image as ImageIcon, Plus, X, SlidersHorizontal, ChevronUp, ChevronDown, Scan } from "lucide-react";
 import { buildCatalogSections, type CatalogGender } from "../lib/catalogSections";
 import { catalogMediaUrl } from "../lib/mediaUrl";
 import { money } from "../lib/helpers";
@@ -31,25 +31,18 @@ function GalleryPhoto({ item }: { item: ViewerItem }) {
 function PhoneVideo({ item, active }: { item: ViewerItem; active: boolean }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [failed, setFailed] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  useEffect(() => { if (!active) ref.current?.pause(); }, [active]);
-  async function expand() {
-    const video = ref.current as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null;
-    if (!video) return;
-    try {
-      if (video.requestFullscreen) await video.requestFullscreen();
-      else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
-      else setExpanded(value => !value);
-    } catch { setExpanded(value => !value); }
-  }
-  return <figure className={`service-gallery-phone ${expanded ? "is-expanded" : ""}`}>
+  useEffect(() => {
+    const video = ref.current;
+    if (!active) { video?.pause(); return; }
+    void video?.play().catch(() => undefined);
+  }, [active]);
+  return <figure className="service-gallery-phone">
     <div className="service-gallery-phone-screen">
-      {active ? <video ref={ref} controls playsInline preload="metadata" poster={item.preview_url || undefined}
+      {active ? <video ref={ref} autoPlay muted loop playsInline preload="metadata" poster={item.preview_url || undefined}
         src={catalogMediaUrl(item.preview_video_url)} aria-label={`Видео услуги ${item.name}`}
         onError={() => setFailed(true)} onLoadedData={() => setFailed(false)} />
         : <img src={item.preview_url} alt={`Превью видео: ${item.name}`} loading="lazy" />}
     </div>
-    <figcaption><span>Видео на телефоне</span><button type="button" onClick={() => void expand()} disabled={!active} aria-label={`Развернуть видео: ${item.name}`}><Maximize size={18} />{expanded ? "Уменьшить" : "Развернуть"}</button></figcaption>
     {failed && <p role="alert">Видео не загрузилось. <button type="button" onClick={() => { setFailed(false); ref.current?.load(); }}>Повторить</button></p>}
   </figure>;
 }
@@ -153,7 +146,7 @@ export function CatalogViewer({ items, initialId, initialGender = "all", initial
     onKeyDown={event => {
       if (event.key === "Escape") { event.preventDefault(); close(); }
       if (event.key === "Tab") {
-        const controls = Array.from(root.current?.querySelectorAll<HTMLElement>('button:not(:disabled), video[controls], [tabindex="0"]') || []).filter(node => node.getClientRects().length > 0);
+        const controls = Array.from(root.current?.querySelectorAll<HTMLElement>('button:not(:disabled), [tabindex="0"]') || []).filter(node => node.getClientRects().length > 0);
         const first = controls[0]; const last = controls.at(-1);
         if (event.shiftKey && (document.activeElement === first || document.activeElement === root.current)) { event.preventDefault(); last?.focus(); }
         else if (!event.shiftKey && (document.activeElement === last || document.activeElement === root.current)) { event.preventDefault(); first?.focus(); }

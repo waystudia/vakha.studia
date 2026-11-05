@@ -25,6 +25,7 @@ function Journey() {
 beforeEach(() => {
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
   vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+  vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
   vi.spyOn(HTMLElement.prototype, "offsetTop", "get").mockImplementation(function (this: HTMLElement) { return this.dataset.itemId === "class" ? 2000 : 0; });
 });
 afterEach(async () => { cleanup(); await new Promise(resolve => requestAnimationFrame(() => resolve(null))); vi.restoreAllMocks(); });
@@ -92,6 +93,10 @@ describe("fullscreen catalog journey", () => {
     fireEvent.error(within(service).getByRole("img", { name: "Девочка" }));
     expect(within(service).getByRole("alert")).toBeTruthy();
     expect(service.querySelector("video")).not.toBeNull();
+    expect(service.querySelector("video")?.autoplay).toBe(true);
+    expect(service.querySelector("video")?.muted).toBe(true);
+    expect(service.querySelector("video")?.controls).toBe(false);
+    expect(within(service).queryByRole("button", { name: /Развернуть видео/ })).toBeNull();
     fireEvent.click(within(service).getByRole("button", { name: "Повторить загрузку фото" }));
     expect(within(service).getByRole("img", { name: "Девочка" })).toBeTruthy();
   });
