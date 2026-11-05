@@ -1,10 +1,10 @@
-import { ShoppingBag, Video } from "lucide-react";
+import { ShoppingBag, Video, Maximize } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { OfflineCatalogControls } from "../components/OfflineCatalogControls";
 import { loadSavedCatalog } from "../lib/offlineCatalog";
 import { ServiceCard } from "../components/ServiceCard";
-import { CatalogViewer } from "../components/CatalogViewer";
+import { CatalogViewer, viewerItems } from "../components/CatalogViewer";
 import { Loader, Modal, Notice } from "../components/ui";
 import { buildCatalogSections, type CatalogGender } from "../lib/catalogSections";
 import { humanError, money } from "../lib/helpers";
@@ -79,6 +79,7 @@ export function PublicCatalogPage() {
   if (loading) return <main className="public-page"><Loader label="Открываем каталог…" /></main>;
   if (error || !data) return <main className="public-page"><section className="public-error"><div className="error-illustration">!</div><h1>Каталог недоступен</h1><p>{error || "Ссылка недействительна"}</p><Link to="/offline-catalog">Сохранённые каталоги</Link></section></main>;
 
+  const slideshowStart = viewerItems(data.catalog, gender, category)[0];
   const watermark = data.watermark;
   const toggle = (id: string) => setSelected((items) => items.includes(id) ? items.filter((item) => item !== id) : [...items, id]);
   const renderCard = (item: CatalogItem, related = false) => <ServiceCard key={item.id} item={item} selected={selected.includes(item.id)} related={related} readOnly={readOnly} watermark={watermark} onOpen={() => setPreview(item)} onToggle={() => toggle(item.id)} />;
@@ -92,6 +93,7 @@ export function PublicCatalogPage() {
   return <main className="public-page"><div className="public-shell public-catalog-shell">
     <header className="public-header"><div className="public-logo"><span className="brand-mark">VS</span><div><strong>{data.company_name || "Vakha Studio"}</strong><small>Каталог услуг</small></div></div><span className="step-indicator">{readOnly ? "Просмотр каталога" : "Для заказа"}</span></header>
     <section className="public-content public-catalog-content"><span className="eyebrow">Vakha Studio · услуги</span><h1>Каталог</h1><p className="public-lead">{readOnly ? "Каталог для показа" : "Выберите подходящий формат съёмки"}</p>
+      <button type="button" className="button button-primary catalog-slideshow-start" disabled={!slideshowStart} onClick={() => { const item = data.catalog.find(item => item.id === slideshowStart?.id); if (item) setPreview(item); }}><Maximize size={20} />Открыть слайд-шоу</button>
       {readOnly && <div className="offline-view-notice"><span>{!online ? "Без интернета · только просмотр" : localCopy ? "Сохранённый каталог · только просмотр" : "Только просмотр"}</span><Link to="/offline-catalog">Сохранённые каталоги</Link></div>}
       {readOnly && localCopy ? <details className="offline-manage"><summary>Управление сохранённой копией</summary><OfflineCatalogControls token={token} data={data} online={online} onUpdated={latest => { setData(latest); if (params.get("offline") === "1") setLocalCopy(true); }} /></details> : <OfflineCatalogControls token={token} data={data} online={online} onUpdated={latest => { setData(latest); if (params.get("offline") === "1") setLocalCopy(true); }} />}
       {data.catalog.length > 0 && <><div className="catalog-filter-groups"><div className="catalog-gender-tabs" role="group" aria-label="Для кого услуга"><button type="button" aria-pressed={gender === "all"} className={gender === "all" ? "active" : ""} onClick={() => setGender("all")}>Все</button><button type="button" aria-pressed={gender === "boys"} className={gender === "boys" ? "active" : ""} onClick={() => setGender("boys")}>Мальчикам</button><button type="button" aria-pressed={gender === "girls"} className={gender === "girls" ? "active" : ""} onClick={() => setGender("girls")}>Девочкам</button></div><div className="catalog-category-tabs" role="group" aria-label="Категория услуги"><button type="button" aria-pressed={category === "all"} className={category === "all" ? "active" : ""} onClick={() => setCategory("all")}>Все категории</button>{categories.map((itemCategory) => <button type="button" aria-pressed={category === itemCategory} className={category === itemCategory ? "active" : ""} key={itemCategory} onClick={() => setCategory(itemCategory)}>{itemCategory}</button>)}</div></div><div className="catalog-section-list">{mainSections.map(renderSection)}{genderSections.length > 0 && <div className="catalog-gender-columns">{genderSections.map((section) => <section className="catalog-section catalog-gender-column" key={section.id}><h2>{section.title}</h2><div className="public-catalog-grid">{section.items.map((item) => renderCard(item))}</div></section>)}</div>}</div></>}
