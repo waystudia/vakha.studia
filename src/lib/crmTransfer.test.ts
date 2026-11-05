@@ -25,6 +25,14 @@ describe('complete CRM ZIP contract', () => {
     vi.mocked(loadCatalog).mockResolvedValue([{id:'local-service',source_id:'crm-service',name:'Фото',price:350}] as never);
     vi.mocked(loadClass).mockImplementation(async id => ({school,schoolClass:classes.find(c=>c.id===id),children:[{id:`child-${id}`,crm_source_id:`crm-child-${id}`,first_name:'Имя',last_name:'Фамилия'}],orders:[{id:`order-${id}`,child_id:`child-${id}`,status:'new',created_at:'2026-11-05',selected_items:[{id:'local-service',name:'Фото',price:350,quantity:2,comment:'Две копии'}],total_amount:700}]} as never));
   }
+  it('includes a service snapshot when an existing order references a removed catalog entry', async () => {
+    prepare();
+    vi.mocked(loadCatalog).mockResolvedValue([]);
+    const {zip}=await buildCrmTransfer({kind:'class',id:'c1'});
+    const data=JSON.parse(await zip.file('data.json')!.async('string'));
+    expect(data.services[0]).toMatchObject({id:'local-service',name:'Фото',price:350});
+    expect(data.orders[0].items[0].serviceId).toBe(data.services[0].id);
+  });
   it.each([['school','s','project',2],['class','c1','class',1]] as const)('exports %s with scoped relationships and original CRM IDs', async (kind,id,exportType,count) => {
     prepare();
     const result=await buildCrmTransfer({kind,id});

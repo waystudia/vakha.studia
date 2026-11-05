@@ -32,6 +32,13 @@ export async function buildCrmTransfer(scope: TransferScope) {
   const orders = classPayloads.flatMap(({ orders: list }) => [...new Map([...list].filter(order => order.status !== "cancelled").sort((a,b) => b.created_at.localeCompare(a.created_at)).map(order => [order.child_id, order] as const).reverse()).values()].map(orderRecord));
   const usedServices = new Set(children.flatMap((child) => child.catalogIds));
   const services = catalog.filter((item) => !usedServices.size || usedServices.has(item.id) || usedServices.has(item.source_id)).map(serviceRecord);
+  const serviceIds = new Set(services.map(item => item.id));
+  for (const item of classPayloads.flatMap(payload => payload.orders.flatMap(order => order.selected_items))) {
+    if (usedServices.has(item.id) && !serviceIds.has(item.id)) {
+      services.push(serviceRecord({...item, source_id: item.id} as CatalogItem));
+      serviceIds.add(item.id);
+    }
+  }
   const data = { projects, classes: classRecords, students: children, services, orders, operators: [], operatorEvents: [], media: [], finalWorks: [], documents: [], settings: [], checklistTemplates: [], templates: [], tasks: orders.flatMap((order) => order.items.map((item) => ({ ...item, orderId: order.id, studentId: order.studentId }))), statuses: [] };
   const manifest = { app: "Vakha Studio", schemaVersion: 1, exportType: scope.kind === "school" ? "project" : "class", scope: scope.kind, exportedAt: new Date().toISOString(), exportedBy: "vakha.studia", containsMedia: false, counts: { classes: classRecords.length, students: children.length, orders: orders.length, services: services.length } };
   const zip = new JSZip(); zip.file("manifest.json", JSON.stringify(manifest, null, 2)); zip.file("data.json", JSON.stringify(data, null, 2)); zip.file("README.txt", `Заявки родителей Vakha Studio. ${scope.kind === "school" ? "Вся школа: все активные классы." : "Один класс."}
