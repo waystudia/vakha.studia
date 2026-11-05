@@ -1,7 +1,7 @@
 .parent-intro{position:relative;display:grid;gap:10px;padding:16px 20px 12px;background:#fff;color:#19253b}
 .parent-intro-message{margin:0;font-size:14px;line-height:1.5;color:#465773}
-.parent-intro-player{position:relative;overflow:hidden;border-radius:16px;background:#101725}
+.parent-intro-player{margin-inline:auto;max-width:100%;position:relative;overflow:hidden;border-radius:16px;background:#101725}
 .parent-intro video{display:block;width:100%;height:auto;max-height:52dvh;object-fit:contain}
-.parent-intro-start{position:absolute;inset:0;margin:auto;width:fit-content;max-width:90%;height:48px;padding:0 18px;border:1px solid #9baecb;border-radius:24px;background:#243754;color:#fff;font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+.parent-intro-start{position:absolute;inset:0;margin:auto;width:fit-content;max-width:90%;height:48px;padding:0 10px;border:1px solid #9baecb;border-radius:24px;background:#243754;color:#fff;font:inherit;font-size:12px;line-height:1.3;font-weight:700;cursor:pointer}
 .parent-intro button:focus-visible{outline:3px solid #3b7df1;outline-offset:3px}
 @media(max-width:420px){.parent-intro{padding:12px}.parent-intro-message{font-size:13px}}

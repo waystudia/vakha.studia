@@ -9,6 +9,9 @@ it('attempts audible autoplay and offers one tap when the browser blocks it', as
  expect(container.querySelector('video')!.muted).toBe(false);
  expect(container.querySelector('video')!.controls).toBe(true);
  expect(screen.queryByText(/Пропустить/)).toBeNull();
+ fireEvent.click(document.body);
+ expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(2);
+ expect(complete).not.toHaveBeenCalled();
  fireEvent.error(container.querySelector('video')!);
  expect(complete).not.toHaveBeenCalled();
 });
