@@ -30,13 +30,32 @@ export function makePublicName(firstName: string, lastName: string) {
 }
 
 export function humanError(error: unknown, fallback = "Не удалось выполнить действие") {
-  const message = error instanceof Error ? error.message : String(error || "");
+  const message = errorMessage(error);
   if (message.includes("children_active_name_unique")) return "Такой ребёнок уже есть в классе";
   if (message.includes("classes_school_id_name_academic_year_key")) return "Такой класс уже создан";
   if (message.includes("Invalid login credentials")) return "Неверная почта или пароль";
   if (message.includes("Email not confirmed")) return "Подтвердите почту по письму Supabase";
   if (message.includes("User already registered")) return "Аккаунт с такой почтой уже зарегистрирован";
   return message || fallback;
+}
+
+function errorMessage(error: unknown, seen = new Set<unknown>()): string {
+  if (error == null || error === "") return "";
+  if (typeof error === "string") return error;
+  if (typeof error === "number" || typeof error === "boolean") return String(error);
+  if (seen.has(error)) return "";
+  seen.add(error);
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === "object") {
+    const value = error as Record<string, unknown>;
+    for (const key of ["message", "error_description", "details", "hint", "error", "cause"]) {
+      const message = errorMessage(value[key], seen);
+      if (message && message !== "[object Object]") return message;
+    }
+    try { const json = JSON.stringify(error); if (json && json !== "{}") return json; } catch { /* Circular provider error. */ }
+  }
+  const text = String(error);
+  return text === "[object Object]" ? "" : text;
 }
 
 export const orderStatusLabels: Record<OrderStatus, string> = {

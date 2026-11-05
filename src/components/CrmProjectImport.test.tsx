@@ -27,4 +27,13 @@ describe('project import confirmation',()=>{
   fireEvent.click(await screen.findByText('Подтвердить импорт'));
   expect(await screen.findByRole('alert')).toHaveProperty('textContent','Конфликт класса');expect(done).not.toHaveBeenCalled();expect(mocks.remove).not.toHaveBeenCalled();
  });
+ it('imports structured data when Storage rejects the optional ZIP copy',async()=>{
+  const draft={projects:[{id:'p',name:'Школа',city:'Грозный'}],classes:[{id:'c',projectId:'p'}],students:[],services:[],orders:[],mediaCount:0};
+  mocks.parse.mockResolvedValue(draft);mocks.upload.mockResolvedValue({error:{error:{message:'Object exceeded the maximum allowed size'}}});mocks.rpc.mockResolvedValue({error:null});
+  const done=vi.fn();render(<CrmProjectImport onClose={()=>{}} onDone={done}/>);
+  fireEvent.change(screen.getByLabelText('ZIP проекта'),{target:{files:[new File(['test'],'large.zip')]}});
+  fireEvent.click(await screen.findByText('Подтвердить импорт'));
+  await waitFor(()=>expect(done).toHaveBeenCalledOnce());
+  expect(mocks.rpc).toHaveBeenCalledWith('import_crm_project',expect.objectContaining({archive_path:''}));
+ });
 });
