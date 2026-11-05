@@ -9,7 +9,6 @@ export function ParentIntro({onComplete, watched = false}: {onComplete: () => vo
   const [blocked, setBlocked] = useState(false);
   const [failed, setFailed] = useState(false);
   const [done, setDone] = useState(watched);
-  const [aspect, setAspect] = useState(9 / 16);
   useEffect(() => {
     const player = video.current;
     if (!player || watched) return;
@@ -38,8 +37,7 @@ export function ParentIntro({onComplete, watched = false}: {onComplete: () => vo
   }
   return <section className="parent-intro" aria-label="Знакомство со студией Хан Зама">
     <p className="parent-intro-message" role="status">{done ? 'Видео просмотрено. Теперь можно выбрать фотографии.' : 'Вы сможете посмотреть каталог фотографий после полного просмотра видео. Пока можно выбрать ребёнка ниже.'}</p>
-    <div className="parent-intro-player" style={{width: `min(100%, ${52 * aspect}dvh)`}}><video ref={video} src={`${import.meta.env.BASE_URL}media/khan-zama-intro.mp4?v=${parentIntroVersion}`} autoPlay={!watched} controls controlsList="nodownload noplaybackrate" playsInline preload="auto"
-      onLoadedMetadata={() => { const player = video.current; if (player && player.videoWidth > 0 && player.videoHeight > 0) setAspect(player.videoWidth / player.videoHeight); }}
+    <div className="parent-intro-player"><video ref={video} src={`${import.meta.env.BASE_URL}media/khan-zama-intro.mp4?v=${parentIntroVersion}`} autoPlay={!watched} controls controlsList="nodownload noplaybackrate" playsInline preload="auto"
       onPlay={() => setBlocked(false)}
       onSeeking={() => { const player = video.current; if (player && !completed.current && player.currentTime > furthest.current + 0.5) player.currentTime = furthest.current; }}
       onTimeUpdate={() => { const player = video.current; if (!player || player.seeking) return; furthest.current = Math.max(furthest.current, player.currentTime); }}
