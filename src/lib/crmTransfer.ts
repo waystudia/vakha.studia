@@ -5,7 +5,11 @@ import type { CatalogItem, Child, ParentOrder, School, SchoolClass } from "./typ
 type TransferScope = { kind: "class" | "school"; id: string };
 
 function safeName(value: string) { return String(value || "export").replace(/[^a-zA-Z0-9а-яА-ЯёЁ_-]+/g, "_").slice(0, 80); }
-function serviceRecord(item: CatalogItem) { return { id: item.source_id || item.id, serviceId: item.source_id || item.id, title: item.name, name: item.name, price: Number(item.price), description: item.description || item.short_description || "", shortDescription: item.short_description || "", category: item.category || "", gender: item.gender || "unisex", type: item.type || "photo", previewSrc: item.preview_url || "", previewVideoSrc: item.preview_video_url || "" }; }
+export function crmParentCatalogUrl(publicToken: string, origin = typeof window === "undefined" ? "" : window.location.origin) {
+  if (!publicToken || !origin) return "";
+  return new URL(`${import.meta.env.BASE_URL}p/${encodeURIComponent(publicToken)}`, `${origin}/`).toString();
+}
+function serviceRecord(item: CatalogItem) { return { id: item.source_id || item.id, serviceId: item.source_id || item.id, title: item.name, name: item.name, price: Number(item.price), description: item.description || item.short_description || "", shortDescription: item.short_description || "", category: item.category || "", gender: item.gender || "unisex", type: item.type || "photo", previewSrc: item.preview_url || "", originalSrc: item.original_url || "", previewVideoSrc: item.preview_video_url || "" }; }
 export function studentRecord(child: Child, classId: string, orders: ParentOrder[]) { const order = [...orders].filter(item => item.child_id === child.id && item.status !== "cancelled").sort((a,b) => (b.created_at || "").localeCompare(a.created_at || ""))[0]; const selected = order?.selected_items || []; const serviceIds = selected.map((item) => item.id); return { id: child.crm_source_id || child.id, studentId: child.crm_source_id || child.id, classId, firstName: child.first_name, lastName: child.last_name, publicName: child.public_name,  catalogId: serviceIds[0] || "", catalogIds: serviceIds, selectedServices: selected.map((item) => ({ serviceId: item.id, quantity: item.quantity || 1, comment: item.comment || "", name: item.name, price: Number(item.price) })), paymentStatus: "unpaid", orderStatus: order?.status || "", status: order?.status || "" }; }
 export function orderRecord(order: ParentOrder) { return { id: `order_${order.child_id}`, orderId: `order_${order.child_id}`, vakhaOrderId: order.id, studentId: order.child_id, status: order.status, catalogId: order.selected_items[0]?.id || "", catalogIds: order.selected_items.map((item) => item.id), items: order.selected_items.map((item) => ({ id: `order_${order.child_id}_${item.id}`, taskId: `order_${order.child_id}_${item.id}`, type: item.id, serviceId: item.id, title: item.name, label: item.name, price: Number(item.price), quantity: item.quantity || 1, comment: item.comment || "", status: order.status })), totalAmount: Number(order.total_amount), comment: order.parent_note || "", createdAt: order.created_at, updatedAt: order.updated_at }; }
 
@@ -27,7 +31,18 @@ export async function buildCrmTransfer(scope: TransferScope) {
   }
   const projectId = school.crm_source_id || `vakha-school-${school.id}`;
   const projects = [{ id: projectId, projectId, name: school.name, schoolName: school.name, city: school.city, address: school.address, createdAt: school.created_at, updatedAt: school.updated_at }];
-  const classRecords = classPayloads.map(({ schoolClass }) => ({ id: schoolClass.crm_source_id || schoolClass.id, classId: schoolClass.crm_source_id || schoolClass.id, projectId, name: schoolClass.name, academicYear: schoolClass.academic_year, teacherName: schoolClass.teacher_name, schoolName: school.name }));
+  const classRecords = classPayloads.map(({ schoolClass }) => ({
+    id: schoolClass.crm_source_id || schoolClass.id,
+    classId: schoolClass.crm_source_id || schoolClass.id,
+    projectId,
+    name: schoolClass.name,
+    academicYear: schoolClass.academic_year,
+    teacherName: schoolClass.teacher_name,
+    schoolName: school.name,
+    parentCatalogUrl: crmParentCatalogUrl(schoolClass.public_token),
+    parentCatalogToken: schoolClass.public_token || "",
+    parentCatalogUpdatedAt: new Date().toISOString()
+  }));
   const children = classPayloads.flatMap(({ schoolClass, children: list, orders }) => list.map((child) => studentRecord(child, schoolClass.crm_source_id || schoolClass.id, orders)));
   const orders = classPayloads.flatMap(({ orders: list }) => [...new Map([...list].filter(order => order.status !== "cancelled").sort((a,b) => b.created_at.localeCompare(a.created_at)).map(order => [order.child_id, order] as const).reverse()).values()].map(orderRecord));
   const usedServices = new Set(children.flatMap((child) => child.catalogIds));
@@ -40,7 +55,7 @@ export async function buildCrmTransfer(scope: TransferScope) {
     }
   }
   const data = { projects, classes: classRecords, students: children, services, orders, operators: [], operatorEvents: [], media: [], finalWorks: [], documents: [], settings: [], checklistTemplates: [], templates: [], tasks: orders.flatMap((order) => order.items.map((item) => ({ ...item, orderId: order.id, studentId: order.studentId }))), statuses: [] };
-  const manifest = { app: "Vakha Studio", schemaVersion: 1, exportType: scope.kind === "school" ? "project" : "class", scope: scope.kind, exportedAt: new Date().toISOString(), exportedBy: "vakha.studia", containsMedia: false, counts: { classes: classRecords.length, students: children.length, orders: orders.length, services: services.length } };
+  const manifest = { app: "Vakha Studio", schemaVersion: 2, exportType: scope.kind === "school" ? "project" : "class", scope: scope.kind, exportedAt: new Date().toISOString(), exportedBy: "vakha.studia", containsMedia: false, includesParentCatalogLinks: true, counts: { classes: classRecords.length, students: children.length, orders: orders.length, services: services.length } };
   const zip = new JSZip(); zip.file("manifest.json", JSON.stringify(manifest, null, 2)); zip.file("data.json", JSON.stringify(data, null, 2)); zip.file("README.txt", `Заявки родителей Vakha Studio. ${scope.kind === "school" ? "Вся школа: все активные классы." : "Один класс."}
 Дети, выбранные услуги, количество, комментарии, суммы и текущие неотменённые заявки.
 CRM Photo → Настройки → Импорт / экспорт → ${scope.kind === "school" ? "Импорт проекта" : "Импорт класса/группы"}.

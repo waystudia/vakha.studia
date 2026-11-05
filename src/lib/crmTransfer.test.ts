@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 vi.mock('./repository', () => ({loadCatalog: vi.fn(), loadClass: vi.fn(), loadSchool: vi.fn()}));
-import { studentRecord, orderRecord } from './crmTransfer';
+import { studentRecord, orderRecord, crmParentCatalogUrl } from './crmTransfer';
 import type { Child, ParentOrder } from './types';
 describe('CRM order transfer', () => {
   const order = {id:'order-1', child_id:'crm-child', status:'new',selected_items:[{id:'crm-service',name:'Фото',price:350,quantity:2,comment:'Две копии'}],total_amount:700} as ParentOrder;
@@ -12,6 +12,7 @@ describe('CRM order transfer', () => {
     expect(matched.selectedServices).toEqual([{serviceId:'crm-service',quantity:2,comment:'Две копии',name:'Фото',price:350}]);
     expect(orderRecord(order).items[0]).toMatchObject({id:'order_crm-child_crm-service',serviceId:'crm-service',quantity:2,comment:'Две копии'});
   });
+  it('builds a public class link for CRM',()=>expect(crmParentCatalogUrl('class token','https://waystudia.github.io/vakha.studia')).toBe('https://waystudia.github.io/p/class%20token'));
 });
 
 import JSZip from 'jszip';
@@ -19,7 +20,7 @@ import { buildCrmTransfer } from './crmTransfer';
 import { loadCatalog, loadClass, loadSchool } from './repository';
 describe('complete CRM ZIP contract', () => {
   const school={id:'s',crm_source_id:'crm-school',name:'Школа'};
-  const classes=[{id:'c1',crm_source_id:'crm-class-1',name:'1А'},{id:'c2',crm_source_id:'crm-class-2',name:'2Б'}];
+  const classes=[{id:'c1',crm_source_id:'crm-class-1',name:'1А',public_token:'token-c1'},{id:'c2',crm_source_id:'crm-class-2',name:'2Б',public_token:'token-c2'}];
   function prepare() {
     vi.mocked(loadSchool).mockResolvedValue({school,classes} as never);
     vi.mocked(loadCatalog).mockResolvedValue([{id:'local-service',source_id:'crm-service',name:'Фото',price:350}] as never);
@@ -45,6 +46,8 @@ describe('complete CRM ZIP contract', () => {
     expect(data.orders).toHaveLength(count);
     expect(data.projects[0].id).toBe('crm-school');
     expect(data.classes[0].projectId).toBe('crm-school');
+    expect(data.classes[0]).toMatchObject({parentCatalogToken:'token-c1'});
+    expect(data.classes[0].parentCatalogUrl).toContain('/p/token-c1');
     expect(data.students[0]).toMatchObject({id:'crm-child-c1',classId:'crm-class-1',selectedServices:[{serviceId:'crm-service',quantity:2,comment:'Две копии',price:350}]});
     expect(data.orders[0]).toMatchObject({id:'order_crm-child-c1',studentId:'crm-child-c1',totalAmount:700});
     expect(data.services[0].id).toBe('crm-service');
