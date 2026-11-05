@@ -1,12 +1,13 @@
 import type { Session } from "@supabase/supabase-js";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AdminLayout } from "./components/AdminLayout";
 import { Loader } from "./components/ui";
 import { ensureDemoData } from "./lib/repository";
 import { supabase } from "./lib/supabase";
 import { LoginPage } from "./pages/LoginPage";
 import { PublicOrderPage } from "./pages/PublicOrderPage";
+import { OfflineCatalogPage } from "./pages/OfflineCatalogPage";
 import { PublicCatalogPage } from "./pages/PublicCatalogPage";
 import { PublicOrderDetailsPage } from "./pages/PublicOrderDetailsPage";
 
@@ -23,6 +24,13 @@ function Protected({ session, children }: { session: Session | null; children: R
 }
 
 export default function App() {
+  const location = useLocation();
+  // The installed public catalog must never wait for an administrator session.
+  if (location.pathname === "/offline-catalog" || location.pathname.startsWith("/catalog/")) return <Routes><Route path="/offline-catalog" element={<OfflineCatalogPage />} /><Route path="/catalog/:token" element={<PublicCatalogPage />} /></Routes>;
+  return <AdminApp />;
+}
+
+function AdminApp() {
   const [session, setSession] = useState<Session | null>(null); const [ready, setReady] = useState(false); const [seeded, setSeeded] = useState<string | null>(null);
   const seedingUserId = useRef<string | null>(null);
   useEffect(() => { void supabase.auth.getSession().then(({ data }) => { setSession(data.session); setReady(true); }); const { data } = supabase.auth.onAuthStateChange((_event, next) => { setSession(next); setReady(true); }); return () => data.subscription.unsubscribe(); }, []);

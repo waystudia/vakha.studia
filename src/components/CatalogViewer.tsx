@@ -56,11 +56,11 @@ function PhoneVideo({ item, active }: { item: ViewerItem; active: boolean }) {
 
 type Props = {
   items: ViewerItem[]; initialId: string; initialGender?: CatalogGender; initialCategory?: string;
-  immersive?: boolean; selected: string[]; onToggle: (id: string) => void; onClose: () => void;
+  immersive?: boolean; readOnly?: boolean; selected: string[]; onToggle: (id: string) => void; onClose: () => void;
 };
 
 /** An overlay owns one history entry; the source page stays mounted underneath it. */
-export function CatalogViewer({ items, initialId, initialGender = "all", initialCategory = "all", selected, onToggle, onClose, immersive = false }: Props) {
+export function CatalogViewer({ items, initialId, initialGender = "all", initialCategory = "all", selected, onToggle, onClose, immersive = false, readOnly = false }: Props) {
   const [gender, setGender] = useState<CatalogGender>(() => viewerItems(items, initialGender, initialCategory).some(item => item.id === initialId) ? initialGender : "all");
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [fitted, setFitted] = useState(false);
@@ -187,9 +187,9 @@ export function CatalogViewer({ items, initialId, initialGender = "all", initial
           {item.preview_video_url && <PhoneVideo item={item} active={item.id === activeId} />}
         </div>
         <footer className="service-gallery-footer"><span>{index + 1} / {visible.length}<small>{index < visible.length - 1 ? "Листайте вверх — следующая услуга" : "Последняя услуга"}</small></span>
-          <button type="button" className={`button ${selected.includes(item.id) ? "button-secondary" : "button-primary"}`} aria-pressed={selected.includes(item.id)} onClick={() => onToggle(item.id)}>
+          {!readOnly && <button type="button" className={`button ${selected.includes(item.id) ? "button-secondary" : "button-primary"}`} aria-pressed={selected.includes(item.id)} onClick={() => onToggle(item.id)}>
             {selected.includes(item.id) ? <Check size={18} /> : <Plus size={18} />}{selected.includes(item.id) ? "Добавлено" : "Добавить к заказу"}
-          </button></footer>
+          </button>}</footer>
       </article>)}
       {!visible.length && <div className="service-gallery-empty"><h2>Нет услуг с такими фильтрами</h2><button className="button button-secondary" onClick={() => { setCategory("all"); setGender("all"); }}>Показать все услуги</button></div>}
     </div>

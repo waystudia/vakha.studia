@@ -30,6 +30,13 @@ beforeEach(() => {
 afterEach(async () => { cleanup(); await new Promise(resolve => requestAnimationFrame(() => resolve(null))); vi.restoreAllMocks(); });
 
 describe("fullscreen catalog journey", () => {
+  it("keeps the installed offline catalog strictly for viewing", async () => {
+    const toggle = vi.fn();
+    render(<MemoryRouter><CatalogViewer immersive readOnly items={items} initialId="class" selected={[]} onToggle={toggle} onClose={() => {}} /></MemoryRouter>);
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByRole("button", { name: "Добавить к заказу" })).toBeNull();
+    expect(toggle).not.toHaveBeenCalled();
+  });
   it("lets the general catalog hide filters over a full-screen photo and fit the entire image", async () => {
     render(<MemoryRouter><CatalogViewer immersive items={items} initialId="class" selected={[]} onToggle={() => {}} onClose={() => {}} /></MemoryRouter>);
     const dialog = await screen.findByRole("dialog");

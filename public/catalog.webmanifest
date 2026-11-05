@@ -1,0 +1,16 @@
+{
+  "id": "./offline-catalog",
+  "name": "Vakha Studio — каталог офлайн",
+  "short_name": "Каталог VS",
+  "description": "Сохранённый каталог фото и видео для показа без интернета",
+  "lang": "ru",
+  "start_url": "./offline-catalog",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#f5f7fb",
+  "icons": [
+    { "src": "pwa/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "pwa/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

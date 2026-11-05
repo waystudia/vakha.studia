@@ -45,8 +45,8 @@ function CatalogVideoPhone({ item, onOpen }: { item: ServiceCardItem; onOpen: ()
 }
 
 
-export function ServiceCard({ item, selected, related = false, watermark = { text: "Vakha Studio", opacity: .28 }, onOpen, onToggle }: {
-  item: ServiceCardItem; selected: boolean; related?: boolean; watermark?: Watermark;
+export function ServiceCard({ item, selected, related = false, readOnly = false, watermark = { text: "Vakha Studio", opacity: .28 }, onOpen, onToggle }: {
+  item: ServiceCardItem; selected: boolean; related?: boolean; readOnly?: boolean; watermark?: Watermark;
   onOpen: () => void; onToggle: () => void;
 }) {
   return <article className={`public-catalog-card ${selected ? "selected" : ""} ${related ? "catalog-related-card" : ""}`}
@@ -56,7 +56,7 @@ export function ServiceCard({ item, selected, related = false, watermark = { tex
       {item.preview_url ? <img src={item.preview_url} alt="" loading="lazy" decoding="async" /> : <ImageIcon size={40} />}
       <CatalogVideoPhone item={item} onOpen={onOpen} />
       <div className="public-watermark">{watermark.image && <img src={watermark.image} alt="" style={{ opacity: watermark.opacity }} />}{watermark.text && <span style={{ opacity: watermark.opacity }}>{watermark.text}</span>}</div>
-      {!related && <button className="public-catalog-add" type="button" aria-pressed={selected} aria-label={selected ? `Убрать ${item.name} из заказа` : `Добавить ${item.name} в заказ`}
+      {!related && !readOnly && <button className="public-catalog-add" type="button" aria-pressed={selected} aria-label={selected ? `Убрать ${item.name} из заказа` : `Добавить ${item.name} в заказ`}
         onClick={event => { event.stopPropagation(); onToggle(); }}>{selected ? <Check size={18} /> : <Plus size={19} />}</button>}
     </div>
     <div className="public-catalog-copy"><div className="public-catalog-title"><strong title={item.name}>{item.name}</strong><b>{money(item.price)}</b></div><DeliveryFeatures item={item} /><AiVideoOption item={item} />{related && <small>Доступно для другой категории</small>}</div>
