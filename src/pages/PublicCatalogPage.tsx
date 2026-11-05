@@ -1,11 +1,10 @@
 import { Check, Image as ImageIcon, Play, Plus, ShoppingBag, Sparkles, Video } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { DeliveryPreview } from "../components/DeliveryPreview";
+import { CatalogViewer } from "../components/CatalogViewer";
 import { Loader, Modal, Notice } from "../components/ui";
 import { buildCatalogSections, type CatalogGender } from "../lib/catalogSections";
 import { humanError, money } from "../lib/helpers";
-import { catalogMediaUrl } from "../lib/mediaUrl";
 import { getPublicCatalog } from "../lib/repository";
 import type { PublicCatalogPayload } from "../lib/types";
 
@@ -48,20 +47,17 @@ function AiVideoOption({ item }: { item: CatalogItem }) {
   return <div className="public-catalog-ai-option"><Sparkles size={14} aria-hidden="true" /><span><strong>Можно оживить фото</strong><br />Нейросетевое видео</span></div>;
 }
 
-function CatalogVideoPhone({ item }: { item: CatalogItem }) {
-  const [playing, setPlaying] = useState(false);
+function CatalogVideoPhone({ item, onOpen }: { item: CatalogItem; onOpen: () => void }) {
   if (!item.preview_url || !item.preview_video_url) return null;
 
   return <button
     type="button"
-    className={`public-catalog-video-phone ${playing ? "is-playing" : ""}`}
-    aria-label={`${playing ? "Видео запущено" : "Запустить видео"} услуги ${item.name}`}
-    onClick={(event) => { event.stopPropagation(); setPlaying(true); }}
+    className="public-catalog-video-phone"
+    aria-label={`Смотреть видео услуги ${item.name}`}
+    onClick={(event) => { event.stopPropagation(); onOpen(); }}
   >
-    {playing
-      ? <video autoPlay playsInline preload="auto" poster={item.preview_url} src={catalogMediaUrl(item.preview_video_url)} onEnded={() => setPlaying(false)} onError={() => setPlaying(false)} />
-      : <img src={item.preview_url} alt="" loading="lazy" decoding="async" />}
-    {!playing && <span className="public-catalog-video-play"><Play size={12} fill="currentColor" /></span>}
+    <img src={item.preview_url} alt="" loading="lazy" decoding="async" />
+    <span className="public-catalog-video-play"><Play size={12} fill="currentColor" /></span>
   </button>;
 }
 
@@ -77,7 +73,7 @@ export function PublicCatalogPage() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   useEffect(() => { void (async () => { try { const payload = await getPublicCatalog(token); if (!payload) throw new Error("Ссылка на каталог недействительна"); setData(payload); } catch (reason) { setError(humanError(reason)); } finally { setLoading(false); } })(); }, [token]);
-  useEffect(() => { document.body.style.overflow = preview || checkoutOpen ? "hidden" : ""; return () => { document.body.style.overflow = ""; }; }, [preview, checkoutOpen]);
+  useEffect(() => { document.body.style.overflow = checkoutOpen ? "hidden" : ""; return () => { document.body.style.overflow = ""; }; }, [checkoutOpen]);
 
   const categories = useMemo(() => catalogCategories(data?.catalog || []), [data]);
   const filteredCatalog = useMemo(() => (data?.catalog || []).filter((item) => category === "all" || item.category === category), [data, category]);
@@ -92,10 +88,10 @@ export function PublicCatalogPage() {
   const toggle = (id: string) => setSelected((items) => items.includes(id) ? items.filter((item) => item !== id) : [...items, id]);
   const renderCard = (item: CatalogItem, related = false) => {
     const active = selected.includes(item.id);
-    return <article className={`public-catalog-card ${active ? "selected" : ""} ${related ? "catalog-related-card" : ""}`} key={item.id} onClick={() => setPreview(item)}>
+    return <article className={`public-catalog-card ${active ? "selected" : ""} ${related ? "catalog-related-card" : ""}`} key={item.id} role="button" tabIndex={0} onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setPreview(item); } }} onClick={() => setPreview(item)}>
       <div className="public-catalog-image">
         {item.preview_url ? <img src={item.preview_url} alt="" loading="lazy" decoding="async" /> : <ImageIcon size={40} />}
-        <CatalogVideoPhone item={item} />
+        <CatalogVideoPhone item={item} onOpen={() => setPreview(item)} />
         <div className="public-watermark">{watermark.image && <img src={watermark.image} alt="" style={{ opacity: watermark.opacity }} />}{watermark.text && <span style={{ opacity: watermark.opacity }}>{watermark.text}</span>}</div>
         {!related && <button className="public-catalog-add" type="button" aria-label={active ? `Убрать ${item.name} из заказа` : `Добавить ${item.name} в заказ`} onClick={(event) => { event.stopPropagation(); toggle(item.id); }}>{active ? <Check size={18} /> : <Plus size={19} />}</button>}
       </div>
@@ -116,7 +112,7 @@ export function PublicCatalogPage() {
       {!data.catalog.length && <Notice kind="info">Каталог пока пуст.</Notice>}
     </section>
     {selected.length > 0 && <div className="order-dock catalog-order-dock"><div><span>Выбрано: {selected.length}</span><strong>Итого: {money(total)}</strong></div><button className="button button-primary" onClick={() => setCheckoutOpen(true)}><ShoppingBag size={18} />Оформить заказ</button></div>}
-    {preview && <Modal title={preview.name} onClose={() => setPreview(null)}><section className="delivery-preview-copy"><h3>Что получат родители</h3><DeliveryFeatures item={preview} /></section><DeliveryPreview imageUrl={preview.preview_url} videoUrl={preview.preview_video_url} title={preview.name} mode={preview.parent_preview_mode} /><div className="public-preview-actions"><strong>{money(preview.price)}</strong><button className="button button-primary" onClick={() => toggle(preview.id)}>{selected.includes(preview.id) ? <><Check size={18} />Добавлено</> : <><Plus size={18} />Добавить к заказу</>}</button></div></Modal>}
+    {preview && <CatalogViewer items={data.catalog} initialId={preview.id} initialGender={gender} initialCategory={category} selected={selected} onToggle={toggle} onClose={() => setPreview(null)} />}
     {checkoutOpen && <Modal title="Оформить заказ" onClose={() => setCheckoutOpen(false)}><div className="catalog-checkout"><p>Вы отправите менеджеру список выбранных услуг и итоговую сумму.</p><div className="catalog-checkout-items">{selectedItems.map((item) => <div key={item.id}><span>{item.name}</span><strong>{money(item.price)}</strong></div>)}</div><div className="catalog-checkout-total"><span>Итого</span><strong>{money(total)}</strong></div>{whatsappUrl ? <a className="button button-primary button-wide" href={whatsappUrl} target="_blank" rel="noreferrer"><ShoppingBag size={18} />Перейти в WhatsApp</a> : <Notice kind="info">Менеджер ещё не подключил WhatsApp для приёма заказов.</Notice>}</div></Modal>}
   </div></main>;
 }
