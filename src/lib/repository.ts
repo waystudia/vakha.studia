@@ -162,7 +162,7 @@ export async function ensureDemoData(userId: string) {
 
   const { data: existingInterviewServices, error: interviewServicesError } = await supabase
     .from("catalog_items")
-    .select("id,source_id,preview_url,original_url,preview_video_url")
+    .select("id,source_id,name,short_description,description,type,category,gender,price,preview_url,original_url,preview_video_url,parent_preview_mode,is_active,sort_order,source")
     .eq("owner_id", userId)
     .in("source_id", [...INTERVIEW_CATALOG_SERVICE_IDS]);
   fail(interviewServicesError);
@@ -174,16 +174,28 @@ export async function ensureDemoData(userId: string) {
     fail(error);
   }
   for (const existing of existingInterviewServices || []) {
+    if (existing.source !== "system_interview_catalog") continue;
     const bundled = systemInterviewServices.find((item) => item.source_id === existing.source_id);
     if (!bundled) continue;
-    const media = {
-      preview_url: existing.preview_url || bundled.preview_url,
-      original_url: existing.original_url || bundled.original_url,
-      preview_video_url: existing.preview_video_url || bundled.preview_video_url,
+    const repaired = {
+      name: bundled.name,
+      short_description: bundled.short_description,
+      description: bundled.description,
+      type: bundled.type,
+      category: bundled.category,
+      gender: bundled.gender,
+      price: bundled.price,
+      preview_url: bundled.preview_url,
+      original_url: bundled.original_url,
+      preview_video_url: bundled.preview_video_url,
+      parent_preview_mode: bundled.parent_preview_mode,
+      is_active: bundled.is_active,
+      sort_order: bundled.sort_order,
+      source: bundled.source,
     };
-    if (media.preview_url === existing.preview_url && media.original_url === existing.original_url && media.preview_video_url === existing.preview_video_url) continue;
+    if (Object.entries(repaired).every(([key, value]) => existing[key as keyof typeof existing] === value)) continue;
     const { error } = await supabase.from("catalog_items")
-      .update(media)
+      .update(repaired)
       .eq("id", existing.id)
       .eq("owner_id", userId);
     fail(error);

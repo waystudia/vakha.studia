@@ -9,7 +9,7 @@ import "./catalog-viewer.css";
 
 export type ViewerItem = {
   id: string; name: string; price: number; category: string; gender: string; type: string;
-  preview_url: string; preview_video_url: string; description?: string; short_description?: string;
+  preview_url: string; original_url?: string; preview_video_url: string; description?: string; short_description?: string;
   parent_preview_mode?: "auto" | "print" | "digital";
 };
 
@@ -23,7 +23,7 @@ function GalleryPhoto({ item }: { item: ViewerItem }) {
   const [attempt, setAttempt] = useState(0);
   return <figure className={`service-gallery-photo ${item.category === "Фото с видео" ? "is-landscape" : ""}`}>
     {failed ? <div className="service-gallery-no-media" role="alert"><p>Фото не загрузилось.</p><button className="button button-secondary" type="button" onClick={() => { setAttempt(value => value + 1); setFailed(false); }}>Повторить загрузку фото</button></div>
-      : <img key={attempt} src={item.preview_url} alt={item.name} loading="lazy" decoding="async" onError={() => setFailed(true)} />}
+      : <img key={attempt} src={item.original_url || item.preview_url} alt={item.name} loading="lazy" decoding="async" onError={() => setFailed(true)} />}
     <figcaption>{item.parent_preview_mode === "digital" ? "Цифровое фото" : "Распечатка А4"}</figcaption>
   </figure>;
 }
