@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { PublicOrderPage } from "./PublicOrderPage";
+import { submitPublicOrder } from "../lib/publicRepository";
 
 vi.mock("../lib/parentIntroProgress", () => ({ hasWatchedParentIntro: () => true }));
 vi.mock("../components/ParentIntro", () => ({ ParentIntro: () => null }));
@@ -19,6 +20,7 @@ vi.mock("../lib/publicRepository", () => ({
 }));
 
 beforeEach(() => {
+  vi.clearAllMocks();
   Object.defineProperty(window, "scrollY", { value: 780, configurable: true });
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
 });
@@ -35,5 +37,25 @@ describe("child to catalog navigation", () => {
     const restored = await screen.findByRole("button", { name: /Последний ребёнок/ });
     await waitFor(() => expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 780, left: 0, behavior: "instant" }));
     expect(document.activeElement).toBe(restored);
+  });
+
+  it("defaults to lamination and submits a 50 ₽ discount when protection is removed", async () => {
+    vi.mocked(submitPublicOrder).mockResolvedValue({
+      duplicate: false,
+      order_number: "VS-1",
+      status: "new",
+      selected_items: [{ id: "photo", name: "Первое фото", price: 300, type: "photo", comment: "Без ламинации (защиты)" }],
+      total_amount: 300,
+      child_name: "Первый ребёнок",
+      class_name: "1 А",
+      public_token: "order-token",
+    });
+    render(<MemoryRouter initialEntries={["/p/test"]}><Routes><Route path="/p/:token" element={<PublicOrderPage />} /></Routes></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: /Первый ребёнок/ }));
+    expect(screen.getByRole("radio", { name: /С защитой.*350/ }).getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(screen.getByRole("radio", { name: /Без защиты.*300/ }));
+    expect(screen.getByText(/Итого:.*300/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Оформить заявку" }));
+    await waitFor(() => expect(submitPublicOrder).toHaveBeenCalledWith(expect.objectContaining({ itemIds: ["photo"], withoutLaminationIds: ["photo"] })));
   });
 });

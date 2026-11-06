@@ -49,10 +49,15 @@ function CatalogVideoPhone({ item, onOpen }: { item: ServiceCardItem; onOpen: ()
 }
 
 
-export function ServiceCard({ item, selected, related = false, readOnly = false, watermark = { text: "Vakha Studio", opacity: .28 }, onOpen, onToggle }: {
+export function ServiceCard({ item, selected, related = false, readOnly = false, withLamination = true, watermark = { text: "Vakha Studio", opacity: .28 }, onOpen, onToggle, onLaminationChange }: {
   item: ServiceCardItem; selected: boolean; related?: boolean; readOnly?: boolean; watermark?: Watermark;
-  onOpen: () => void; onToggle: () => void;
+  withLamination?: boolean; onOpen: () => void; onToggle: () => void; onLaminationChange?: (withLamination: boolean) => void;
 }) {
+  const selectedPrice = Math.max(0, Number(item.price) - (withLamination ? 0 : 50));
+  const chooseLamination = (value: boolean) => {
+    onLaminationChange?.(value);
+    if (!selected) onToggle();
+  };
   return <article className={`public-catalog-card ${selected ? "selected" : ""} ${related ? "catalog-related-card" : ""} ${item.category === "Фото с видео" ? "catalog-interview-card" : ""}`}
     role="button" tabIndex={0} aria-label={`Смотреть услугу: ${item.name}`}
     onKeyDown={event => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); onOpen(); } }} onClick={onOpen}>
@@ -63,6 +68,9 @@ export function ServiceCard({ item, selected, related = false, readOnly = false,
       {!related && !readOnly && <button className="public-catalog-add" type="button" aria-pressed={selected} aria-label={selected ? `Убрать ${item.name} из заказа` : `Добавить ${item.name} в заказ`}
         onClick={event => { event.stopPropagation(); onToggle(); }}>{selected ? <Check size={18} /> : <Plus size={19} />}</button>}
     </div>
-    <div className="public-catalog-copy"><div className="public-catalog-title"><strong title={item.name}>{item.name}</strong><b>{money(item.price)}</b></div><DeliveryFeatures item={item} /><AiVideoOption item={item} />{related && <small>Доступно для другой категории</small>}</div>
+    <div className="public-catalog-copy"><div className="public-catalog-title"><strong title={item.name}>{item.name}</strong><b>{money(selectedPrice)}</b></div><DeliveryFeatures item={item} />{!related && !readOnly && onLaminationChange && <div className="lamination-choice" role="radiogroup" aria-label={`Защита для услуги «${item.name}»`} onClick={event => event.stopPropagation()}>
+      <button type="button" role="radio" aria-checked={withLamination} className={withLamination ? "active" : ""} onClick={() => chooseLamination(true)}><span>С защитой</span><strong>{money(item.price)}</strong></button>
+      <button type="button" role="radio" aria-checked={!withLamination} className={!withLamination ? "active" : ""} onClick={() => chooseLamination(false)}><span>Без защиты</span><strong>{money(Math.max(0, Number(item.price) - 50))}</strong></button>
+    </div>}<AiVideoOption item={item} />{related && <small>Доступно для другой категории</small>}</div>
   </article>;
 }

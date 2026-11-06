@@ -508,13 +508,15 @@ export async function submitPublicOrder(input: {
   token: string;
   childId: string;
   itemIds: string[];
+  withoutLaminationIds: string[];
   requestKey: string;
   note: string;
 }): Promise<PublicOrderResult> {
-  const { data, error } = await supabase.rpc("submit_parent_order", {
+  const { data, error } = await supabase.rpc("submit_parent_order_v2", {
     p_token: input.token,
     p_child_id: input.childId,
     p_item_ids: input.itemIds,
+    p_without_lamination_ids: input.withoutLaminationIds,
     p_request_key: input.requestKey,
     p_parent_note: input.note,
   });

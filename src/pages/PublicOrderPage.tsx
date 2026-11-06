@@ -29,6 +29,7 @@ export function PublicOrderPage() {
   const [data, setData] = useState<PublicClassPayload | null>(null);
   const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [step, setStep] = useState<Step>("child");
   const [childId, setChildId] = useState(""); const [selected, setSelected] = useState<string[]>([]); const [pending, setPending] = useState(false);
+  const [withoutLamination, setWithoutLamination] = useState<string[]>([]);
   const [result, setResult] = useState<PublicOrderResult | null>(null); const [previewItem, setPreviewItem] = useState<CatalogEntry | null>(null); const [gender, setGender] = useState<CatalogGender>("all");
   const requestKey = useRef(crypto.randomUUID());
   const childOrigin = useRef<{ scrollY: number; childId: string }>({ scrollY: 0, childId: "" });
@@ -53,9 +54,10 @@ export function PublicOrderPage() {
     else if (servicesArmed.current && stepRef.current === "services") restoreChildren();
   }, [location]);
   const child = data?.children.find((item) => item.id === childId);
-  const total = useMemo(() => data?.catalog.filter((item) => selected.includes(item.id)).reduce((sum, item) => sum + Number(item.price), 0) || 0, [data, selected]);
+  const total = useMemo(() => data?.catalog.filter((item) => selected.includes(item.id)).reduce((sum, item) => sum + Math.max(0, Number(item.price) - (withoutLamination.includes(item.id) ? 50 : 0)), 0) || 0, [data, selected, withoutLamination]);
   const sections = useMemo(() => buildCatalogSections(data?.catalog || [], gender), [data, gender]);
   function toggle(id: string) { setSelected((items) => items.includes(id) ? items.filter((item) => item !== id) : [...items, id]); }
+  function setLamination(id: string, withLamination: boolean) { setWithoutLamination((items) => withLamination ? items.filter((item) => item !== id) : items.includes(id) ? items : [...items, id]); }
   function openServices(id: string) {
     childOrigin.current = { scrollY: window.scrollY, childId: id };
     servicesEntry.current = crypto.randomUUID();
@@ -71,8 +73,8 @@ export function PublicOrderPage() {
     if (location.state?.publicOrderServices === servicesEntry.current) navigate(-1);
     else restoreChildren();
   }
-  async function submit() { if (!childId || !selected.length || pending) return; setPending(true); setError(""); try { const order = await submitPublicOrder({ token, childId, itemIds: selected, requestKey: requestKey.current, note: "" }); setData(current => current ? {...current, children: current.children.map(item => item.id === childId ? {...item, orders: [{status: order.status, items: order.selected_items}]} : item)} : current); setResult(order); setSelected(order.selected_items.map((item) => item.id)); setStep("done"); } catch (reason) { setError(humanError(reason)); } finally { setPending(false); } }
-  function chooseAnotherChild() { requestKey.current = crypto.randomUUID(); setResult(null); setSelected([]); setChildId(""); setError(""); setPreviewItem(null); setStep("child"); }
+  async function submit() { if (!childId || !selected.length || pending) return; setPending(true); setError(""); try { const order = await submitPublicOrder({ token, childId, itemIds: selected, withoutLaminationIds: withoutLamination.filter((id) => selected.includes(id)), requestKey: requestKey.current, note: "" }); setData(current => current ? {...current, children: current.children.map(item => item.id === childId ? {...item, orders: [{status: order.status, items: order.selected_items}]} : item)} : current); setResult(order); setSelected(order.selected_items.map((item) => item.id)); setWithoutLamination(order.selected_items.filter((item) => item.comment === "Без ламинации (защиты)").map((item) => item.id)); setStep("done"); } catch (reason) { setError(humanError(reason)); } finally { setPending(false); } }
+  function chooseAnotherChild() { requestKey.current = crypto.randomUUID(); setResult(null); setSelected([]); setWithoutLamination([]); setChildId(""); setError(""); setPreviewItem(null); setStep("child"); }
   function orderLink(publicToken: string) { return `${window.location.origin}${import.meta.env.BASE_URL}order/${publicToken}`; }
   function whatsappUrl() {
     if (!data || !result) return "";
@@ -83,7 +85,7 @@ export function PublicOrderPage() {
     const phone = (config.phone || "").replace(/\D/g, "");
     return phone ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}` : "";
   }
-  function renderCard(item: CatalogEntry, previewOnly = false) { return <ServiceCard key={item.id} item={item} selected={selected.includes(item.id)} related={previewOnly} onOpen={() => setPreviewItem(item)} onToggle={() => toggle(item.id)} />; }
+  function renderCard(item: CatalogEntry, previewOnly = false) { return <ServiceCard key={item.id} item={item} selected={selected.includes(item.id)} related={previewOnly} withLamination={!withoutLamination.includes(item.id)} onOpen={() => setPreviewItem(item)} onToggle={() => toggle(item.id)} onLaminationChange={previewOnly ? undefined : (value) => setLamination(item.id, value)} />; }
   if (loading) return <main className="public-page"><Loader label="Открываем класс…" /></main>;
   if (error && !data) return <main className="public-page"><section className="public-error"><div className="error-illustration">!</div><h1>Ссылка недоступна</h1><p>{error}</p><span>Попросите учителя отправить актуальную ссылку.</span></section></main>;
   if (!data) return null;
