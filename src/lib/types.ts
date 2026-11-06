@@ -145,6 +145,7 @@ export interface PublicClassPayload {
     gender: string;
     price: number;
     preview_url: string;
+    original_url?: string;
     preview_video_url: string;
     parent_preview_mode: "auto" | "print" | "digital";
   }>;
