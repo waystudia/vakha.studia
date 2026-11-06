@@ -21,7 +21,7 @@ export function viewerItems(items: ViewerItem[], gender: CatalogGender, category
 function GalleryPhoto({ item }: { item: ViewerItem }) {
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  return <figure className="service-gallery-photo">
+  return <figure className={`service-gallery-photo ${item.category === "Фото с видео" ? "is-landscape" : ""}`}>
     {failed ? <div className="service-gallery-no-media" role="alert"><p>Фото не загрузилось.</p><button className="button button-secondary" type="button" onClick={() => { setAttempt(value => value + 1); setFailed(false); }}>Повторить загрузку фото</button></div>
       : <img key={attempt} src={item.preview_url} alt={item.name} loading="lazy" decoding="async" onError={() => setFailed(true)} />}
     <figcaption>{item.parent_preview_mode === "digital" ? "Цифровое фото" : "Распечатка А4"}</figcaption>

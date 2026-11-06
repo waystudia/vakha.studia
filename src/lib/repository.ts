@@ -18,6 +18,7 @@ import type {
 } from "./types";
 import { makePublicName } from "./helpers";
 import { GAME_CATALOG_SERVICE_IDS, gameCatalogServices } from "./gameCatalogServices";
+import { INTERVIEW_CATALOG_SERVICE_IDS, interviewCatalogServices } from "./interviewCatalogServices";
 
 function fail(error: { message: string } | null) {
   if (error) throw new Error(error.message);
@@ -154,6 +155,35 @@ export async function ensureDemoData(userId: string) {
     if (!bundled) continue;
     const { error } = await supabase.from("catalog_items")
       .update({ original_url: bundled.original_url })
+      .eq("id", existing.id)
+      .eq("owner_id", userId);
+    fail(error);
+  }
+
+  const { data: existingInterviewServices, error: interviewServicesError } = await supabase
+    .from("catalog_items")
+    .select("id,source_id,preview_url,original_url,preview_video_url")
+    .eq("owner_id", userId)
+    .in("source_id", [...INTERVIEW_CATALOG_SERVICE_IDS]);
+  fail(interviewServicesError);
+  const existingInterviewIds = new Set((existingInterviewServices || []).map((item) => item.source_id));
+  const systemInterviewServices = interviewCatalogServices(userId, publicBaseUrl);
+  const missingInterviewServices = systemInterviewServices.filter((item) => !existingInterviewIds.has(item.source_id));
+  if (missingInterviewServices.length) {
+    const { error } = await supabase.from("catalog_items").insert(missingInterviewServices);
+    fail(error);
+  }
+  for (const existing of existingInterviewServices || []) {
+    const bundled = systemInterviewServices.find((item) => item.source_id === existing.source_id);
+    if (!bundled) continue;
+    const media = {
+      preview_url: existing.preview_url || bundled.preview_url,
+      original_url: existing.original_url || bundled.original_url,
+      preview_video_url: existing.preview_video_url || bundled.preview_video_url,
+    };
+    if (media.preview_url === existing.preview_url && media.original_url === existing.original_url && media.preview_video_url === existing.preview_video_url) continue;
+    const { error } = await supabase.from("catalog_items")
+      .update(media)
       .eq("id", existing.id)
       .eq("owner_id", userId);
     fail(error);

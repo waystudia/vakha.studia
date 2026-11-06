@@ -16,7 +16,11 @@ function deliveryFeatures(item: ServiceCardItem): DeliveryFeature[] {
   ];
   if (item.preview_video_url) {
     features.push({ label: "QR-оживление", tone: "qr" });
-    features.push({ label: item.category === "Фото с видео" ? "Интервью ребёнка" : "Персональное ИИ-видео", tone: "video" });
+  }
+  if (item.category === "Фото с видео") {
+    features.push({ label: "Интервью ребёнка", tone: "video" });
+  } else if (item.preview_video_url) {
+    features.push({ label: "Персональное ИИ-видео", tone: "video" });
   }
   return features;
 }
@@ -49,7 +53,7 @@ export function ServiceCard({ item, selected, related = false, readOnly = false,
   item: ServiceCardItem; selected: boolean; related?: boolean; readOnly?: boolean; watermark?: Watermark;
   onOpen: () => void; onToggle: () => void;
 }) {
-  return <article className={`public-catalog-card ${selected ? "selected" : ""} ${related ? "catalog-related-card" : ""}`}
+  return <article className={`public-catalog-card ${selected ? "selected" : ""} ${related ? "catalog-related-card" : ""} ${item.category === "Фото с видео" ? "catalog-interview-card" : ""}`}
     role="button" tabIndex={0} aria-label={`Смотреть услугу: ${item.name}`}
     onKeyDown={event => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); onOpen(); } }} onClick={onOpen}>
     <div className="public-catalog-image">

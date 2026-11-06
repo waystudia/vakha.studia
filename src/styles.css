@@ -98,5 +98,6 @@ body.catalog-sheet-open{overflow:hidden}
 
 /* Catalog previews are lightweight, but every frame must remain fully visible. */
 .public-catalog-image>img,.service-preview-button img,.child-order-previews img{object-fit:contain;background:#eef3f8}
+.catalog-interview-card .public-catalog-image>img{object-fit:cover;object-position:center 32%}
 .service-back-floating{position:fixed;z-index:30;top:calc(max(12px,env(safe-area-inset-top)) + 78px);left:max(12px,calc((100vw - 680px)/2 + 12px));min-height:44px;display:inline-flex;align-items:center;gap:.4rem;padding:.6rem .8rem;border:1px solid #d8e2ef;border-radius:12px;background:#fff;color:#29405f;font-weight:800;box-shadow:0 8px 22px rgba(28,55,91,.16)}.service-back-floating:focus-visible{outline:3px solid rgba(54,127,242,.38);outline-offset:3px}.service-step{padding-top:4.6rem}
 @media(max-width:520px){.service-back-floating{top:calc(max(10px,env(safe-area-inset-top)) + 74px);left:10px;width:46px;padding:0;justify-content:center;border-radius:14px}.service-back-floating span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}}

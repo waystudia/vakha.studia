@@ -54,6 +54,14 @@ describe("fullscreen catalog journey", () => {
     expect(viewerItems(items, "boys", "Фото").map(item => item.id)).toEqual(["boy", "class"]);
     expect(viewerItems(items, "girls", "ИИ-видео").map(item => item.id)).toEqual(["girl"]);
   });
+  it("opens interview artwork inside a stable horizontal frame", async () => {
+    const interview = { ...items[0], id: "interview", name: "Интервью ребёнка — мальчик", category: "Фото с видео", type: "interview" };
+    render(<MemoryRouter><CatalogViewer items={[interview]} initialId="interview" selected={[]} onToggle={() => {}} onClose={() => {}} /></MemoryRouter>);
+    const service = await screen.findByRole("article", { name: interview.name });
+    const media = service.querySelector(".service-gallery-photo");
+    expect(media?.classList.contains("is-landscape")).toBe(true);
+    expect(within(service).getByRole("img", { name: interview.name })).toBeTruthy();
+  });
   it.each(["Закрыть просмотр", "Назад браузера"])("%s restores the same filtered origin, scroll and selection in StrictMode", async close => {
     Object.defineProperty(window, "scrollY", { value: 642, configurable: true });
     render(<StrictMode><MemoryRouter initialEntries={["/catalog/test?from=class#photos"]}><Journey /></MemoryRouter></StrictMode>);
