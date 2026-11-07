@@ -73,6 +73,7 @@ export interface CatalogItem {
   original_url: string;
   preview_video_url: string;
   parent_preview_mode: "auto" | "print" | "digital";
+  popular: boolean;
   is_active: boolean;
   sort_order: number;
   source: string;
@@ -165,6 +166,7 @@ export interface PublicClassPayload {
     category: string;
     gender: string;
     price: number;
+    popular?: boolean;
     preview_url: string;
     original_url?: string;
     preview_video_url: string;

@@ -194,6 +194,8 @@ export function PublicOrderPage() {
   const selectedCatalogItems = useMemo(() => data?.catalog.filter((item) => selected.includes(item.id)) || [], [data, selected]);
   const total = useMemo(() => data?.catalog.filter((item) => selected.includes(item.id)).reduce((sum, item) => sum + Math.max(0, Number(item.price) - (withoutLamination.includes(item.id) ? 50 : 0)), 0) || 0, [data, selected, withoutLamination]);
   const sections = useMemo(() => buildCatalogSections(data?.catalog || [], gender), [data, gender]);
+  const prioritizedSections = useMemo(() => sections.map((section) => ({ ...section, items: [...section.items].sort((left, right) => Number(Boolean(right.popular)) - Number(Boolean(left.popular))) })), [sections]);
+  const popularItems = useMemo(() => prioritizedSections.flatMap((section) => section.items.find((item) => item.popular) || []), [prioritizedSections]);
   useEffect(() => {
     if (!sections.length) return;
     if (activeCategory !== "all" && !sections.some((section) => section.id === activeCategory)) setActiveCategory("all");
@@ -283,8 +285,8 @@ export function PublicOrderPage() {
       <button className="service-back-floating" type="button" aria-label="Назад к списку детей" onClick={closeServices}><ArrowLeft size={20} /><span>Назад</span></button>
       <span className="eyebrow">{data.school.name} · {data.class.name}</span><h1>{child?.public_name}</h1>
       {error && <Notice kind="error">{error}</Notice>}
-      {sections.length > 0 && <div className="catalog-category-cards" ref={categoryCardsRef} aria-label="Категории услуг">
-        {sections.map((section, index) => {
+      {prioritizedSections.length > 0 && <div className="catalog-category-cards" ref={categoryCardsRef} aria-label="Категории услуг">
+        {prioritizedSections.map((section, index) => {
           const preferredGender = index % 2 === 0 ? "girls" : "boys";
           const dragonVideo = section.id === "video" ? section.items.find((item) => /дракон/i.test(item.name) && item.preview_url) : undefined;
           const coverItem = dragonVideo || section.items.find((item) => item.gender === preferredGender && item.preview_url) || section.items.find((item) => item.preview_url);
@@ -296,6 +298,7 @@ export function PublicOrderPage() {
           </button>;
         })}
       </div>}
+      {popularItems.length > 0 && <section className="catalog-popular-section" aria-label="Популярные услуги"><h2>Популярное</h2><p>Лучшие варианты — по одной услуге из каждой категории.</p><div className="service-list">{popularItems.map((item) => renderCard(item))}</div></section>}
       {data.catalog.length > 0 && <div className={`catalog-sticky-filters${filtersPinned ? " is-pinned" : ""}`}>
         <div className="catalog-gender-tabs" role="group" aria-label="Категория ребёнка">
           <button className={gender === "all" ? "active" : ""} onClick={() => setGender("all")}>Все</button>
@@ -304,10 +307,10 @@ export function PublicOrderPage() {
         </div>
         <nav className="catalog-jump-nav" aria-label="Быстрый переход по категориям">
           <button type="button" className={activeCategory === "all" ? "active" : ""} aria-current={activeCategory === "all" ? "true" : undefined} onClick={() => scrollToCategory("all")}>Все категории</button>
-          {sections.map((section) => <button type="button" key={section.id} className={activeCategory === section.id ? "active" : ""} aria-current={activeCategory === section.id ? "true" : undefined} onClick={() => scrollToCategory(section.id)}>{section.title}</button>)}
+          {prioritizedSections.map((section) => <button type="button" key={section.id} className={activeCategory === section.id ? "active" : ""} aria-current={activeCategory === section.id ? "true" : undefined} onClick={() => scrollToCategory(section.id)}>{section.title}</button>)}
         </nav>
       </div>}
-      <div className="catalog-section-list" data-catalog-section-list>{sections.map((section) => <section className="service-group catalog-section" data-catalog-section={section.id} key={section.id}><h2>{section.title}</h2>{section.notice && <div className="catalog-video-notice"><Video size={20}/><span>{section.notice}</span></div>}{section.items.length > 0 && <div className="service-list">{section.items.map((item) => renderCard(item))}</div>}{section.relatedItems?.length ? <><h3 className="catalog-related-title">{section.relatedTitle}</h3><div className="service-list">{section.relatedItems.map((item) => renderCard(item, true))}</div></> : null}</section>)}</div>
+      <div className="catalog-section-list" data-catalog-section-list>{prioritizedSections.map((section) => <section className="service-group catalog-section" data-catalog-section={section.id} key={section.id}><h2>{section.title}</h2>{section.notice && <div className="catalog-video-notice"><Video size={20}/><span>{section.notice}</span></div>}{section.items.length > 0 && <div className="service-list">{section.items.map((item) => renderCard(item))}</div>}{section.relatedItems?.length ? <><h3 className="catalog-related-title">{section.relatedTitle}</h3><div className="service-list">{section.relatedItems.map((item) => renderCard(item, true))}</div></> : null}</section>)}</div>
       {!data.catalog.length && <Notice kind="info">Каталог пуст.</Notice>}
       {selected.length > 0 && <OrderCart items={selectedCatalogItems} total={total} open={cartOpen} pending={pending} editing={editingExisting} withoutLamination={withoutLamination} onOpen={() => setCartOpen(true)} onClose={() => setCartOpen(false)} onRemove={toggle} onLaminationChange={setLamination} onSubmit={() => void submit()} />}
     </section>}

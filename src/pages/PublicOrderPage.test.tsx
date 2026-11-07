@@ -81,15 +81,20 @@ describe("child to catalog navigation", () => {
       children: [{ id: "first", public_name: "Первый ребёнок", orders: [] }],
       catalog: [
         { id: "interview-boy", name: "Интервью ребёнка", price: 800, category: "Фото с видео", gender: "boys", type: "interview", preview_url: "/interview-boy.webp", preview_video_url: "", description: "", short_description: "", parent_preview_mode: "auto" },
-        { id: "interview-girl", name: "Интервью девочки", price: 800, category: "Фото с видео", gender: "girls", type: "interview", preview_url: "/interview-girl.webp", preview_video_url: "", description: "", short_description: "", parent_preview_mode: "auto" },
+        { id: "interview-girl", name: "Интервью девочки", price: 800, category: "Фото с видео", gender: "girls", type: "interview", popular: true, preview_url: "/interview-girl.webp", preview_video_url: "", description: "", short_description: "", parent_preview_mode: "auto" },
         { id: "dragon", name: "Полёт на драконе — ИИ-видео", price: 1200, category: "ИИ-видео", gender: "unisex", type: "video", preview_url: "/dragon.webp", preview_video_url: "/dragon.mp4", description: "", short_description: "", parent_preview_mode: "auto" },
         { id: "vainakh-girl", name: "Девочка у башни", price: 350, category: "Детские образы", gender: "girls", type: "photo", preview_url: "/vainakh-girl.webp", preview_video_url: "", description: "", short_description: "", parent_preview_mode: "auto" },
-        { id: "fighter-boy", name: "Супермен", price: 350, category: "Детские образы", gender: "boys", type: "photo", preview_url: "/fighter-boy.webp", preview_video_url: "", description: "", short_description: "", parent_preview_mode: "auto" },
+        { id: "fighter-boy", name: "Супермен", price: 350, category: "Детские образы", gender: "boys", type: "photo", popular: true, preview_url: "/fighter-boy.webp", preview_video_url: "", description: "", short_description: "", parent_preview_mode: "auto" },
         { id: "fairytale-girl", name: "Сказочная принцесса", price: 350, category: "Детские образы", gender: "girls", type: "photo", preview_url: "/fairytale-girl.webp", preview_video_url: "", description: "", short_description: "", parent_preview_mode: "auto" },
       ], whatsapp: {},
     });
     render(<MemoryRouter initialEntries={["/p/test"]}><Routes><Route path="/p/:token" element={<PublicOrderPage />} /></Routes></MemoryRouter>);
     fireEvent.click(await screen.findByRole("button", { name: /Первый ребёнок/ }));
+    const popular = screen.getByRole("region", { name: "Популярные услуги" });
+    expect(within(popular).getByText("Интервью девочки")).toBeTruthy();
+    expect(within(popular).getByText("Супермен")).toBeTruthy();
+    const fighterSection = screen.getByRole("heading", { name: "Бойцовские и герои" }).closest("section");
+    expect(fighterSection?.querySelector(".public-catalog-copy strong")?.textContent).toBe("Супермен");
     const allCategories = screen.getByRole("button", { name: "Все категории" });
     expect(allCategories.getAttribute("aria-current")).toBe("true");
     fireEvent.click(allCategories);

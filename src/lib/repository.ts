@@ -337,6 +337,7 @@ export async function importCatalogItems(userId: string, items: CatalogZipItem[]
       original_url: originalUrl,
       preview_video_url: previewVideoUrl,
       parent_preview_mode: item.parentPreviewMode,
+      popular: previous?.popular ?? item.popular,
       is_active: true,
       sort_order: index,
       source: "crm_photo_zip",
@@ -353,7 +354,7 @@ export async function importCatalogItems(userId: string, items: CatalogZipItem[]
   return items.length;
 }
 
-export async function updateCatalogItem(id: string, input: Partial<Pick<CatalogItem, "name" | "description" | "short_description" | "category" | "price" | "is_active" | "sort_order">>) {
+export async function updateCatalogItem(id: string, input: Partial<Pick<CatalogItem, "name" | "description" | "short_description" | "category" | "price" | "popular" | "is_active" | "sort_order">>) {
   const { data, error } = await supabase.from("catalog_items").update(input).eq("id", id).select("*").single();
   fail(error);
   return data as CatalogItem;
