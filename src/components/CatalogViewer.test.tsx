@@ -42,10 +42,11 @@ describe("fullscreen catalog journey", () => {
     render(<MemoryRouter><CatalogViewer immersive items={items} initialId="class" selected={[]} onToggle={() => {}} onClose={() => {}} /></MemoryRouter>);
     const dialog = await screen.findByRole("dialog");
     expect(dialog.classList.contains("service-gallery-presentation")).toBe(true);
-    fireEvent.click(within(dialog).getByRole("button", { name: "Фильтры" }));
     expect(within(dialog).queryByRole("group", { name: "Категория услуги" })).toBeNull();
     fireEvent.click(within(dialog).getByRole("button", { name: "Фильтры" }));
     expect(within(dialog).getByRole("group", { name: "Категория услуги" })).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Фильтры" }));
+    expect(within(dialog).queryByRole("group", { name: "Категория услуги" })).toBeNull();
     fireEvent.click(within(dialog).getByRole("button", { name: "Фото целиком" }));
     expect(dialog.classList.contains("is-fitted")).toBe(true);
     expect(within(dialog).getByRole("button", { name: "Заполнить экран" })).toBeTruthy();
@@ -89,6 +90,7 @@ describe("fullscreen catalog journey", () => {
     const group = within(dialog).getByRole("article", { name: "Общее фото класса" });
     expect(group.querySelector("video")).toBeNull();
     expect(group.textContent).not.toContain("QR");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Фильтры" }));
     fireEvent.click(within(dialog).getByRole("button", { name: "ИИ-видео" }));
     fireEvent.click(within(dialog).getByRole("button", { name: "Мальчикам" }));
     expect(within(dialog).getByText("Нет услуг с такими фильтрами")).toBeTruthy();

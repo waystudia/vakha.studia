@@ -55,7 +55,7 @@ type Props = {
 /** An overlay owns one history entry; the source page stays mounted underneath it. */
 export function CatalogViewer({ items, initialId, initialGender = "all", initialCategory = "all", selected, onToggle, onClose, immersive = false, readOnly = false }: Props) {
   const [gender, setGender] = useState<CatalogGender>(() => viewerItems(items, initialGender, initialCategory).some(item => item.id === initialId) ? initialGender : "all");
-  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [fitted, setFitted] = useState(false);
   const [category, setCategory] = useState(initialCategory);
   const [activeId, setActiveId] = useState(initialId);
@@ -142,7 +142,7 @@ export function CatalogViewer({ items, initialId, initialGender = "all", initial
     if (current?.dataset.itemId) setActiveId(current.dataset.itemId);
   }
 
-  return createPortal(<div ref={root} className={`service-gallery ${immersive ? "service-gallery-presentation" : ""} ${fitted ? "is-fitted" : ""}`} role="dialog" aria-modal="true" aria-label="Просмотр услуг" tabIndex={-1}
+  return createPortal(<div ref={root} className={`service-gallery ${immersive ? "service-gallery-presentation" : "service-gallery-ordering"} ${fitted ? "is-fitted" : ""}`} role="dialog" aria-modal="true" aria-label="Просмотр услуг" tabIndex={-1}
     onKeyDown={event => {
       if (event.key === "Escape") { event.preventDefault(); close(); }
       if (event.key === "Tab") {
@@ -157,15 +157,16 @@ export function CatalogViewer({ items, initialId, initialGender = "all", initial
     }}>
     <header className="service-gallery-header">
       <div className="service-gallery-toolbar"><strong>Каталог услуг</strong><span aria-live="polite">{visible.length ? `${activeIndex + 1} / ${visible.length}` : "0 услуг"}</span>
-        {immersive && <><button type="button" className="presentation-filter-toggle" aria-expanded={filtersOpen} aria-controls="presentation-gender presentation-categories" onClick={() => setFiltersOpen(value => !value)}><SlidersHorizontal size={15} />Фильтры{filtersOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</button><button type="button" className="presentation-fit-toggle" aria-pressed={fitted} onClick={() => setFitted(value => !value)}><Scan size={16} />{fitted ? "Заполнить экран" : "Фото целиком"}</button></>}
+        <button type="button" className="presentation-filter-toggle" aria-expanded={filtersOpen} aria-controls="viewer-gender viewer-categories" onClick={() => setFiltersOpen(value => !value)}><SlidersHorizontal size={15} /><span>Фильтры</span>{filtersOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</button>
+        {immersive && <button type="button" className="presentation-fit-toggle" aria-pressed={fitted} onClick={() => setFitted(value => !value)}><Scan size={16} />{fitted ? "Заполнить экран" : "Фото целиком"}</button>}
         {!immersive && <><button type="button" aria-label="Предыдущая услуга" disabled={!visible.length || activeIndex === 0} onClick={() => move(activeIndex - 1)}><ArrowUp size={20} /></button>
         <button type="button" aria-label="Следующая услуга" disabled={!visible.length || activeIndex === visible.length - 1} onClick={() => move(activeIndex + 1)}><ArrowDown size={20} /></button></>}
         <button type="button" aria-label="Закрыть просмотр" onClick={close}><X size={22} /></button>
       </div>
-      <div id={immersive ? "presentation-gender" : undefined} hidden={immersive && !filtersOpen} className="service-gallery-filters" role="group" aria-label="Для кого услуга">
+      <div id="viewer-gender" hidden={!filtersOpen} className="service-gallery-filters" role="group" aria-label="Для кого услуга">
         {([['all', 'Все'], ['boys', 'Мальчикам'], ['girls', 'Девочкам']] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={gender === value} onClick={() => setGender(value)}>{label}</button>)}
       </div>
-      <div id={immersive ? "presentation-categories" : undefined} hidden={immersive && !filtersOpen} className="service-gallery-filters" role="group" aria-label="Категория услуги">
+      <div id="viewer-categories" hidden={!filtersOpen} className="service-gallery-filters" role="group" aria-label="Категория услуги">
         <button type="button" aria-pressed={category === "all"} onClick={() => setCategory("all")}>Все категории</button>
         {categories.map(value => <button key={value} type="button" aria-pressed={category === value} onClick={() => setCategory(value)}>{value}</button>)}
       </div>
