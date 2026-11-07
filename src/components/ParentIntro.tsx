@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { ArrowDown, Check, Play, RotateCcw } from 'lucide-react';
 import './ParentIntro.css';
@@ -19,7 +19,7 @@ export function ParentIntro({onComplete, watched = false}: {onComplete: () => vo
     player.muted = false;
     void player.play().catch(() => setBlocked(true));
   }, [watched]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!expanded || !blocked || failed) return;
     const retryOnTouch = (event: MouseEvent) => {
       // Native video controls keep their own play/pause and volume behavior.
