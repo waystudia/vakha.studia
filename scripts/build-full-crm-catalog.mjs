@@ -1,7 +1,12 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import JSZip from "jszip";
+
+const execFileAsync = promisify(execFile);
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const crmRoot = path.resolve(projectRoot, "../crm.photo");
@@ -32,6 +37,7 @@ const services = [
 
 const zip = new JSZip();
 const includedFiles = new Set();
+const temporaryDir = await mkdtemp(path.join(os.tmpdir(), "vakha-catalog-"));
 
 function cleanAssetPath(value) {
   return String(value || "").trim().replace(/^\.\//, "");
@@ -42,7 +48,17 @@ async function includeAsset(value) {
   if (!relativePath || includedFiles.has(relativePath)) return relativePath;
   const absolutePath = path.resolve(crmRoot, relativePath);
   if (!absolutePath.startsWith(`${crmRoot}${path.sep}`)) throw new Error(`Небезопасный путь: ${relativePath}`);
-  zip.file(relativePath, await readFile(absolutePath));
+  let assetPath = absolutePath;
+  if (path.extname(relativePath).toLowerCase() === ".mp4") {
+    assetPath = path.join(temporaryDir, `${includedFiles.size}-${path.basename(relativePath)}`);
+    await execFileAsync("ffmpeg", [
+      "-hide_banner", "-loglevel", "error", "-y", "-i", absolutePath,
+      "-vf", "scale=720:-2:force_original_aspect_ratio=decrease",
+      "-c:v", "libx264", "-preset", "medium", "-crf", "28", "-pix_fmt", "yuv420p",
+      "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", assetPath,
+    ]);
+  }
+  zip.file(relativePath, await readFile(assetPath));
   includedFiles.add(relativePath);
   return relativePath;
 }
@@ -51,11 +67,9 @@ const exportedServices = [];
 for (const service of services) {
   const previewImage = await includeAsset(service.previewSrc);
   const previewVideo = await includeAsset(service.previewVideoUrl || service.previewVideoSrc);
-  const originalImage = service.gamePhotoService ? await includeAsset(service.originalSrc) : "";
   exportedServices.push({
     ...service,
     ...(previewImage ? { previewImage } : {}),
-    ...(originalImage ? { originalImage } : {}),
     ...(previewVideo ? { previewVideo } : {}),
     presentation: { parentPreviewMode: service.parentPreviewMode || "auto" },
   });
@@ -71,6 +85,7 @@ const outputDir = path.join(projectRoot, "public/catalog-updates");
 await mkdir(outputDir, { recursive: true });
 const output = path.join(outputDir, "crm-20261108.zip");
 await writeFile(output, await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" }));
+await rm(temporaryDir, { recursive: true, force: true });
 
 const categories = Object.fromEntries(
   Object.entries(Object.groupBy(exportedServices, (item) => item.category || "Без категории"))
