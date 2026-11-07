@@ -90,6 +90,10 @@ describe("child to catalog navigation", () => {
     });
     render(<MemoryRouter initialEntries={["/p/test"]}><Routes><Route path="/p/:token" element={<PublicOrderPage />} /></Routes></MemoryRouter>);
     fireEvent.click(await screen.findByRole("button", { name: /Первый ребёнок/ }));
+    const allCategories = screen.getByRole("button", { name: "Все категории" });
+    expect(allCategories.getAttribute("aria-current")).toBe("true");
+    fireEvent.click(allCategories);
+    expect(Element.prototype.scrollIntoView).toHaveBeenLastCalledWith({ behavior: "smooth", block: "start" });
     fireEvent.click(screen.getByRole("button", { name: "Перейти к категории Сказочные образы" }));
     expect(Element.prototype.scrollIntoView).toHaveBeenLastCalledWith({ behavior: "smooth", block: "start" });
     expect(screen.getByRole("navigation", { name: "Быстрый переход по категориям" })).toBeTruthy();

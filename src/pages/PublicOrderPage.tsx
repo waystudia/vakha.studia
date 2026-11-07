@@ -140,7 +140,7 @@ export function PublicOrderPage() {
   const [lastRemovedId, setLastRemovedId] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
   const [result, setResult] = useState<PublicOrderResult | null>(null); const [previewItem, setPreviewItem] = useState<CatalogEntry | null>(null); const [gender, setGender] = useState<CatalogGender>("all");
-  const [activeCategory, setActiveCategory] = useState("");
+  const [activeCategory, setActiveCategory] = useState("all");
   const requestKey = useRef(crypto.randomUUID());
   const childOrigin = useRef<{ scrollY: number; childId: string }>({ scrollY: 0, childId: "" });
   const serviceScrollTarget = useRef("");
@@ -194,7 +194,7 @@ export function PublicOrderPage() {
   const sections = useMemo(() => buildCatalogSections(data?.catalog || [], gender), [data, gender]);
   useEffect(() => {
     if (!sections.length) return;
-    if (!sections.some((section) => section.id === activeCategory)) setActiveCategory(sections[0].id);
+    if (activeCategory !== "all" && !sections.some((section) => section.id === activeCategory)) setActiveCategory("all");
   }, [activeCategory, sections]);
   useEffect(() => {
     if (step !== "services" || !("IntersectionObserver" in window)) return;
@@ -209,8 +209,10 @@ export function PublicOrderPage() {
   }, [sections, step]);
   function scrollToCategory(id: string) {
     setActiveCategory(id);
-    const target = Array.from(document.querySelectorAll<HTMLElement>("[data-catalog-section]"))
-      .find((element) => element.dataset.catalogSection === id);
+    const target = id === "all"
+      ? document.querySelector<HTMLElement>("[data-catalog-section-list]")
+      : Array.from(document.querySelectorAll<HTMLElement>("[data-catalog-section]"))
+        .find((element) => element.dataset.catalogSection === id);
     target?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   function toggle(id: string) {
@@ -291,10 +293,11 @@ export function PublicOrderPage() {
           <button className={gender === "girls" ? "active" : ""} onClick={() => setGender("girls")}>Девочки</button>
         </div>
         <nav className="catalog-jump-nav" aria-label="Быстрый переход по категориям">
+          <button type="button" className={activeCategory === "all" ? "active" : ""} aria-current={activeCategory === "all" ? "true" : undefined} onClick={() => scrollToCategory("all")}>Все категории</button>
           {sections.map((section) => <button type="button" key={section.id} className={activeCategory === section.id ? "active" : ""} aria-current={activeCategory === section.id ? "true" : undefined} onClick={() => scrollToCategory(section.id)}>{section.title}</button>)}
         </nav>
       </div>}
-      <div className="catalog-section-list">{sections.map((section) => <section className="service-group catalog-section" data-catalog-section={section.id} key={section.id}><h2>{section.title}</h2>{section.notice && <div className="catalog-video-notice"><Video size={20}/><span>{section.notice}</span></div>}{section.items.length > 0 && <div className="service-list">{section.items.map((item) => renderCard(item))}</div>}{section.relatedItems?.length ? <><h3 className="catalog-related-title">{section.relatedTitle}</h3><div className="service-list">{section.relatedItems.map((item) => renderCard(item, true))}</div></> : null}</section>)}</div>
+      <div className="catalog-section-list" data-catalog-section-list>{sections.map((section) => <section className="service-group catalog-section" data-catalog-section={section.id} key={section.id}><h2>{section.title}</h2>{section.notice && <div className="catalog-video-notice"><Video size={20}/><span>{section.notice}</span></div>}{section.items.length > 0 && <div className="service-list">{section.items.map((item) => renderCard(item))}</div>}{section.relatedItems?.length ? <><h3 className="catalog-related-title">{section.relatedTitle}</h3><div className="service-list">{section.relatedItems.map((item) => renderCard(item, true))}</div></> : null}</section>)}</div>
       {!data.catalog.length && <Notice kind="info">Каталог пуст.</Notice>}
       {selected.length > 0 && <OrderCart items={selectedCatalogItems} total={total} open={cartOpen} pending={pending} editing={editingExisting} withoutLamination={withoutLamination} onOpen={() => setCartOpen(true)} onClose={() => setCartOpen(false)} onRemove={toggle} onLaminationChange={setLamination} onSubmit={() => void submit()} />}
     </section>}

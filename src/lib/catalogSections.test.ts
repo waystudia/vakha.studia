@@ -45,4 +45,13 @@ describe("buildCatalogSections", () => {
       "Майнкрафт", "Пикачу",
     ]);
   });
+
+  it("places Roblox, Free Fire and PUBG services in the games category", () => {
+    const games = buildCatalogSections([
+      entry("Roblox приключение", "boys"),
+      entry("Фри Фаер чемпион", "girls"),
+      entry("PUBG герой", "boys"),
+    ], "all").find((section) => section.id === "games");
+    expect(games?.items.map((item) => item.name)).toEqual(["Roblox приключение", "Фри Фаер чемпион", "PUBG герой"]);
+  });
 });
