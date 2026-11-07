@@ -42,11 +42,29 @@ describe("child to catalog navigation", () => {
   });
 
   it("shows themed category previews and scrolls to the selected section", async () => {
+    vi.mocked(getPublicClass).mockResolvedValueOnce({
+      school: { name: "Школа №1", city: "" }, class: { id: "class", name: "1 А", academic_year: "2026", photo_session_name: "Фотосессия" },
+      children: [{ id: "first", public_name: "Первый ребёнок", orders: [] }],
+      catalog: [
+        { id: "interview-boy", name: "Интервью ребёнка", price: 800, category: "Фото с видео", gender: "boys", type: "interview", preview_url: "/interview-boy.webp", preview_video_url: "", description: "", short_description: "", parent_preview_mode: "auto" },
+        { id: "interview-girl", name: "Интервью девочки", price: 800, category: "Фото с видео", gender: "girls", type: "interview", preview_url: "/interview-girl.webp", preview_video_url: "", description: "", short_description: "", parent_preview_mode: "auto" },
+        { id: "dragon", name: "Полёт на драконе — ИИ-видео", price: 1200, category: "ИИ-видео", gender: "unisex", type: "video", preview_url: "/dragon.webp", preview_video_url: "/dragon.mp4", description: "", short_description: "", parent_preview_mode: "auto" },
+        { id: "vainakh-girl", name: "Девочка у башни", price: 350, category: "Детские образы", gender: "girls", type: "photo", preview_url: "/vainakh-girl.webp", preview_video_url: "", description: "", short_description: "", parent_preview_mode: "auto" },
+        { id: "fighter-boy", name: "Супермен", price: 350, category: "Детские образы", gender: "boys", type: "photo", preview_url: "/fighter-boy.webp", preview_video_url: "", description: "", short_description: "", parent_preview_mode: "auto" },
+        { id: "fairytale-girl", name: "Сказочная принцесса", price: 350, category: "Детские образы", gender: "girls", type: "photo", preview_url: "/fairytale-girl.webp", preview_video_url: "", description: "", short_description: "", parent_preview_mode: "auto" },
+      ], whatsapp: {},
+    });
     render(<MemoryRouter initialEntries={["/p/test"]}><Routes><Route path="/p/:token" element={<PublicOrderPage />} /></Routes></MemoryRouter>);
     fireEvent.click(await screen.findByRole("button", { name: /Первый ребёнок/ }));
     fireEvent.click(screen.getByRole("button", { name: "Перейти к категории Сказочные образы" }));
     expect(Element.prototype.scrollIntoView).toHaveBeenLastCalledWith({ behavior: "smooth", block: "start" });
     expect(screen.getByRole("navigation", { name: "Быстрый переход по категориям" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Перейти к категории Интервью" }).querySelector("img")?.getAttribute("src")).toBe("/interview-girl.webp");
+    expect(screen.getByRole("button", { name: "Перейти к категории Бойцовские и герои" }).querySelector("img")?.getAttribute("src")).toBe("/fighter-boy.webp");
+    const dragonPreview = screen.getByLabelText("Беззвучное видео-превью: Полёт на драконе — ИИ-видео") as HTMLVideoElement;
+    expect(dragonPreview.muted).toBe(true);
+    expect(dragonPreview.autoplay).toBe(true);
+    expect(dragonPreview.loop).toBe(true);
   });
 
   it("defaults to lamination and submits a 50 ₽ discount when protection is removed", async () => {

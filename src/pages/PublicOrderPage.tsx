@@ -8,6 +8,7 @@ import { ServiceCard } from "../components/ServiceCard";
 import { CatalogViewer } from "../components/CatalogViewer";
 import { humanError, money } from "../lib/helpers";
 import { buildCatalogSections, type CatalogGender } from "../lib/catalogSections";
+import { catalogMediaUrl } from "../lib/mediaUrl";
 import { cancelPublicOrder, getPublicClass, submitPublicOrder } from "../lib/publicRepository";
 import type { PublicClassPayload, PublicOrderResult } from "../lib/types";
 
@@ -224,10 +225,14 @@ export function PublicOrderPage() {
       <span className="eyebrow">{data.school.name} · {data.class.name}</span><h1>{child?.public_name}</h1>
       {error && <Notice kind="error">{error}</Notice>}
       {sections.length > 0 && <div className="catalog-category-cards" aria-label="Категории услуг">
-        {sections.map((section) => {
-          const cover = section.items.find((item) => item.preview_url)?.preview_url;
+        {sections.map((section, index) => {
+          const preferredGender = index % 2 === 0 ? "girls" : "boys";
+          const dragonVideo = section.id === "video" ? section.items.find((item) => /дракон/i.test(item.name) && item.preview_url) : undefined;
+          const coverItem = dragonVideo || section.items.find((item) => item.gender === preferredGender && item.preview_url) || section.items.find((item) => item.preview_url);
           return <button type="button" className="catalog-category-card" key={section.id} aria-label={`Перейти к категории ${section.title}`} onClick={() => scrollToCategory(section.id)}>
-            <span className="catalog-category-media">{cover ? <img src={cover} alt="" loading="lazy" decoding="async" /> : <ServiceIcon type={section.items[0]?.type || "photo"} />}</span>
+            <span className="catalog-category-media">{coverItem?.preview_video_url
+              ? <video src={catalogMediaUrl(coverItem.preview_video_url)} poster={coverItem.preview_url || undefined} aria-label={`Беззвучное видео-превью: ${coverItem.name}`} autoPlay muted loop playsInline preload="metadata" onPlay={(event) => { event.currentTarget.muted = true; event.currentTarget.volume = 0; }} />
+              : coverItem?.preview_url ? <img src={coverItem.preview_url} alt="" loading="lazy" decoding="async" /> : <ServiceIcon type={section.items[0]?.type || "photo"} />}</span>
             <span className="catalog-category-copy"><strong>{section.title}</strong><small>{serviceCountLabel(section.items.length)}</small></span>
           </button>;
         })}
