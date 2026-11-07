@@ -6,7 +6,7 @@ afterEach(() => { localStorage.clear(); cleanup(); vi.restoreAllMocks(); });
 it('attempts audible autoplay and offers one tap when the browser blocks it', async () => {
  vi.spyOn(HTMLMediaElement.prototype,'play').mockRejectedValue(new Error('NotAllowedError'));
  const complete=vi.fn();const {container}=render(<ParentIntro onComplete={complete}/>);
- await waitFor(()=>expect(screen.getByRole('button',{name:/Смотреть видео со звуком/})).toBeTruthy());
+ await waitFor(()=>expect(screen.getByRole('button',{name:/Посмотреть видео/})).toBeTruthy());
  expect(container.querySelector('video')!.muted).toBe(false);
  expect(container.querySelector('video')!.controls).toBe(true);
  expect(screen.queryByText(/Пропустить/)).toBeNull();
@@ -43,6 +43,8 @@ it('restores a completed viewing without forcing autoplay again', () => {
  const second=render(<ParentIntro watched={hasWatchedParentIntro()} onComplete={vi.fn()}/>);
  expect(play).not.toHaveBeenCalled();
  expect(second.container.querySelector('video')!.autoplay).toBe(false);
+ expect(second.container.querySelector('video')!.poster).toContain('khan-zama-intro-poster.webp');
+ expect(screen.getByRole('button',{name:/Посмотреть видео/})).toBeTruthy();
  expect(screen.getByText('Видео просмотрено. Теперь можно выбрать фотографии.')).toBeTruthy();
 });
 

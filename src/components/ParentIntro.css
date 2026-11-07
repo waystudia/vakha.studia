@@ -1,7 +1,7 @@
 .parent-intro{position:relative;display:grid;gap:10px;padding:16px 20px 12px;background:#fff;color:#19253b}
 .parent-intro-message{margin:0;font-size:14px;line-height:1.5;color:#465773}
-.parent-intro-player{width:100%;margin-inline:auto;max-width:100%;position:relative;overflow:hidden;border-radius:16px;background:#101725}
+.parent-intro-player{width:100%;margin-inline:auto;max-width:100%;position:relative;overflow:hidden;border-radius:16px;background:#101725;box-shadow:0 14px 34px rgba(25,45,78,.16)}
 .parent-intro video{display:block;width:100%;height:auto;object-fit:contain}
-.parent-intro-start{position:absolute;inset:0;margin:auto;width:fit-content;max-width:90%;height:48px;padding:0 10px;border:1px solid #9baecb;border-radius:24px;background:#243754;color:#fff;font:inherit;font-size:12px;line-height:1.3;font-weight:700;cursor:pointer}
+.parent-intro-start{position:absolute;right:16px;bottom:18px;left:16px;min-height:58px;padding:8px 14px;border:1px solid rgba(255,255,255,.78);border-radius:16px;display:flex;align-items:center;justify-content:center;gap:10px;background:rgba(17,35,64,.88);color:#fff;font:inherit;text-align:left;box-shadow:0 10px 28px rgba(6,15,29,.34);backdrop-filter:blur(10px);cursor:pointer}.parent-intro-start>span:last-child{display:grid;gap:1px}.parent-intro-start strong{font-size:14px;line-height:1.2}.parent-intro-start small{color:#dce8fb;font-size:10px;line-height:1.25}.parent-intro-play-icon{width:38px;height:38px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;background:#3b82f6;color:#fff}
 .parent-intro button:focus-visible{outline:3px solid #3b7df1;outline-offset:3px}
 @media(max-width:420px){.parent-intro{padding:12px}.parent-intro-message{font-size:13px}}

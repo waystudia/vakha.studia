@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Play } from 'lucide-react';
 import './ParentIntro.css';
 import { parentIntroVersion, rememberParentIntro } from '../lib/parentIntroProgress';
 
@@ -6,7 +7,7 @@ export function ParentIntro({onComplete, watched = false}: {onComplete: () => vo
   const video = useRef<HTMLVideoElement>(null);
   const furthest = useRef(0);
   const completed = useRef(watched);
-  const [blocked, setBlocked] = useState(false);
+  const [blocked, setBlocked] = useState(watched);
   const [failed, setFailed] = useState(false);
   const [done, setDone] = useState(watched);
   useEffect(() => {
@@ -37,13 +38,13 @@ export function ParentIntro({onComplete, watched = false}: {onComplete: () => vo
   }
   return <section className="parent-intro" aria-label="Знакомство со студией Хан Зама">
     <p className="parent-intro-message" role="status">{done ? 'Видео просмотрено. Теперь можно выбрать фотографии.' : 'Вы сможете посмотреть каталог фотографий после полного просмотра видео. Пока можно выбрать ребёнка ниже.'}</p>
-    <div className="parent-intro-player"><video ref={video} src={`${import.meta.env.BASE_URL}media/khan-zama-intro.mp4?v=${parentIntroVersion}`} autoPlay={!watched} controls controlsList="nodownload noplaybackrate" playsInline preload="auto"
+    <div className="parent-intro-player"><video ref={video} src={`${import.meta.env.BASE_URL}media/khan-zama-intro.mp4?v=${parentIntroVersion}`} poster={`${import.meta.env.BASE_URL}media/khan-zama-intro-poster.webp?v=${parentIntroVersion}`} autoPlay={!watched} controls controlsList="nodownload noplaybackrate" playsInline preload="metadata"
       onPlay={() => setBlocked(false)}
       onSeeking={() => { const player = video.current; if (player && !completed.current && player.currentTime > furthest.current + 0.5) player.currentTime = furthest.current; }}
       onTimeUpdate={() => { const player = video.current; if (!player || player.seeking) return; furthest.current = Math.max(furthest.current, player.currentTime); }}
-      onEnded={() => { const player = video.current; if (!completed.current && player && Number.isFinite(player.duration) && furthest.current >= player.duration - 1.5) { completed.current = true; setDone(true); rememberParentIntro(); onComplete(); } }}
+      onEnded={() => { const player = video.current; if (!completed.current && player && Number.isFinite(player.duration) && furthest.current >= player.duration - 1.5) { completed.current = true; setDone(true); setBlocked(true); rememberParentIntro(); onComplete(); player.load(); } }}
       onError={() => { setFailed(true); setBlocked(true); }} />
-      {blocked && <button className="parent-intro-start" onClick={start}>{failed ? 'Повторить загрузку видео' : '▶ Смотреть видео со звуком'}</button>}
+      {blocked && <button className="parent-intro-start" onClick={event => { event.stopPropagation(); start(); }}>{failed ? 'Повторить загрузку видео' : <><span className="parent-intro-play-icon"><Play size={22} fill="currentColor" /></span><span><strong>Посмотреть видео</strong><small>Как мы сохраняем детские истории</small></span></>}</button>}
     </div>
   </section>;
 }
