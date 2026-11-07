@@ -104,6 +104,18 @@ describe("child to catalog navigation", () => {
     await waitFor(() => expect(submitPublicOrder).toHaveBeenCalledWith(expect.objectContaining({ itemIds: ["photo"], withoutLaminationIds: ["photo"] })));
   });
 
+  it("closes the cart sheet with a downward swipe from its content", async () => {
+    render(<MemoryRouter initialEntries={["/p/test"]}><Routes><Route path="/p/:token" element={<PublicOrderPage />} /></Routes></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: /Первый ребёнок/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Добавить Первое фото в заказ" }));
+    fireEvent.click(screen.getByRole("button", { name: /Корзина.*1.*350/ }));
+    const cart = screen.getByRole("dialog", { name: "Корзина" });
+    fireEvent.touchStart(cart, { touches: [{ clientY: 120 }] });
+    fireEvent.touchMove(cart, { touches: [{ clientY: 230 }] });
+    fireEvent.touchEnd(cart, { changedTouches: [{ clientY: 230 }] });
+    await waitFor(() => expect(cart.closest(".order-cart-layer")?.getAttribute("aria-hidden")).toBe("true"));
+  });
+
   it("restores an existing order so a parent can replace or add services", async () => {
     vi.mocked(getPublicClass).mockResolvedValueOnce({
       school: { name: "Школа №1", city: "" }, class: { id: "class", name: "1 А", academic_year: "2026", photo_session_name: "Фотосессия" },
