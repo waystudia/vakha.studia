@@ -42,7 +42,8 @@ export function OrdersPage() {
 
   const normalizedSearch = search.trim().toLocaleLowerCase("ru");
   const filteredOrders = useMemo(() => workspace.orders.filter((order) =>
-    (status === "all" || order.status === status)
+    order.status !== "cancelled"
+    && (status === "all" || order.status === status)
     && (!normalizedSearch || searchableOrder(order).includes(normalizedSearch))), [workspace.orders, status, normalizedSearch]);
   const selectedSchool = workspace.schools.find((school) => school.id === schoolId);
   const selectedClass = workspace.classes.find((schoolClass) => schoolClass.id === classId);
@@ -102,7 +103,7 @@ export function OrdersPage() {
       <input aria-label="Поиск заявок" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Ребёнок, услуга, школа или номер"/>
       <select aria-label="Статус заявок" value={status} onChange={(event) => setStatus(event.target.value as "all" | OrderStatus)}>
         <option value="all">Все статусы</option>
-        {Object.entries(orderStatusLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
+        {Object.entries(orderStatusLabels).filter(([value]) => value !== "cancelled").map(([value, label]) => <option value={value} key={value}>{label}</option>)}
       </select>
     </div>
 

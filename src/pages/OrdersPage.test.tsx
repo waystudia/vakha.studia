@@ -34,6 +34,13 @@ const workspace = {
       child: { first_name: "Асет", last_name: "Ахмадова", public_name: "Асет А." },
       class: { name: "1 А", school_id: "school-1", school: { name: "Школа №1" } },
     },
+    {
+      id: "order-cancelled", class_id: "class-1", child_id: "child-cancelled", order_number: "VS-103", status: "cancelled",
+      selected_items: [{ id: "old", name: "Отменённый образ", price: 350, type: "photo" }],
+      total_amount: 350, created_at: "2026-11-07T14:00:00Z", parent_note: "",
+      child: { first_name: "Ребёнок", last_name: "Отменённый", public_name: "Отменённый Р." },
+      class: { name: "1 А", school_id: "school-1", school: { name: "Школа №1" } },
+    },
   ],
 } as unknown as OrdersWorkspace;
 
@@ -64,6 +71,7 @@ describe("orders hierarchy", () => {
     expect(screen.getByText("Чеченский джигит")).toBeTruthy();
     expect(screen.getByText("Ахмадова Асет")).toBeTruthy();
     expect(screen.getByText("Интервью ребёнка")).toBeTruthy();
+    expect(screen.queryByText("Отменённый Ребёнок")).toBeNull();
   });
 
   it("keeps status editing available inside a child order card", async () => {
@@ -72,5 +80,13 @@ describe("orders hierarchy", () => {
     fireEvent.click(screen.getByRole("button", { name: /1 А/ }));
     fireEvent.change(screen.getByRole("combobox", { name: "Статус заявки Абдуллаев Али" }), { target: { value: "ready" } });
     await waitFor(() => expect(updateOrderStatus).toHaveBeenCalledWith("order-1", "ready"));
+  });
+
+  it("removes an order from the active workspace when it is cancelled", async () => {
+    render(<MemoryRouter><OrdersPage/></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: /Школа №1/ }));
+    fireEvent.click(screen.getByRole("button", { name: /1 А/ }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Статус заявки Абдуллаев Али" }), { target: { value: "cancelled" } });
+    await waitFor(() => expect(screen.queryByText("Абдуллаев Али")).toBeNull());
   });
 });
