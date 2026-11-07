@@ -17,8 +17,7 @@ import type {
   SchoolWithStats,
 } from "./types";
 import { makePublicName } from "./helpers";
-import { GAME_CATALOG_SERVICE_IDS, gameCatalogServices } from "./gameCatalogServices";
-import { INTERVIEW_CATALOG_SERVICE_IDS, interviewCatalogServices } from "./interviewCatalogServices";
+import { activeCatalogItemIdsOutsideCrm } from "./catalogSync";
 
 function fail(error: { message: string } | null) {
   if (error) throw new Error(error.message);
@@ -134,72 +133,6 @@ export async function ensureDemoData(userId: string) {
     fail(error);
   }
 
-  const { data: existingGameServices, error: gameServicesError } = await supabase
-    .from("catalog_items")
-    .select("id,source_id,original_url")
-    .eq("owner_id", userId)
-    .in("source_id", [...GAME_CATALOG_SERVICE_IDS]);
-  fail(gameServicesError);
-  const existingGameIds = new Set((existingGameServices || []).map((item) => item.source_id));
-  const publicBaseUrl = new URL(import.meta.env.BASE_URL, window.location.origin).href;
-  const systemGameServices = gameCatalogServices(userId, publicBaseUrl);
-  const missingGameServices = systemGameServices
-    .filter((item) => !existingGameIds.has(item.source_id));
-  if (missingGameServices.length) {
-    const { error } = await supabase.from("catalog_items").insert(missingGameServices);
-    fail(error);
-  }
-  for (const existing of existingGameServices || []) {
-    if (existing.original_url) continue;
-    const bundled = systemGameServices.find((item) => item.source_id === existing.source_id);
-    if (!bundled) continue;
-    const { error } = await supabase.from("catalog_items")
-      .update({ original_url: bundled.original_url })
-      .eq("id", existing.id)
-      .eq("owner_id", userId);
-    fail(error);
-  }
-
-  const { data: existingInterviewServices, error: interviewServicesError } = await supabase
-    .from("catalog_items")
-    .select("id,source_id,name,short_description,description,type,category,gender,price,preview_url,original_url,preview_video_url,parent_preview_mode,is_active,sort_order,source")
-    .eq("owner_id", userId)
-    .in("source_id", [...INTERVIEW_CATALOG_SERVICE_IDS]);
-  fail(interviewServicesError);
-  const existingInterviewIds = new Set((existingInterviewServices || []).map((item) => item.source_id));
-  const systemInterviewServices = interviewCatalogServices(userId, publicBaseUrl);
-  const missingInterviewServices = systemInterviewServices.filter((item) => !existingInterviewIds.has(item.source_id));
-  if (missingInterviewServices.length) {
-    const { error } = await supabase.from("catalog_items").insert(missingInterviewServices);
-    fail(error);
-  }
-  for (const existing of existingInterviewServices || []) {
-    if (existing.source !== "system_interview_catalog") continue;
-    const bundled = systemInterviewServices.find((item) => item.source_id === existing.source_id);
-    if (!bundled) continue;
-    const repaired = {
-      name: bundled.name,
-      short_description: bundled.short_description,
-      description: bundled.description,
-      type: bundled.type,
-      category: bundled.category,
-      gender: bundled.gender,
-      price: bundled.price,
-      preview_url: bundled.preview_url,
-      original_url: bundled.original_url,
-      preview_video_url: bundled.preview_video_url,
-      parent_preview_mode: bundled.parent_preview_mode,
-      is_active: bundled.is_active,
-      sort_order: bundled.sort_order,
-      source: bundled.source,
-    };
-    if (Object.entries(repaired).every(([key, value]) => existing[key as keyof typeof existing] === value)) continue;
-    const { error } = await supabase.from("catalog_items")
-      .update(repaired)
-      .eq("id", existing.id)
-      .eq("owner_id", userId);
-    fail(error);
-  }
 }
 
 export async function loadSchools(): Promise<SchoolWithStats[]> {
@@ -409,6 +342,11 @@ export async function importCatalogItems(userId: string, items: CatalogZipItem[]
     const { error } = await supabase.from("catalog_items").upsert(payload, { onConflict: "owner_id,source_id" });
     fail(error);
     onProgress?.(index + 1, items.length);
+  }
+  const outsideCrm = activeCatalogItemIdsOutsideCrm(existing, items);
+  if (outsideCrm.length) {
+    const { error } = await supabase.from("catalog_items").update({ is_active: false }).eq("owner_id", userId).in("id", outsideCrm);
+    fail(error);
   }
   return items.length;
 }

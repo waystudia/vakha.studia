@@ -11,14 +11,19 @@ const catalog = [
 describe("buildCatalogSections", () => {
   it("keeps the requested order for the whole catalog", () => {
     expect(buildCatalogSections(catalog, "all").map((section) => section.title)).toEqual([
-      "Интервью ребёнка", "AI-видео", "Образы для мальчиков", "Образы для девочек",
+      "Интервью ребёнка", "AI-видео", "Образы для детей",
+    ]);
+    expect(buildCatalogSections(catalog, "all").find((section) => section.id === "visual-all")?.items.map((item) => item.name)).toEqual([
+      "Капитан пиратов", "Принцесса",
     ]);
   });
 
-  it("explains how to animate a boy's image when videos only exist for girls", () => {
-    const video = buildCatalogSections(catalog, "boys").find((section) => section.id === "video");
-    expect(video?.notice).toContain("Любой выбранный образ ниже можно оживить");
-    expect(video?.relatedTitle).toBe("Доступно для девочек");
-    expect(video?.relatedItems?.map((item) => item.name)).toEqual(["AI-видео для принцессы"]);
+  it("puts the selected gender first and keeps the other gender available afterwards", () => {
+    expect(buildCatalogSections(catalog, "girls").filter((section) => section.id.startsWith("visual-")).map((section) => section.title)).toEqual([
+      "Образы для девочек", "Образы для мальчиков",
+    ]);
+    expect(buildCatalogSections(catalog, "boys").filter((section) => section.id.startsWith("visual-")).map((section) => section.title)).toEqual([
+      "Образы для мальчиков", "Образы для девочек",
+    ]);
   });
 });

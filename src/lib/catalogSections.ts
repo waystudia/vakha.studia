@@ -28,20 +28,28 @@ function isVideo(item: CatalogLike) {
   return item.type === "video" || /(?:ai|ии)[-\s]?видео|видео/.test(searchable(item));
 }
 
-function matchesGender(item: CatalogLike, gender: CatalogGender) {
-  return gender === "all" || !item.gender || item.gender === "unisex" || item.gender === gender;
+function interleave<T>(left: T[], right: T[]) {
+  const result: T[] = [];
+  for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
+    if (left[index]) result.push(left[index]);
+    if (right[index]) result.push(right[index]);
+  }
+  return result;
 }
 
 function visualSections<T extends CatalogLike>(items: T[], gender: CatalogGender): CatalogSection<T>[] {
-  if (gender === "boys") return items.length ? [{ id: "visual-boys", title: "Образы для мальчиков", items }] : [];
-  if (gender === "girls") return items.length ? [{ id: "visual-girls", title: "Образы для девочек", items }] : [];
-
   const boys = items.filter((item) => item.gender === "boys");
   const girls = items.filter((item) => item.gender === "girls");
   const other = items.filter((item) => item.gender !== "boys" && item.gender !== "girls");
+  if (gender === "all") {
+    const paired = interleave(boys, girls);
+    return [...paired, ...other].length ? [{ id: "visual-all", title: "Образы для детей", items: [...paired, ...other] }] : [];
+  }
+  const preferred = gender === "girls"
+    ? [girls.length && { id: "visual-girls", title: "Образы для девочек", items: girls }, boys.length && { id: "visual-boys", title: "Образы для мальчиков", items: boys }]
+    : [boys.length && { id: "visual-boys", title: "Образы для мальчиков", items: boys }, girls.length && { id: "visual-girls", title: "Образы для девочек", items: girls }];
   return [
-    boys.length && { id: "visual-boys", title: "Образы для мальчиков", items: boys },
-    girls.length && { id: "visual-girls", title: "Образы для девочек", items: girls },
+    ...preferred,
     other.length && { id: "visual-other", title: "Другие образы", items: other },
   ].filter(Boolean) as CatalogSection<T>[];
 }
@@ -51,28 +59,14 @@ function visualSections<T extends CatalogLike>(items: T[], gender: CatalogGender
  * interviews stay discoverable even when a separate gender-specific item is absent.
  */
 export function buildCatalogSections<T extends CatalogLike>(catalog: T[], gender: CatalogGender): CatalogSection<T>[] {
-  const scoped = catalog.filter((item) => matchesGender(item, gender));
-  const interviews = scoped.filter(isInterview);
-  const videos = scoped.filter((item) => !isInterview(item) && isVideo(item));
-  const visuals = scoped.filter((item) => !isInterview(item) && !isVideo(item));
+  const interviews = catalog.filter(isInterview);
+  const videos = catalog.filter((item) => !isInterview(item) && isVideo(item));
+  const visuals = catalog.filter((item) => !isInterview(item) && !isVideo(item));
   const sections: CatalogSection<T>[] = [];
 
   if (interviews.length) sections.push({ id: "interview", title: "Интервью ребёнка", items: interviews });
 
-  if (videos.length) {
-    sections.push({ id: "video", title: "AI-видео", items: videos });
-  } else {
-    const oppositeGender = gender === "boys" ? "girls" : "boys";
-    const relatedItems = gender === "all" ? [] : catalog.filter((item) => item.gender === oppositeGender && !isInterview(item) && isVideo(item));
-    sections.push({
-      id: "video",
-      title: "AI-видео",
-      items: [],
-      notice: gender === "all" ? "Выберите любой образ ниже — его можно оживить в AI-видео." : `Для ${gender === "boys" ? "мальчиков" : "девочек"} отдельного AI-видео пока нет. Любой выбранный образ ниже можно оживить в AI-видео.`,
-      relatedTitle: relatedItems.length ? `Доступно для ${oppositeGender === "boys" ? "мальчиков" : "девочек"}` : undefined,
-      relatedItems,
-    });
-  }
+  if (videos.length) sections.push({ id: "video", title: "AI-видео", items: videos });
 
   return [...sections, ...visualSections(visuals, gender)];
 }

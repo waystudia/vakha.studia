@@ -15,7 +15,15 @@ export type ViewerItem = {
 
 export function viewerItems(items: ViewerItem[], gender: CatalogGender, category: string) {
   const scoped = items.filter(item => category === "all" || item.category === category);
-  return [...new Map(buildCatalogSections(scoped, gender).flatMap(section => section.items).map(item => [item.id, item])).values()];
+  const ordered = [...new Map(buildCatalogSections(scoped, gender).flatMap(section => section.items).map(item => [item.id, item])).values()];
+  if (gender === "all") return ordered;
+  return ordered
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => {
+      const rank = (item: ViewerItem) => item.gender === gender ? 0 : item.gender === "unisex" || !item.gender ? 1 : 2;
+      return rank(a.item) - rank(b.item) || a.index - b.index;
+    })
+    .map(({ item }) => item);
 }
 
 function GalleryPhoto({ item }: { item: ViewerItem }) {

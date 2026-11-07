@@ -54,6 +54,7 @@ describe("fullscreen catalog journey", () => {
   it("filters by gender/category without duplicating unisex services", () => {
     expect(viewerItems(items, "boys", "Фото").map(item => item.id)).toEqual(["boy", "class"]);
     expect(viewerItems(items, "girls", "ИИ-видео").map(item => item.id)).toEqual(["girl"]);
+    expect(viewerItems(items, "girls", "all").map(item => item.id)).toEqual(["girl", "class", "boy"]);
   });
   it("opens interview artwork inside a stable horizontal frame", async () => {
     const interview = { ...items[0], id: "interview", name: "Интервью", category: "Фото с видео", type: "interview", original_url: "/interview-horizontal.jpg" };
@@ -93,8 +94,8 @@ describe("fullscreen catalog journey", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Фильтры" }));
     fireEvent.click(within(dialog).getByRole("button", { name: "ИИ-видео" }));
     fireEvent.click(within(dialog).getByRole("button", { name: "Мальчикам" }));
-    expect(within(dialog).getByText("Нет услуг с такими фильтрами")).toBeTruthy();
-    fireEvent.click(within(dialog).getByRole("button", { name: "Показать все услуги" }));
+    expect(within(dialog).getByRole("article", { name: "Девочка" })).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Все категории" }));
     expect(within(dialog).getAllByRole("article")).toHaveLength(3);
   });
   it("offers photo retry without removing the video player", async () => {
