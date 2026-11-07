@@ -122,6 +122,8 @@ describe("child to catalog navigation", () => {
     expect(screen.getByRole("dialog", { name: "Корзина" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Оформить заявку" }));
     await waitFor(() => expect(submitPublicOrder).toHaveBeenCalledWith(expect.objectContaining({ itemIds: ["photo"], withoutLaminationIds: ["photo"] })));
+    expect(await screen.findByText("Прикреплена к карточке ребёнка")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: /WhatsApp/i })).toBeNull();
   });
 
   it("closes the cart sheet with a downward swipe from its content", async () => {

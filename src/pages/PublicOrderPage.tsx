@@ -66,7 +66,6 @@ function OrderCart({ items, total, open, pending, editing, withoutLamination, on
     dragDistance.current = 0;
     suppressDragClick.current = false;
     dragStart.current = { y: event.clientY, x: event.clientX, time: performance.now(), active: true, scrollArea, scrollTop: scrollArea?.scrollTop || 0 };
-    event.currentTarget.setPointerCapture?.(event.pointerId);
   }
   function moveDrag(event: React.PointerEvent<HTMLElement>) {
     const start = dragStart.current;
@@ -74,6 +73,7 @@ function OrderCart({ items, total, open, pending, editing, withoutLamination, on
     const distance = event.clientY - start.y;
     const horizontal = Math.abs(event.clientX - start.x);
     if (horizontal > Math.abs(distance)) return;
+    if (Math.abs(distance) > 8 && !event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.setPointerCapture?.(event.pointerId);
     event.preventDefault();
     if (start.scrollArea) {
       const nextScrollTop = start.scrollTop - distance;
@@ -94,7 +94,7 @@ function OrderCart({ items, total, open, pending, editing, withoutLamination, on
     const elapsed = Math.max(1, performance.now() - dragStart.current.time);
     const shouldClose = dragDistance.current >= 72 || dragDistance.current / elapsed >= .55;
     dragStart.current.active = false;
-    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture?.(event.pointerId);
     setDragY(0);
     if (shouldClose) onClose();
   }
@@ -269,15 +269,6 @@ export function PublicOrderPage() {
   async function submit() { if (!childId || pending || (!selected.length && !editingExisting)) return; setPending(true); setError(""); setNotice(""); try { if (!selected.length) { await cancelPublicOrder({ token, childId }); setData(current => current ? {...current, children: current.children.map(item => item.id === childId ? {...item, orders: []} : item)} : current); setWithoutLamination([]); setNotice("Заявка удалена. Можно выбрать услуги заново."); restoreChildren(); return; } const order = await submitPublicOrder({ token, childId, itemIds: selected, withoutLaminationIds: withoutLamination.filter((id) => selected.includes(id)), requestKey: requestKey.current, note: "" }); setData(current => current ? {...current, children: current.children.map(item => item.id === childId ? {...item, orders: [{status: order.status, items: order.selected_items}]} : item)} : current); setResult(order); setSelected(order.selected_items.map((item) => item.id)); setWithoutLamination(order.selected_items.filter((item) => item.comment === "Без ламинации (защиты)").map((item) => item.id)); setStep("done"); } catch (reason) { setError(humanError(reason)); } finally { setPending(false); } }
   function chooseAnotherChild() { requestKey.current = crypto.randomUUID(); setResult(null); setSelected([]); setWithoutLamination([]); setChildId(""); setError(""); setPreviewItem(null); setStep("child"); }
   function orderLink(publicToken: string) { return `${window.location.origin}${import.meta.env.BASE_URL}order/${publicToken}`; }
-  function whatsappUrl() {
-    if (!data || !result) return "";
-    const config = data.whatsapp || {};
-    const services = result?.selected_items.map((item) => `${item.name} — ${money(item.price)}`).join("; ") || "";
-    const template = config.template || "Здравствуйте! Направляю заявку на фотосъёмку для {child}.\\nКласс: {class}\\nУслуги: {services}\\nИтого: {total}\\nНомер заявки: {order_number}\\nСсылка на заявку: {order_link}";
-    const message = template.replaceAll("{company}", config.company || "Vakha Studio").replaceAll("{manager}", config.manager || "").replaceAll("{child}", result?.child_name || "").replaceAll("{class}", result?.class_name || "").replaceAll("{services}", services).replaceAll("{total}", money(result?.total_amount || 0)).replaceAll("{order_number}", result?.order_number || "").replaceAll("{order_link}", result?.public_token ? orderLink(result.public_token) : "");
-    const phone = (config.phone || "").replace(/\D/g, "");
-    return phone ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}` : "";
-  }
   function renderCard(item: CatalogEntry, previewOnly = false) { return <ServiceCard key={item.id} item={item} selected={selected.includes(item.id)} related={previewOnly} withLamination={!withoutLamination.includes(item.id)} onOpen={() => setPreviewItem(item)} onToggle={() => toggle(item.id)} onLaminationChange={previewOnly ? undefined : (value) => setLamination(item.id, value)} />; }
   if (loading) return <PublicLoadingScreen />;
   if (error && !data) return <main className="public-page"><section className="public-error"><div className="error-illustration">!</div><h1>Ссылка недоступна</h1><p>{error}</p><span>Попросите учителя отправить актуальную ссылку.</span></section></main>;
@@ -319,7 +310,7 @@ export function PublicOrderPage() {
     </section>}
     {step === "services" && selected.length === 0 && editingExisting && <div className="empty-order-dock"><span>Вы убрали последнюю услугу. Удалить заявку целиком?</span><div className="empty-order-actions"><button className="button button-secondary" disabled={pending} onClick={restoreLastRemoved}>Нет, вернуть</button><button className="button button-danger" disabled={pending} onClick={() => void submit()}>{pending && <LoaderCircle className="spin" size={18} />}Да, удалить</button></div></div>}
     {previewItem && <CatalogViewer items={data.catalog} initialId={previewItem.id} initialGender={gender} selected={selected} onToggle={toggle} onClose={() => setPreviewItem(null)} />}
-    {step === "done" && result && <section className="success-screen"><div className="success-mark"><CheckCircle2 /></div><h1>{result.duplicate ? "Заявка уже была отправлена" : "Заявка отправлена"}</h1><span className="success-pill">Ваша заявка принята</span><div className="order-number">Номер заявки <strong>{result.order_number}</strong></div><div className="confirmation-card"><div><span>Ребёнок</span><strong>{result.child_name}</strong></div><div><span>Класс</span><strong>{result.class_name}</strong></div><div><span>Услуги</span><strong>{result.selected_items.map((item) => `${item.name}${(item.quantity || 1) > 1 ? ` × ${item.quantity}` : ""}${item.comment ? ` (${item.comment})` : ""}`).join(", ")}</strong></div><div><span>Итого</span><strong>{money(result.total_amount)}</strong></div></div><div className="success-items">{result.selected_items.map((item) => <div className="success-item" key={item.id}>{item.preview_url ? <img src={item.preview_url} alt="" loading="lazy" decoding="async" /> : <ServiceIcon type={item.type} />}<span>{item.name}{(item.quantity || 1) > 1 ? ` × ${item.quantity}` : ""}</span><strong>{money(item.price * (item.quantity || 1))}</strong></div>)}</div><p>Спасибо! Мы сохраним прекрасные моменты детства.</p><div className="success-actions">{import.meta.env.VITE_CRM_MODE === "true" && <a className="button button-primary" href={orderLink(result.public_token)}>Открыть мой заказ</a>}<button className="button button-secondary" onClick={() => setStep("services")}><ArrowLeft size={18}/>Назад к выбору</button>{data.children.length > 1 && <button className="button button-secondary" onClick={chooseAnotherChild}>Выбрать другого ребёнка</button>}{whatsappUrl() && <a className="button button-primary" href={whatsappUrl()} target="_blank" rel="noreferrer">Отправить в WhatsApp</a>}<button className="button button-primary button-wide" onClick={chooseAnotherChild}>Готово</button></div></section>}
+    {step === "done" && result && <section className="success-screen"><div className="success-mark"><CheckCircle2 /></div><h1>{result.duplicate ? "Заявка уже была отправлена" : "Заявка сохранена"}</h1><span className="success-pill">Прикреплена к карточке ребёнка</span><div className="order-number">Номер заявки <strong>{result.order_number}</strong></div><div className="confirmation-card"><div><span>Ребёнок</span><strong>{result.child_name}</strong></div><div><span>Класс</span><strong>{result.class_name}</strong></div><div><span>Услуги</span><strong>{result.selected_items.map((item) => `${item.name}${(item.quantity || 1) > 1 ? ` × ${item.quantity}` : ""}${item.comment ? ` (${item.comment})` : ""}`).join(", ")}</strong></div><div><span>Итого</span><strong>{money(result.total_amount)}</strong></div></div><div className="success-items">{result.selected_items.map((item) => <div className="success-item" key={item.id}>{item.preview_url ? <img src={item.preview_url} alt="" loading="lazy" decoding="async" /> : <ServiceIcon type={item.type} />}<span>{item.name}{(item.quantity || 1) > 1 ? ` × ${item.quantity}` : ""}</span><strong>{money(item.price * (item.quantity || 1))}</strong></div>)}</div><p>Заявка сохранена в карточке ребёнка. Отправлять её в WhatsApp не нужно.</p><div className="success-actions">{import.meta.env.VITE_CRM_MODE === "true" && <a className="button button-primary" href={orderLink(result.public_token)}>Открыть мой заказ</a>}<button className="button button-secondary" onClick={() => setStep("services")}><ArrowLeft size={18}/>Назад к выбору</button>{data.children.length > 1 && <button className="button button-secondary" onClick={chooseAnotherChild}>Выбрать другого ребёнка</button>}<button className="button button-primary button-wide" onClick={chooseAnotherChild}>Готово</button></div></section>}
     {videoGateNotice && <div className="video-gate-toast" role="status"><span className="video-gate-icon" aria-hidden="true"><Play fill="currentColor" /></span><span><strong>Сначала посмотрите видео</strong><small>После полного просмотра откроется каталог фотографий.</small><button className="video-gate-action" type="button" onClick={goToIntroVideo}>Перейти к видео</button></span></div>}
   </div></main>;
 }
