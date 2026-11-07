@@ -59,9 +59,23 @@ export function PublicOrderPage() {
   function toggle(id: string) { setSelected((items) => items.includes(id) ? items.filter((item) => item !== id) : [...items, id]); }
   function setLamination(id: string, withLamination: boolean) { setWithoutLamination((items) => withLamination ? items.filter((item) => item !== id) : items.includes(id) ? items : [...items, id]); }
   function openServices(id: string) {
+    const order = data?.children.find((item) => item.id === id)?.orders?.[0];
+    const restored = order?.items.flatMap((item) => {
+      if (item.id && data?.catalog.some((entry) => entry.id === item.id)) return [item.id];
+      const named = data?.catalog.filter((entry) => entry.name === item.name) || [];
+      return named.length === 1 ? [named[0].id] : [];
+    }) || [];
+    const unprotected = order?.items.flatMap((item) => {
+      if (item.comment !== "Без ламинации (защиты)") return [];
+      if (item.id && restored.includes(item.id)) return [item.id];
+      const named = data?.catalog.filter((entry) => entry.name === item.name) || [];
+      return named.length === 1 ? [named[0].id] : [];
+    }) || [];
     childOrigin.current = { scrollY: window.scrollY, childId: id };
     servicesEntry.current = crypto.randomUUID();
     servicesArmed.current = false;
+    requestKey.current = crypto.randomUUID();
+    setSelected([...new Set(restored)]); setWithoutLamination([...new Set(unprotected)]); setResult(null); setError("");
     setChildId(id); setStep("services");
     navigate({ pathname: location.pathname, search: location.search, hash: location.hash }, { state: { ...location.state, publicOrderServices: servicesEntry.current }, preventScrollReset: true });
   }

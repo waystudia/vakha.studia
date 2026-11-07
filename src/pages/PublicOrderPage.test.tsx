@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { PublicOrderPage } from "./PublicOrderPage";
-import { submitPublicOrder } from "../lib/publicRepository";
+import { getPublicClass, submitPublicOrder } from "../lib/publicRepository";
 
 vi.mock("../lib/parentIntroProgress", () => ({ hasWatchedParentIntro: () => true }));
 vi.mock("../components/ParentIntro", () => ({ ParentIntro: () => null }));
@@ -57,5 +57,28 @@ describe("child to catalog navigation", () => {
     expect(screen.getByText(/Итого:.*300/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Оформить заявку" }));
     await waitFor(() => expect(submitPublicOrder).toHaveBeenCalledWith(expect.objectContaining({ itemIds: ["photo"], withoutLaminationIds: ["photo"] })));
+  });
+
+  it("restores an existing order so a parent can replace or add services", async () => {
+    vi.mocked(getPublicClass).mockResolvedValueOnce({
+      school: { name: "Школа №1", city: "" }, class: { id: "class", name: "1 А", academic_year: "2026", photo_session_name: "Фотосессия" },
+      children: [{ id: "first", public_name: "Первый ребёнок", orders: [{ status: "new", items: [{ id: "photo", name: "Первое фото", comment: "Без ламинации (защиты)" }] }] }],
+      catalog: [
+        { id: "photo", name: "Первое фото", price: 350, category: "Фото", gender: "unisex", type: "photo", preview_url: "/photo.webp", preview_video_url: "", description: "", short_description: "", parent_preview_mode: "auto" },
+        { id: "extra", name: "Дополнительное фото", price: 350, category: "Фото", gender: "unisex", type: "photo", preview_url: "/extra.webp", preview_video_url: "", description: "", short_description: "", parent_preview_mode: "auto" },
+      ], whatsapp: {},
+    });
+    vi.mocked(submitPublicOrder).mockResolvedValue({
+      duplicate: false, updated: true, order_number: "VS-1", status: "new",
+      selected_items: [{ id: "photo", name: "Первое фото", price: 300, type: "photo", comment: "Без ламинации (защиты)" }, { id: "extra", name: "Дополнительное фото", price: 350, type: "photo" }],
+      total_amount: 650, child_name: "Первый ребёнок", class_name: "1 А", public_token: "order-token",
+    });
+    render(<MemoryRouter initialEntries={["/p/test"]}><Routes><Route path="/p/:token" element={<PublicOrderPage />} /></Routes></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: /Первый ребёнок/ }));
+    expect(screen.getByRole("button", { name: "Убрать Первое фото из заказа" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getAllByRole("radio", { name: /Без защиты.*300/ }).find((item) => item.getAttribute("aria-checked") === "true")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Добавить Дополнительное фото в заказ" }));
+    fireEvent.click(screen.getByRole("button", { name: "Оформить заявку" }));
+    await waitFor(() => expect(submitPublicOrder).toHaveBeenCalledWith(expect.objectContaining({ itemIds: ["photo", "extra"], withoutLaminationIds: ["photo"] })));
   });
 });

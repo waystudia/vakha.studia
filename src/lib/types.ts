@@ -134,7 +134,7 @@ export interface PublicClassPayload {
     academic_year: string;
     photo_session_name: string;
   };
-  children: Array<{ id: string; public_name: string; orders?: Array<{status: OrderStatus; items: Array<{id?: string; name: string; quantity?: number; preview_url?: string}>}> }>;
+  children: Array<{ id: string; public_name: string; orders?: Array<{status: OrderStatus; items: Array<{id?: string; name: string; quantity?: number; preview_url?: string; comment?: string}>}> }>;
   catalog: Array<{
     id: string;
     name: string;
@@ -153,6 +153,7 @@ export interface PublicClassPayload {
 
 export interface PublicOrderResult {
   duplicate: boolean;
+  updated?: boolean;
   order_number: string;
   status: OrderStatus;
   selected_items: SelectedOrderItem[];
