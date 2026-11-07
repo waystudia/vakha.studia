@@ -29,6 +29,22 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe("child to catalog navigation", () => {
+  it("shows the parent child list in Russian alphabetical order", async () => {
+    vi.mocked(getPublicClass).mockResolvedValueOnce({
+      school: { name: "Школа №1", city: "" }, class: { id: "class", name: "1 А", academic_year: "2026", photo_session_name: "Фотосессия" },
+      children: [
+        { id: "z", public_name: "Якубов Иса", orders: [] },
+        { id: "a2", public_name: "Абдуллаев Али 10", orders: [] },
+        { id: "a1", public_name: "Абдуллаев Али 2", orders: [] },
+        { id: "g", public_name: "Гараев Абдул-Хамид", orders: [] },
+      ],
+      catalog: [], whatsapp: {},
+    });
+    render(<MemoryRouter initialEntries={["/p/test"]}><Routes><Route path="/p/:token" element={<PublicOrderPage />} /></Routes></MemoryRouter>);
+    const names = (await screen.findAllByRole("button")).filter((button) => button.classList.contains("child-choice")).map((button) => button.querySelector("strong")?.textContent);
+    expect(names).toEqual(["Абдуллаев Али 2", "Абдуллаев Али 10", "Гараев Абдул-Хамид", "Якубов Иса"]);
+  });
+
   it("opens the catalog at the top and restores the exact child-list position and focus", async () => {
     render(<MemoryRouter initialEntries={["/p/test"]}><Routes><Route path="/p/:token" element={<PublicOrderPage />} /></Routes></MemoryRouter>);
     const child = await screen.findByRole("button", { name: /Последний ребёнок/ });
