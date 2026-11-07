@@ -118,7 +118,7 @@ export function OrdersPage() {
     {loading ? <Loader label="Загружаем заявки…"/> : !schoolId ? <section aria-labelledby="orders-projects-title">
       <div className="orders-section-heading">
         <div><span>Шаг 1</span><h2 id="orders-projects-title">Проекты и школы</h2></div>
-        <strong>{filteredOrders.length} заявок</strong>
+        <strong aria-label={`Всего активных заявок: ${filteredOrders.length}`}>Всего активных: {filteredOrders.length}</strong>
       </div>
       {!visibleSchools.length ? <EmptyState icon={<Building2/>} title="Проекты не найдены" text="Измените поиск или фильтр статуса."/> : <div className="order-project-grid">
         {visibleSchools.map((school) => {
