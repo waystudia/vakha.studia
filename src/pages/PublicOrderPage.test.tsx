@@ -56,7 +56,8 @@ describe("child to catalog navigation", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Первый ребёнок/ }));
     expect(screen.getByRole("radio", { name: /С защитой.*350/ }).getAttribute("aria-checked")).toBe("true");
     fireEvent.click(screen.getByRole("radio", { name: /Без защиты.*300/ }));
-    expect(screen.getByText(/Итого:.*300/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Корзина.*1.*300/ }));
+    expect(screen.getByRole("dialog", { name: "Корзина" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Оформить заявку" }));
     await waitFor(() => expect(submitPublicOrder).toHaveBeenCalledWith(expect.objectContaining({ itemIds: ["photo"], withoutLaminationIds: ["photo"] })));
   });
@@ -80,13 +81,15 @@ describe("child to catalog navigation", () => {
     const selectedCardButton = screen.getByRole("button", { name: "Убрать Первое фото из заказа" });
     expect(selectedCardButton.getAttribute("aria-pressed")).toBe("true");
     await waitFor(() => expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "center" }));
-    const dock = document.querySelector<HTMLElement>(".order-dock");
-    expect(dock).toBeTruthy();
-    expect(within(dock!).getByText("Первое фото")).toBeTruthy();
+    const cartButton = screen.getByRole("button", { name: /Корзина.*1.*300/ });
+    expect(cartButton.querySelector("img")?.getAttribute("src")).toBe("/photo.webp");
     expect(screen.getAllByRole("radio", { name: /Без защиты.*300/ }).find((item) => item.getAttribute("aria-checked") === "true")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Добавить Дополнительное фото в заказ" }));
-    expect(within(dock!).getByText("Первое фото + ещё 1")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+    fireEvent.click(screen.getByRole("button", { name: /Корзина.*2.*650/ }));
+    const cart = screen.getByRole("dialog", { name: "Корзина" });
+    expect(within(cart).getByRole("img", { name: "Первое фото" }).getAttribute("src")).toBe("/photo.webp");
+    expect(within(cart).getByText("Дополнительное фото")).toBeTruthy();
+    fireEvent.click(within(cart).getByRole("button", { name: "Сохранить изменения" }));
     await waitFor(() => expect(submitPublicOrder).toHaveBeenCalledWith(expect.objectContaining({ itemIds: ["photo", "extra"], withoutLaminationIds: ["photo"] })));
   });
 
@@ -102,7 +105,8 @@ describe("child to catalog navigation", () => {
     });
     render(<MemoryRouter initialEntries={["/p/test"]}><Routes><Route path="/p/:token" element={<PublicOrderPage />} /></Routes></MemoryRouter>);
     fireEvent.click(await screen.findByRole("button", { name: /Первый ребёнок/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Убрать Первое фото из заказа" }));
+    fireEvent.click(screen.getByRole("button", { name: /Корзина.*1.*350/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Убрать Первое фото из корзины" }));
     fireEvent.click(screen.getByRole("button", { name: "Да, удалить" }));
     await waitFor(() => expect(cancelPublicOrder).toHaveBeenCalledWith({ token: "test", childId: "first" }));
     expect(await screen.findByText("Заявка удалена. Можно выбрать услуги заново.")).toBeTruthy();
