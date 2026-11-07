@@ -1,5 +1,5 @@
 import { CatalogInquiry } from "../components/CatalogInquiry";
-import { Video, Maximize, ShoppingBag } from "lucide-react";
+import { Camera, Maximize, Play, ShoppingBag, UserRound, Video } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { OfflineCatalogControls } from "../components/OfflineCatalogControls";
@@ -8,22 +8,27 @@ import { ServiceCard } from "../components/ServiceCard";
 import { CatalogViewer, viewerItems } from "../components/CatalogViewer";
 import { Loader, Notice } from "../components/ui";
 import { buildCatalogSections, type CatalogGender } from "../lib/catalogSections";
-import { humanError } from "../lib/helpers";
+import { catalogMediaUrl } from "../lib/mediaUrl";
+import { humanError, money } from "../lib/helpers";
 import { getPublicCatalog } from "../lib/repository";
+import { ParentIntro } from "../components/ParentIntro";
+import { hasWatchedParentIntro } from "../lib/parentIntroProgress";
 import type { PublicCatalogPayload } from "../lib/types";
 
 type CatalogItem = PublicCatalogPayload["catalog"][number];
 
-const CATEGORY_ORDER = ["Детские образы", "Игровые фотомонтажи", "ИИ-видео", "Фото с видео"];
+function ServiceIcon({ type }: { type: string }) {
+  if (type === "video") return <Video />;
+  if (type === "interview") return <Play />;
+  if (type === "ai") return <UserRound />;
+  return <Camera />;
+}
 
-function catalogCategories(items: CatalogItem[]) {
-  return [...new Set(items.map((item) => item.category.trim()).filter(Boolean))].sort((left, right) => {
-    const leftIndex = CATEGORY_ORDER.indexOf(left);
-    const rightIndex = CATEGORY_ORDER.indexOf(right);
-    const leftRank = leftIndex === -1 ? CATEGORY_ORDER.length : leftIndex;
-    const rightRank = rightIndex === -1 ? CATEGORY_ORDER.length : rightIndex;
-    return leftRank - rightRank || left.localeCompare(right, "ru-RU");
-  });
+function serviceCountLabel(count: number) {
+  const mod100 = count % 100;
+  const mod10 = count % 10;
+  const word = mod100 >= 11 && mod100 <= 14 ? "услуг" : mod10 === 1 ? "услуга" : mod10 >= 2 && mod10 <= 4 ? "услуги" : "услуг";
+  return `${count} ${word}`;
 }
 
 export function PublicCatalogPage({ catalogToken, presentation = false, internal = false }: { catalogToken?: string; presentation?: boolean; internal?: boolean } = {}) {
@@ -35,15 +40,18 @@ export function PublicCatalogPage({ catalogToken, presentation = false, internal
   const immersive = presentation || params.get("offline") === "1";
   const readOnly = immersive;
   const [selected, setSelected] = useState<string[]>([]);
+  const [withoutLamination, setWithoutLamination] = useState<string[]>([]);
   const [inquiryOpen, setInquiryOpen] = useState(false);
-  const toggle = (id: string) => setSelected(old => old.includes(id) ? old.filter(value => value !== id) : [...old, id]);
   const [data, setData] = useState<PublicCatalogPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<CatalogItem | null>(null);
   const [gender, setGender] = useState<CatalogGender>("all");
-  const [category, setCategory] = useState("all");
+  const [activeCategory, setActiveCategory] = useState("");
+  const [introClosed, setIntroClosed] = useState(hasWatchedParentIntro);
 
+  const toggle = (id: string) => setSelected(old => old.includes(id) ? old.filter(value => value !== id) : [...old, id]);
+  const setLamination = (id: string, protectedPhoto: boolean) => setWithoutLamination(old => protectedPhoto ? old.filter(value => value !== id) : old.includes(id) ? old : [...old, id]);
 
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
@@ -72,36 +80,55 @@ export function PublicCatalogPage({ catalogToken, presentation = false, internal
       finally { if (alive) setLoading(false); }
     })();
     return () => { alive = false; };
-  }, [token, params.get("offline")]);
+  }, [token, params]);
 
+  const sections = useMemo(() => buildCatalogSections(data?.catalog || [], gender), [data, gender]);
+  const selectedItems = useMemo(() => (data?.catalog || []).filter(item => selected.includes(item.id)).map(item => ({ ...item, price: Math.max(0, Number(item.price) - (withoutLamination.includes(item.id) ? 50 : 0)) })), [data, selected, withoutLamination]);
+  const total = useMemo(() => selectedItems.reduce((sum, item) => sum + Number(item.price), 0), [selectedItems]);
+  useEffect(() => {
+    if (!sections.length) return;
+    if (!sections.some(section => section.id === activeCategory)) setActiveCategory(sections[0].id);
+  }, [activeCategory, sections]);
+  useEffect(() => {
+    if (immersive || !("IntersectionObserver" in window)) return;
+    const observer = new IntersectionObserver(entries => {
+      const visible = entries.filter(entry => entry.isIntersecting).sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
+      const id = (visible?.target as HTMLElement | undefined)?.dataset.catalogSection;
+      if (id) setActiveCategory(id);
+    }, { rootMargin: "-140px 0px -48% 0px", threshold: [0.05, 0.25, 0.6] });
+    document.querySelectorAll<HTMLElement>("[data-catalog-section]").forEach(node => observer.observe(node));
+    return () => observer.disconnect();
+  }, [immersive, sections]);
 
-  const categories = useMemo(() => catalogCategories(data?.catalog || []), [data]);
-  const filteredCatalog = useMemo(() => (data?.catalog || []).filter((item) => category === "all" || item.category === category), [data, category]);
-  const sections = useMemo(() => buildCatalogSections(filteredCatalog, gender), [filteredCatalog, gender]);
-  useEffect(() => { if (category !== "all" && !categories.includes(category)) setCategory("all"); }, [categories, category]);
+  function scrollToCategory(id: string) {
+    setActiveCategory(id);
+    document.querySelector<HTMLElement>(`[data-catalog-section="${id}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   if (loading) return <main className="public-page"><Loader label="Открываем каталог…" /></main>;
   if (error || !data) return <main className="public-page"><section className="public-error"><div className="error-illustration">!</div><h1>Каталог недоступен</h1><p>{error || "Ссылка недействительна"}</p><Link to="/offline-catalog">Сохранённые каталоги</Link></section></main>;
 
-  const slideshowStart = viewerItems(data.catalog, gender, category)[0];
-  const watermark = data.watermark;
-  const renderCard = (item: CatalogItem, related = false) => <ServiceCard key={item.id} item={item} selected={selected.includes(item.id)} related={related} readOnly={readOnly} watermark={watermark} onOpen={() => setPreview(item)} onToggle={() => toggle(item.id)} />;
-  const renderSection = (section: typeof sections[number]) => <section className="catalog-section" key={section.id}><h2>{section.title}</h2>{section.notice && <div className="catalog-video-notice"><Video size={20} /><span>{section.notice}</span></div>}{section.items.length > 0 && <div className="public-catalog-grid">{section.items.map((item) => renderCard(item))}</div>}{section.relatedItems?.length ? <><h3 className="catalog-related-title">{section.relatedTitle}</h3><div className="public-catalog-grid">{section.relatedItems.map((item) => renderCard(item, true))}</div></> : null}</section>;
-  const mainSections = gender === "all" ? sections.filter((section) => !section.id.startsWith("visual-")) : sections;
-  const genderSections = gender === "all" ? sections.filter((section) => section.id.startsWith("visual-")) : [];
+  const slideshowStart = viewerItems(data.catalog, gender, "all")[0];
+  const renderCard = (item: CatalogItem, related = false) => <ServiceCard key={item.id} item={item} selected={selected.includes(item.id)} related={related} readOnly={readOnly} withLamination={!withoutLamination.includes(item.id)} watermark={data.watermark} onOpen={() => setPreview(item)} onToggle={() => toggle(item.id)} onLaminationChange={related || readOnly ? undefined : value => setLamination(item.id, value)} />;
 
   return <main className="public-page"><div className="public-shell public-catalog-shell">
-    <header className="public-header"><div className="public-logo"><span className="brand-mark">VS</span><div><strong>{data.company_name || "Vakha Studio"}</strong><small>{presentation ? "Каталог для показа" : "Каталог услуг"}</small></div></div><span className="step-indicator">{internal ? <Link to="/admin/catalog">В админку</Link> : "Просмотр каталога"}</span></header>
-    <section className="public-content public-catalog-content"><h1>Каталог</h1><p className="public-lead">{presentation ? "Показ фото и видео" : "Посмотрите услуги и примеры съёмки"}</p>
-      {!immersive && <section><h2>Знакомство со студией</h2><video controls playsInline preload="metadata" src={`${import.meta.env.BASE_URL}media/khan-zama-intro.mp4`} style={{width:"100%",maxHeight:420}} /></section>}
-      {immersive && <button type="button" className="button button-primary catalog-slideshow-start" disabled={!slideshowStart} onClick={() => { const item = data.catalog.find(item => item.id === slideshowStart?.id); if (item) setPreview(item); }}><Maximize size={20} />Открыть слайд-шоу</button>}
+    <header className="public-header"><div className="public-logo"><span className="brand-mark">KZ</span><div><strong>{data.company_name || "Khan Zama"}</strong><small>{presentation ? "Каталог для показа" : "Каталог услуг"}</small></div></div>{presentation && internal ? <span className="step-indicator"><Link to="/admin/catalog">В админку</Link></span> : null}</header>
+    {!immersive && <ParentIntro watched={introClosed} onComplete={() => setIntroClosed(true)} />}
+    <section className="public-content public-catalog-content" id="public-catalog-start"><h1>Каталог услуг</h1><p className="public-lead">Выберите понравившиеся услуги и отправьте заявку в WhatsApp</p>
+      {immersive && <button type="button" className="button button-primary catalog-slideshow-start" disabled={!slideshowStart} onClick={() => { const item = data.catalog.find(entry => entry.id === slideshowStart?.id); if (item) setPreview(item); }}><Maximize size={20} />Открыть слайд-шоу</button>}
       {immersive && <div className="offline-view-notice"><span>{!online ? "Без интернета · только просмотр" : localCopy ? "Сохранённый каталог · только просмотр" : "Только просмотр"}</span><Link to="/offline-catalog">Сохранённые каталоги</Link></div>}
       {immersive && (readOnly && localCopy ? <details className="offline-manage"><summary>Управление сохранённой копией</summary><OfflineCatalogControls token={token} data={data} online={online} onUpdated={latest => { setData(latest); if (params.get("offline") === "1") setLocalCopy(true); }} /></details> : <OfflineCatalogControls token={token} data={data} online={online} onUpdated={latest => { setData(latest); if (params.get("offline") === "1") setLocalCopy(true); }} />)}
-      {data.catalog.length > 0 && <><div className="catalog-filter-groups"><div className="catalog-gender-tabs" role="group" aria-label="Для кого услуга"><button type="button" aria-pressed={gender === "all"} className={gender === "all" ? "active" : ""} onClick={() => setGender("all")}>Все</button><button type="button" aria-pressed={gender === "boys"} className={gender === "boys" ? "active" : ""} onClick={() => setGender("boys")}>Мальчикам</button><button type="button" aria-pressed={gender === "girls"} className={gender === "girls" ? "active" : ""} onClick={() => setGender("girls")}>Девочкам</button></div><div className="catalog-category-tabs" role="group" aria-label="Категория услуги"><button type="button" aria-pressed={category === "all"} className={category === "all" ? "active" : ""} onClick={() => setCategory("all")}>Все категории</button>{categories.map((itemCategory) => <button type="button" aria-pressed={category === itemCategory} className={category === itemCategory ? "active" : ""} key={itemCategory} onClick={() => setCategory(itemCategory)}>{itemCategory}</button>)}</div></div><div className="catalog-section-list">{mainSections.map(renderSection)}{genderSections.length > 0 && <div className="catalog-gender-columns">{genderSections.map((section) => <section className="catalog-section catalog-gender-column" key={section.id}><h2>{section.title}</h2><div className="public-catalog-grid">{section.items.map((item) => renderCard(item))}</div></section>)}</div>}</div></>}
+      {!immersive && sections.length > 0 && <div className="catalog-category-cards" aria-label="Категории услуг">{sections.map((section, index) => {
+        const preferredGender = index % 2 === 0 ? "girls" : "boys";
+        const dragonVideo = section.id === "video" ? section.items.find(item => /дракон/i.test(item.name) && item.preview_url) : undefined;
+        const coverItem = dragonVideo || section.items.find(item => item.gender === preferredGender && item.preview_url) || section.items.find(item => item.preview_url);
+        return <button type="button" className="catalog-category-card" key={section.id} aria-label={`Перейти к категории ${section.title}`} onClick={() => scrollToCategory(section.id)}><span className="catalog-category-media">{coverItem?.preview_video_url ? <video src={catalogMediaUrl(coverItem.preview_video_url)} poster={coverItem.preview_url || undefined} aria-label={`Беззвучное видео-превью: ${coverItem.name}`} autoPlay muted loop playsInline preload="metadata" /> : coverItem?.preview_url ? <img src={coverItem.preview_url} alt="" loading="lazy" decoding="async" /> : <ServiceIcon type={section.items[0]?.type || "photo"} />}</span><span className="catalog-category-copy"><strong>{section.title}</strong><small>{serviceCountLabel(section.items.length)}</small></span></button>;
+      })}</div>}
+      {data.catalog.length > 0 && <><div className="catalog-sticky-filters"><div className="catalog-gender-tabs" role="group" aria-label="Категория ребёнка"><button className={gender === "all" ? "active" : ""} onClick={() => setGender("all")}>Все</button><button className={gender === "boys" ? "active" : ""} onClick={() => setGender("boys")}>Мальчики</button><button className={gender === "girls" ? "active" : ""} onClick={() => setGender("girls")}>Девочки</button></div><nav className="catalog-jump-nav" aria-label="Быстрый переход по категориям">{sections.map(section => <button type="button" key={section.id} className={activeCategory === section.id ? "active" : ""} aria-current={activeCategory === section.id ? "true" : undefined} onClick={() => scrollToCategory(section.id)}>{section.title}</button>)}</nav></div><div className="catalog-section-list">{sections.map(section => <section className="service-group catalog-section" data-catalog-section={section.id} key={section.id}><h2>{section.title}</h2>{section.notice && <div className="catalog-video-notice"><Video size={20}/><span>{section.notice}</span></div>}<div className="service-list">{section.items.map(item => renderCard(item))}</div></section>)}</div></>}
       {!data.catalog.length && <Notice kind="info">Каталог пока пуст.</Notice>}
     </section>
-    {!immersive && selected.length > 0 && <aside className="catalog-order-dock" aria-label="Выбранные услуги"><div><strong>Выбрано: {selected.length}</strong><span>Оформите заявку для школы или садика</span></div><button className="button button-primary" type="button" onClick={()=>setInquiryOpen(true)}><ShoppingBag size={18}/>Оформить заявку</button></aside>}
-    {!immersive && <CatalogInquiry token={token} selected={selected} open={inquiryOpen} onClose={()=>setInquiryOpen(false)} />}
-    {preview && <CatalogViewer immersive={immersive} readOnly={readOnly} items={data.catalog} initialId={preview.id} initialGender={gender} initialCategory={category} selected={selected} onToggle={id => { toggle(id); setPreview(null); }} onClose={() => setPreview(null)} />}
-
+    {!immersive && selected.length > 0 && <aside className="catalog-order-dock" aria-label="Выбранные услуги"><div><strong><ShoppingBag size={17}/> Корзина · {selected.length}</strong><span>Итого: {money(total)}</span></div><button className="button button-primary" type="button" onClick={() => setInquiryOpen(true)}>Оформить заявку</button></aside>}
+    {!immersive && <CatalogInquiry token={token} items={selectedItems} whatsapp={data.whatsapp} open={inquiryOpen} onClose={() => setInquiryOpen(false)} />}
+    {preview && <CatalogViewer immersive={immersive} readOnly={readOnly} items={data.catalog} initialId={preview.id} initialGender={gender} selected={selected} onToggle={id => { toggle(id); setPreview(null); }} onClose={() => setPreview(null)} />}
   </div></main>;
 }
