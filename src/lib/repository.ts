@@ -7,6 +7,7 @@ import type {
   Child,
   ClassWithStats,
   ParentOrder,
+  OrdersWorkspace,
   Profile,
   PublicCatalogPayload,
   PublicClassPayload,
@@ -394,6 +395,23 @@ export async function loadOrders(): Promise<ParentOrder[]> {
     .order("created_at", { ascending: false });
   fail(error);
   return (data || []) as unknown as ParentOrder[];
+}
+
+export async function loadOrdersWorkspace(): Promise<OrdersWorkspace> {
+  const [schoolsResult, classesResult, ordersResult] = await Promise.all([
+    supabase.from("schools").select("*").eq("status", "active").order("created_at", { ascending: false }),
+    supabase.from("classes").select("*").eq("status", "active").order("name"),
+    supabase
+      .from("parent_orders")
+      .select("*, child:children(first_name,last_name,public_name), class:classes(name,school_id,school:schools(name))")
+      .order("created_at", { ascending: false }),
+  ]);
+  [schoolsResult.error, classesResult.error, ordersResult.error].forEach(fail);
+  return {
+    schools: (schoolsResult.data || []) as School[],
+    classes: (classesResult.data || []) as SchoolClass[],
+    orders: (ordersResult.data || []) as unknown as ParentOrder[],
+  };
 }
 
 export async function updateOrderStatus(id: string, status: ParentOrder["status"]) {

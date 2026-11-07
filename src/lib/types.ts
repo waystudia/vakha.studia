@@ -125,6 +125,12 @@ export interface ParentOrder {
   class?: Pick<SchoolClass, "name" | "school_id"> & { school?: Pick<School, "name"> };
 }
 
+export interface OrdersWorkspace {
+  schools: School[];
+  classes: SchoolClass[];
+  orders: ParentOrder[];
+}
+
 export interface PublicClassPayload {
   school: { name: string; city: string };
   whatsapp?: { phone?: string; company?: string; manager?: string; template?: string };
