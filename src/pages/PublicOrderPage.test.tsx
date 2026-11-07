@@ -110,9 +110,9 @@ describe("child to catalog navigation", () => {
     fireEvent.click(screen.getByRole("button", { name: "Добавить Первое фото в заказ" }));
     fireEvent.click(screen.getByRole("button", { name: /Корзина.*1.*350/ }));
     const cart = screen.getByRole("dialog", { name: "Корзина" });
-    fireEvent.touchStart(cart, { touches: [{ clientY: 120 }] });
-    fireEvent.touchMove(cart, { touches: [{ clientY: 230 }] });
-    fireEvent.touchEnd(cart, { changedTouches: [{ clientY: 230 }] });
+    fireEvent.pointerDown(cart, { pointerId: 1, pointerType: "mouse", isPrimary: true, clientX: 160, clientY: 120 });
+    fireEvent.pointerMove(cart, { pointerId: 1, pointerType: "mouse", isPrimary: true, clientX: 160, clientY: 230 });
+    fireEvent.pointerUp(cart, { pointerId: 1, pointerType: "mouse", isPrimary: true, clientX: 160, clientY: 230 });
     await waitFor(() => expect(cart.closest(".order-cart-layer")?.getAttribute("aria-hidden")).toBe("true"));
   });
 

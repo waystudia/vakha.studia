@@ -44,27 +44,48 @@ function OrderCart({ items, total, open, pending, editing, withoutLamination, on
   onSubmit: () => void;
 }) {
   const closeButton = useRef<HTMLButtonElement>(null);
-  const dragStart = useRef({ y: 0, time: 0, enabled: false });
+  const dragStart = useRef<{ y: number; x: number; time: number; active: boolean; scrollArea: HTMLElement | null; scrollTop: number }>({ y: 0, x: 0, time: 0, active: false, scrollArea: null, scrollTop: 0 });
+  const dragDistance = useRef(0);
+  const suppressDragClick = useRef(false);
   const [dragY, setDragY] = useState(0);
   const first = items[0];
   useEffect(() => { if (open) closeButton.current?.focus(); }, [open]);
   useEffect(() => { if (!open) setDragY(0); }, [open]);
-  function startDrag(event: React.TouchEvent<HTMLElement>) {
+  function startDrag(event: React.PointerEvent<HTMLElement>) {
+    if (event.isPrimary === false) return;
     const scrollArea = (event.target as HTMLElement).closest<HTMLElement>(".order-cart-items");
-    dragStart.current = { y: event.touches[0]?.clientY || 0, time: performance.now(), enabled: !scrollArea || scrollArea.scrollTop <= 0 };
+    dragDistance.current = 0;
+    suppressDragClick.current = false;
+    dragStart.current = { y: event.clientY, x: event.clientX, time: performance.now(), active: true, scrollArea, scrollTop: scrollArea?.scrollTop || 0 };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
   }
-  function moveDrag(event: React.TouchEvent<HTMLElement>) {
-    if (!dragStart.current.enabled || !event.touches[0]) return;
-    const distance = event.touches[0].clientY - dragStart.current.y;
-    if (distance <= 0) { setDragY(0); return; }
+  function moveDrag(event: React.PointerEvent<HTMLElement>) {
+    const start = dragStart.current;
+    if (!start.active) return;
+    const distance = event.clientY - start.y;
+    const horizontal = Math.abs(event.clientX - start.x);
+    if (horizontal > Math.abs(distance)) return;
     event.preventDefault();
-    setDragY(distance);
+    if (start.scrollArea) {
+      const nextScrollTop = start.scrollTop - distance;
+      if (nextScrollTop >= 0) {
+        start.scrollArea.scrollTop = nextScrollTop;
+        dragDistance.current = 0;
+        setDragY(0);
+        return;
+      }
+    }
+    const sheetDistance = Math.max(0, distance - start.scrollTop);
+    dragDistance.current = sheetDistance;
+    suppressDragClick.current = sheetDistance > 8;
+    setDragY(sheetDistance);
   }
-  function finishDrag() {
-    if (!dragStart.current.enabled) return;
+  function finishDrag(event: React.PointerEvent<HTMLElement>) {
+    if (!dragStart.current.active) return;
     const elapsed = Math.max(1, performance.now() - dragStart.current.time);
-    const shouldClose = dragY >= 72 || dragY / elapsed >= .55;
-    dragStart.current.enabled = false;
+    const shouldClose = dragDistance.current >= 72 || dragDistance.current / elapsed >= .55;
+    dragStart.current.active = false;
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
     setDragY(0);
     if (shouldClose) onClose();
   }
@@ -75,7 +96,7 @@ function OrderCart({ items, total, open, pending, editing, withoutLamination, on
       <span className="order-cart-count" aria-hidden="true">{items.length}</span>
     </button>
     <div className="order-cart-layer" data-open={open} aria-hidden={!open} onClick={onClose}>
-      <section className="order-cart-sheet" data-dragging={dragY > 0} style={dragY > 0 ? { transform: `translateY(${dragY}px)` } : undefined} role="dialog" aria-modal="true" aria-labelledby="order-cart-title" onClick={event => event.stopPropagation()} onTouchStart={startDrag} onTouchMove={moveDrag} onTouchEnd={finishDrag} onTouchCancel={finishDrag}>
+      <section className="order-cart-sheet" data-dragging={dragY > 0} style={dragY > 0 ? { transform: `translateY(${dragY}px)` } : undefined} role="dialog" aria-modal="true" aria-labelledby="order-cart-title" onClickCapture={event => { if (suppressDragClick.current) { event.preventDefault(); event.stopPropagation(); suppressDragClick.current = false; } }} onClick={event => event.stopPropagation()} onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={finishDrag} onPointerCancel={finishDrag}>
         <div className="order-cart-handle" aria-hidden="true" />
         <header><div><span>Ваш выбор</span><h2 id="order-cart-title">Корзина</h2></div><button ref={closeButton} type="button" className="order-cart-close" aria-label="Закрыть корзину" onClick={onClose}><X /></button></header>
         <div className="order-cart-items">{items.map(item => {
