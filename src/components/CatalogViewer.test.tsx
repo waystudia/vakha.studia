@@ -107,6 +107,9 @@ describe("fullscreen catalog journey", () => {
     expect(service.querySelector("video")?.muted).toBe(true);
     expect(service.querySelector("video")?.controls).toBe(false);
     expect(within(service).queryByRole("button", { name: /Развернуть видео/ })).toBeNull();
+    const fullscreen = within(service).getByRole("button", { name: /на весь экран/ });
+    fireEvent.click(fullscreen);
+    expect(service.querySelector("video")?.muted).toBe(false);
     fireEvent.click(within(service).getByRole("button", { name: "Повторить загрузку фото" }));
     expect(within(service).getByRole("img", { name: "Девочка" })).toBeTruthy();
   });

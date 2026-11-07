@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowDown, ArrowUp, Check, Image as ImageIcon, Plus, X, SlidersHorizontal, ChevronUp, ChevronDown, Scan } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Image as ImageIcon, Maximize, Plus, X, SlidersHorizontal, ChevronUp, ChevronDown, Scan } from "lucide-react";
 import { buildCatalogSections, type CatalogGender } from "../lib/catalogSections";
 import { catalogMediaUrl } from "../lib/mediaUrl";
 import { money } from "../lib/helpers";
@@ -30,18 +30,37 @@ function GalleryPhoto({ item }: { item: ViewerItem }) {
 
 function PhoneVideo({ item, active }: { item: ViewerItem; active: boolean }) {
   const ref = useRef<HTMLVideoElement>(null);
+  const screen = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     const video = ref.current;
     if (!active) { video?.pause(); return; }
     void video?.play().catch(() => undefined);
   }, [active]);
+  function enableSound() {
+    const video = ref.current;
+    if (!video) return;
+    video.muted = false; video.defaultMuted = false; video.volume = 1;
+    void video.play().catch(() => undefined);
+  }
+  async function openFullscreen() {
+    const video = ref.current as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null;
+    if (!video) return;
+    enableSound();
+    try {
+      if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
+      else if (video.requestFullscreen) await video.requestFullscreen();
+      else if (screen.current?.requestFullscreen) await screen.current.requestFullscreen();
+    } catch { /* The browser may reject fullscreen outside a direct user gesture. */ }
+  }
   return <figure className="service-gallery-phone">
-    <div className="service-gallery-phone-screen">
+    <div ref={screen} className="service-gallery-phone-screen">
       {active ? <video ref={ref} autoPlay muted loop playsInline preload="metadata" poster={item.preview_url || undefined}
         src={catalogMediaUrl(item.preview_video_url)} aria-label={`Видео услуги ${item.name}`}
+        onClick={enableSound} title="Нажмите, чтобы включить звук"
         onError={() => setFailed(true)} onLoadedData={() => setFailed(false)} />
         : <img src={item.preview_url} alt={`Превью видео: ${item.name}`} loading="lazy" />}
+      {active && <button type="button" className="service-gallery-video-fullscreen" aria-label={`Посмотреть видео ${item.name} на весь экран`} onClick={() => void openFullscreen()}><Maximize size={18} /></button>}
     </div>
     {failed && <p role="alert">Видео не загрузилось. <button type="button" onClick={() => { setFailed(false); ref.current?.load(); }}>Повторить</button></p>}
   </figure>;
