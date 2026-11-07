@@ -21,6 +21,13 @@ function ServiceIcon({ type }: { type: string }) {
   return <Camera />;
 }
 
+function serviceCountLabel(count: number) {
+  const mod100 = count % 100;
+  const mod10 = count % 10;
+  const word = mod100 >= 11 && mod100 <= 14 ? "услуг" : mod10 === 1 ? "услуга" : mod10 >= 2 && mod10 <= 4 ? "услуги" : "услуг";
+  return `${count} ${word}`;
+}
+
 function OrderCart({ items, total, open, pending, editing, withoutLamination, onOpen, onClose, onRemove, onLaminationChange, onSubmit }: {
   items: CatalogEntry[];
   total: number;
@@ -78,6 +85,7 @@ export function PublicOrderPage() {
   const [lastRemovedId, setLastRemovedId] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
   const [result, setResult] = useState<PublicOrderResult | null>(null); const [previewItem, setPreviewItem] = useState<CatalogEntry | null>(null); const [gender, setGender] = useState<CatalogGender>("all");
+  const [activeCategory, setActiveCategory] = useState("");
   const requestKey = useRef(crypto.randomUUID());
   const childOrigin = useRef<{ scrollY: number; childId: string }>({ scrollY: 0, childId: "" });
   const serviceScrollTarget = useRef("");
@@ -127,6 +135,27 @@ export function PublicOrderPage() {
   const selectedCatalogItems = useMemo(() => data?.catalog.filter((item) => selected.includes(item.id)) || [], [data, selected]);
   const total = useMemo(() => data?.catalog.filter((item) => selected.includes(item.id)).reduce((sum, item) => sum + Math.max(0, Number(item.price) - (withoutLamination.includes(item.id) ? 50 : 0)), 0) || 0, [data, selected, withoutLamination]);
   const sections = useMemo(() => buildCatalogSections(data?.catalog || [], gender), [data, gender]);
+  useEffect(() => {
+    if (!sections.length) return;
+    if (!sections.some((section) => section.id === activeCategory)) setActiveCategory(sections[0].id);
+  }, [activeCategory, sections]);
+  useEffect(() => {
+    if (step !== "services" || !("IntersectionObserver" in window)) return;
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries.filter((entry) => entry.isIntersecting).sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
+      const id = (visible?.target as HTMLElement | undefined)?.dataset.catalogSection;
+      if (id) setActiveCategory(id);
+    }, { rootMargin: "-140px 0px -48% 0px", threshold: [0.05, 0.25, 0.6] });
+    const nodes = document.querySelectorAll<HTMLElement>("[data-catalog-section]");
+    nodes.forEach((node) => observer.observe(node));
+    return () => observer.disconnect();
+  }, [sections, step]);
+  function scrollToCategory(id: string) {
+    setActiveCategory(id);
+    const target = Array.from(document.querySelectorAll<HTMLElement>("[data-catalog-section]"))
+      .find((element) => element.dataset.catalogSection === id);
+    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
   function toggle(id: string) {
     setSelected((items) => {
       if (items.includes(id)) { setLastRemovedId(id); return items.filter((item) => item !== id); }
@@ -190,7 +219,33 @@ export function PublicOrderPage() {
     <ParentIntro watched={introClosed} onComplete={() => setIntroClosed(true)} />
     {step === "child" && notice && <div className="public-inline-notice"><Notice kind="info">{notice}</Notice></div>}
     {step === "child" && <section className="public-content"><span className="eyebrow">{data.school.name} · {data.class.name}</span><h1>{data.class.photo_session_name}</h1><p className="public-lead">Выберите своего ребёнка</p>{!data.children.length ? <Notice kind="info">Список детей пока не добавлен. Обратитесь к учителю.</Notice> : <div className="children-grid">{data.children.map((item, index) => <button className={`child-choice ${childId === item.id ? "is-current" : ""}`} data-child-id={item.id} aria-pressed={childId === item.id} key={item.id} onClick={() => { setChildId(item.id); if (introClosed) openServices(item.id); }}><span className={`avatar avatar-${index % 3}`}><UserRound /></span><span className="child-choice-copy"><strong>{item.public_name}</strong><small>{item.orders?.length ? "Выбрал/а: " + item.orders.flatMap(order => order.items.map(service => `${service.name}${(service.quantity || 1) > 1 ? ` × ${service.quantity}` : ""}`)).join(", ") : "Пока без заявки"}</small></span><span className="child-order-previews">{item.orders?.flatMap(order => order.items).slice(0, 2).map((service, index) => { const named = data.catalog.filter(entry => entry.name === service.name); const image = data.catalog.find(entry => entry.id === service.id)?.preview_url || (named.length === 1 ? named[0].preview_url : "") || service.preview_url; return image ? <img key={`${service.id || service.name}-${index}`} src={image} alt={service.name} loading="lazy" onError={event => { const image = event.currentTarget; const named = data.catalog.filter(entry => entry.name === service.name); const fallback = named.length === 1 ? named[0].preview_url : ""; if (fallback && image.getAttribute("src") !== fallback) image.src = fallback; }} /> : null; })}</span></button>)}</div>}{childId && <div className="child-catalog-entry"><button className="button button-primary" disabled={!introClosed} onClick={() => openServices(childId)}>{introClosed ? "Открыть каталог фотографий" : "Каталог откроется после видео"}</button></div>}<div className="privacy-note">Выберите своего ребёнка из списка класса.</div></section>}
-    {step === "services" && <section className="public-content service-step"><button className="service-back-floating" type="button" aria-label="Назад к списку детей" onClick={closeServices}><ArrowLeft size={20} /><span>Назад</span></button><span className="eyebrow">{data.school.name} · {data.class.name}</span><h1>{child?.public_name}</h1>{error && <Notice kind="error">{error}</Notice>}{data.catalog.length > 0 && <div className="catalog-gender-tabs" role="group" aria-label="Категория ребёнка"><button className={gender === "all" ? "active" : ""} onClick={() => setGender("all")}>Все</button><button className={gender === "boys" ? "active" : ""} onClick={() => setGender("boys")}>Мальчики</button><button className={gender === "girls" ? "active" : ""} onClick={() => setGender("girls")}>Девочки</button></div>}<div className="catalog-section-list">{sections.map((section) => <section className="service-group catalog-section" key={section.id}><h2>{section.title}</h2>{section.notice && <div className="catalog-video-notice"><Video size={20}/><span>{section.notice}</span></div>}{section.items.length > 0 && <div className="service-list">{section.items.map((item) => renderCard(item))}</div>}{section.relatedItems?.length ? <><h3 className="catalog-related-title">{section.relatedTitle}</h3><div className="service-list">{section.relatedItems.map((item) => renderCard(item, true))}</div></> : null}</section>)}</div>{!data.catalog.length && <Notice kind="info">Каталог пуст.</Notice>}{selected.length > 0 && <OrderCart items={selectedCatalogItems} total={total} open={cartOpen} pending={pending} editing={editingExisting} withoutLamination={withoutLamination} onOpen={() => setCartOpen(true)} onClose={() => setCartOpen(false)} onRemove={toggle} onLaminationChange={setLamination} onSubmit={() => void submit()} />}</section>}
+    {step === "services" && <section className="public-content service-step">
+      <button className="service-back-floating" type="button" aria-label="Назад к списку детей" onClick={closeServices}><ArrowLeft size={20} /><span>Назад</span></button>
+      <span className="eyebrow">{data.school.name} · {data.class.name}</span><h1>{child?.public_name}</h1>
+      {error && <Notice kind="error">{error}</Notice>}
+      {sections.length > 0 && <div className="catalog-category-cards" aria-label="Категории услуг">
+        {sections.map((section) => {
+          const cover = section.items.find((item) => item.preview_url)?.preview_url;
+          return <button type="button" className="catalog-category-card" key={section.id} aria-label={`Перейти к категории ${section.title}`} onClick={() => scrollToCategory(section.id)}>
+            <span className="catalog-category-media">{cover ? <img src={cover} alt="" loading="lazy" decoding="async" /> : <ServiceIcon type={section.items[0]?.type || "photo"} />}</span>
+            <span className="catalog-category-copy"><strong>{section.title}</strong><small>{serviceCountLabel(section.items.length)}</small></span>
+          </button>;
+        })}
+      </div>}
+      {data.catalog.length > 0 && <div className="catalog-sticky-filters">
+        <div className="catalog-gender-tabs" role="group" aria-label="Категория ребёнка">
+          <button className={gender === "all" ? "active" : ""} onClick={() => setGender("all")}>Все</button>
+          <button className={gender === "boys" ? "active" : ""} onClick={() => setGender("boys")}>Мальчики</button>
+          <button className={gender === "girls" ? "active" : ""} onClick={() => setGender("girls")}>Девочки</button>
+        </div>
+        <nav className="catalog-jump-nav" aria-label="Быстрый переход по категориям">
+          {sections.map((section) => <button type="button" key={section.id} className={activeCategory === section.id ? "active" : ""} aria-current={activeCategory === section.id ? "true" : undefined} onClick={() => scrollToCategory(section.id)}>{section.title}</button>)}
+        </nav>
+      </div>}
+      <div className="catalog-section-list">{sections.map((section) => <section className="service-group catalog-section" data-catalog-section={section.id} key={section.id}><h2>{section.title}</h2>{section.notice && <div className="catalog-video-notice"><Video size={20}/><span>{section.notice}</span></div>}{section.items.length > 0 && <div className="service-list">{section.items.map((item) => renderCard(item))}</div>}{section.relatedItems?.length ? <><h3 className="catalog-related-title">{section.relatedTitle}</h3><div className="service-list">{section.relatedItems.map((item) => renderCard(item, true))}</div></> : null}</section>)}</div>
+      {!data.catalog.length && <Notice kind="info">Каталог пуст.</Notice>}
+      {selected.length > 0 && <OrderCart items={selectedCatalogItems} total={total} open={cartOpen} pending={pending} editing={editingExisting} withoutLamination={withoutLamination} onOpen={() => setCartOpen(true)} onClose={() => setCartOpen(false)} onRemove={toggle} onLaminationChange={setLamination} onSubmit={() => void submit()} />}
+    </section>}
     {step === "services" && selected.length === 0 && editingExisting && <div className="empty-order-dock"><span>Вы убрали последнюю услугу. Удалить заявку целиком?</span><div className="empty-order-actions"><button className="button button-secondary" disabled={pending} onClick={restoreLastRemoved}>Нет, вернуть</button><button className="button button-danger" disabled={pending} onClick={() => void submit()}>{pending && <LoaderCircle className="spin" size={18} />}Да, удалить</button></div></div>}
     {previewItem && <CatalogViewer items={data.catalog} initialId={previewItem.id} initialGender={gender} selected={selected} onToggle={toggle} onClose={() => setPreviewItem(null)} />}
     {step === "done" && result && <section className="success-screen"><div className="success-mark"><CheckCircle2 /></div><h1>{result.duplicate ? "Заявка уже была отправлена" : "Заявка отправлена"}</h1><span className="success-pill">Ваша заявка принята</span><div className="order-number">Номер заявки <strong>{result.order_number}</strong></div><div className="confirmation-card"><div><span>Ребёнок</span><strong>{result.child_name}</strong></div><div><span>Класс</span><strong>{result.class_name}</strong></div><div><span>Услуги</span><strong>{result.selected_items.map((item) => `${item.name}${(item.quantity || 1) > 1 ? ` × ${item.quantity}` : ""}${item.comment ? ` (${item.comment})` : ""}`).join(", ")}</strong></div><div><span>Итого</span><strong>{money(result.total_amount)}</strong></div></div><div className="success-items">{result.selected_items.map((item) => <div className="success-item" key={item.id}>{item.preview_url ? <img src={item.preview_url} alt="" loading="lazy" decoding="async" /> : <ServiceIcon type={item.type} />}<span>{item.name}{(item.quantity || 1) > 1 ? ` × ${item.quantity}` : ""}</span><strong>{money(item.price * (item.quantity || 1))}</strong></div>)}</div><p>Спасибо! Мы сохраним прекрасные моменты детства.</p><div className="success-actions">{import.meta.env.VITE_CRM_MODE === "true" && <a className="button button-primary" href={orderLink(result.public_token)}>Открыть мой заказ</a>}<button className="button button-secondary" onClick={() => setStep("services")}><ArrowLeft size={18}/>Назад к выбору</button>{data.children.length > 1 && <button className="button button-secondary" onClick={chooseAnotherChild}>Выбрать другого ребёнка</button>}{whatsappUrl() && <a className="button button-primary" href={whatsappUrl()} target="_blank" rel="noreferrer">Отправить в WhatsApp</a>}<button className="button button-primary button-wide" onClick={chooseAnotherChild}>Готово</button></div></section>}

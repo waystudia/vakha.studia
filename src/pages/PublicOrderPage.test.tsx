@@ -41,6 +41,14 @@ describe("child to catalog navigation", () => {
     expect(document.activeElement).toBe(restored);
   });
 
+  it("shows themed category previews and scrolls to the selected section", async () => {
+    render(<MemoryRouter initialEntries={["/p/test"]}><Routes><Route path="/p/:token" element={<PublicOrderPage />} /></Routes></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: /Первый ребёнок/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Перейти к категории Сказочные образы" }));
+    expect(Element.prototype.scrollIntoView).toHaveBeenLastCalledWith({ behavior: "smooth", block: "start" });
+    expect(screen.getByRole("navigation", { name: "Быстрый переход по категориям" })).toBeTruthy();
+  });
+
   it("defaults to lamination and submits a 50 ₽ discount when protection is removed", async () => {
     vi.mocked(submitPublicOrder).mockResolvedValue({
       duplicate: false,
