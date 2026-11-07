@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import { Check, ChevronDown, Image as ImageIcon, Play, Plus, Printer, QrCode, ShieldCheck, ShieldOff, Sparkles, Video, WandSparkles } from "lucide-react";
 import { money } from "../lib/helpers";
+import { catalogPreviewUrl } from "../lib/catalogPreview";
 import type { PublicClassPayload } from "../lib/types";
 
 type ServiceCardItem = PublicClassPayload["catalog"][number];
@@ -8,24 +9,8 @@ type Watermark = { text: string; image?: string; opacity: number };
 
 type DeliveryFeature = { label: string; tone: "photo" | "print" | "lamination" | "qr" | "video" };
 
-const fallbackPreviewByName: Record<string, string> = {
-  "Ариэль": "child-girl-coral-sea-princess.webp",
-  "Волшебный мир единорогов": "child-girl-unicorn-world.webp",
-  "Гоночный чемпион": "child-boy-racing-champion.webp",
-  "Исследователь космоса": "child-boy-space-explorer.webp",
-  "Парадный кадет": "child-boy-military-cadet.webp",
-  "Спасатель спецотряда": "child-boy-rescue-special-unit.webp",
-  "Супергерой будущего": "child-boy-original-superhero.webp",
-  "Чемпион ММА": "child-boy-mma-champion.webp",
-};
-
-function previewUrl(item: ServiceCardItem) {
-  const fallback = fallbackPreviewByName[item.name];
-  return item.preview_url || (fallback ? `${import.meta.env.BASE_URL}catalog-fallbacks/${fallback}` : "");
-}
-
 function deliveryFeatures(item: ServiceCardItem): DeliveryFeature[] {
-  if (!previewUrl(item)) return [{ label: "Цифровой результат", tone: "photo" }];
+  if (!catalogPreviewUrl(item)) return [{ label: "Цифровой результат", tone: "photo" }];
   const features: DeliveryFeature[] = [
     { label: "Фотомонтаж", tone: "photo" },
     { label: "Распечатка A4", tone: "print" },
@@ -67,7 +52,7 @@ function AiVideoOption({ item }: { item: ServiceCardItem }) {
 }
 
 function CatalogVideoPhone({ item, onOpen }: { item: ServiceCardItem; onOpen: () => void }) {
-  const preview = previewUrl(item);
+  const preview = catalogPreviewUrl(item);
   if (!preview || !item.preview_video_url) return null;
 
   return <button
@@ -87,7 +72,7 @@ export function ServiceCard({ item, selected, related = false, readOnly = false,
   withLamination?: boolean; onOpen: () => void; onToggle: () => void; onLaminationChange?: (withLamination: boolean) => void;
 }) {
   const selectedPrice = Math.max(0, Number(item.price) - (withLamination ? 0 : 50));
-  const preview = previewUrl(item);
+  const preview = catalogPreviewUrl(item);
   const chooseLamination = (value: boolean) => {
     onLaminationChange?.(value);
     if (!selected) onToggle();
@@ -96,7 +81,7 @@ export function ServiceCard({ item, selected, related = false, readOnly = false,
     role="button" tabIndex={0} aria-label={`Смотреть услугу: ${item.name}`}
     onKeyDown={event => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); onOpen(); } }} onClick={onOpen}>
     <div className="public-catalog-image">
-      {preview ? <img src={preview} alt="" loading="lazy" decoding="async" onError={event => { const fallback = fallbackPreviewByName[item.name]; const fallbackUrl = fallback ? `${import.meta.env.BASE_URL}catalog-fallbacks/${fallback}` : ""; if (fallbackUrl && !event.currentTarget.src.endsWith(fallbackUrl)) event.currentTarget.src = fallbackUrl; }} /> : <ImageIcon size={40} />}
+      {preview ? <img src={preview} alt="" loading="lazy" decoding="async" /> : <ImageIcon size={40} />}
       <CatalogVideoPhone item={item} onOpen={onOpen} />
       <div className="public-watermark">{watermark.image && <img src={watermark.image} alt="" style={{ opacity: watermark.opacity }} />}{watermark.text && <span style={{ opacity: watermark.opacity }}>{watermark.text}</span>}</div>
       {!related && !readOnly && <button className="public-catalog-add" type="button" aria-pressed={selected} aria-label={selected ? `Убрать ${item.name} из заказа` : `Добавить ${item.name} в заказ`}

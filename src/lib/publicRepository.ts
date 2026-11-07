@@ -1,4 +1,5 @@
 import type { PublicClassPayload, PublicOrderPayload, PublicOrderResult } from './types';
+import { catalogPreviewUrl } from './catalogPreview';
 const crm = import.meta.env.VITE_CRM_MODE === 'true';
 async function request<T>(path: string, body?: unknown): Promise<T> {
   const response = await fetch('/api/v1/public/' + path, {method: body ? 'POST' : 'GET', cache: 'no-store', credentials: 'omit', headers: body ? {'Content-Type':'application/json'} : {}, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(20000)});
@@ -7,7 +8,8 @@ async function request<T>(path: string, body?: unknown): Promise<T> {
   return data;
 }
 export async function getPublicClass(token: string): Promise<PublicClassPayload | null> {
-  return crm ? request('classes/'+encodeURIComponent(token)) : (await import('./repository')).getPublicClass(token);
+  const payload = crm ? await request<PublicClassPayload | null>('classes/'+encodeURIComponent(token)) : await (await import('./repository')).getPublicClass(token);
+  return payload ? {...payload, catalog: payload.catalog.map(item => ({...item, preview_url: catalogPreviewUrl(item)}))} : null;
 }
 export async function getPublicOrder(token: string): Promise<PublicOrderPayload | null> {
   return crm ? request('orders/'+encodeURIComponent(token)) : (await import('./repository')).getPublicOrder(token);

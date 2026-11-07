@@ -96,7 +96,7 @@ describe("child to catalog navigation", () => {
     render(<MemoryRouter initialEntries={["/p/test"]}><Routes><Route path="/p/:token" element={<PublicOrderPage />} /></Routes></MemoryRouter>);
     fireEvent.click(await screen.findByRole("button", { name: /Первый ребёнок/ }));
     fireEvent.click(screen.getByRole("button", { name: "Убрать Первое фото из заказа" }));
-    fireEvent.click(screen.getByRole("button", { name: "Удалить заявку" }));
+    fireEvent.click(screen.getByRole("button", { name: "Да, удалить" }));
     await waitFor(() => expect(cancelPublicOrder).toHaveBeenCalledWith({ token: "test", childId: "first" }));
     expect(await screen.findByText("Заявка удалена. Можно выбрать услуги заново.")).toBeTruthy();
     expect(screen.getByText("Пока без заявки")).toBeTruthy();

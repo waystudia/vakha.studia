@@ -78,7 +78,7 @@
 .child-choice-copy {min-width:0;flex:1;display:grid;gap:5px;text-align:left}.child-choice-copy small{font-size:12px;line-height:1.4;color:var(--muted,#62708a);overflow-wrap:anywhere}.child-choice-copy strong{white-space:normal;overflow-wrap:anywhere}
 .child-choice:has(.child-order-previews img) .child-choice-copy::after{content:"Изменить или добавить";color:var(--blue);font-size:11px;font-weight:800;line-height:1.2}
 .public-inline-notice{padding:1rem 1.4rem 0}.public-inline-notice+.public-content{padding-top:1rem}
-.empty-order-dock{position:fixed;z-index:25;right:max(1rem,env(safe-area-inset-right));bottom:max(1rem,env(safe-area-inset-bottom));left:max(1rem,env(safe-area-inset-left));width:min(632px,calc(100% - 2rem));margin:0 auto;border:1px solid #f0caca;border-radius:16px;box-shadow:0 14px 36px rgba(65,35,38,.18)}
+.empty-order-dock{position:fixed;z-index:25;right:max(.65rem,env(safe-area-inset-right));bottom:max(.65rem,env(safe-area-inset-bottom));left:max(.65rem,env(safe-area-inset-left));box-sizing:border-box;width:auto;max-width:632px;margin:0 auto;padding:9px;border:1px solid #f0caca;border-radius:14px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;background:#fff;color:#6f2d37;box-shadow:0 12px 30px rgba(65,35,38,.16)}.empty-order-dock>span{font-size:11px;font-weight:750;line-height:1.25}.empty-order-dock .button{min-height:40px;padding:7px 10px;border-radius:10px;font-size:11px;white-space:nowrap}
 
 .catalog-slideshow-start{display:flex;width:100%;min-height:48px;margin:0 0 16px;border-radius:24px;justify-content:center;gap:10px}
 
