@@ -42,10 +42,21 @@ it('restores a completed viewing without forcing autoplay again', () => {
  play.mockClear();
  const second=render(<ParentIntro watched={hasWatchedParentIntro()} onComplete={vi.fn()}/>);
  expect(play).not.toHaveBeenCalled();
+ expect(second.container.querySelector('video')).toBeNull();
+ expect(screen.getByText('Видео просмотрено')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Посмотреть ещё раз'}));
  expect(second.container.querySelector('video')!.autoplay).toBe(false);
  expect(second.container.querySelector('video')!.poster).toContain('khan-zama-intro-poster.webp');
- expect(screen.getByRole('button',{name:/Посмотреть видео/})).toBeTruthy();
- expect(screen.getByText('Видео просмотрено. Теперь можно выбрать фотографии.')).toBeTruthy();
+ expect(play).toHaveBeenCalledTimes(1);
+});
+
+it('scrolls from the floating catalog button to the current selection step', () => {
+ const target=document.createElement('div');target.id='public-catalog-start';document.body.appendChild(target);
+ const scrollIntoView=vi.fn();Object.defineProperty(target,'scrollIntoView',{value:scrollIntoView,configurable:true});
+ render(<ParentIntro watched onComplete={vi.fn()}/>);
+ fireEvent.click(screen.getByRole('button',{name:/Наш каталог/}));
+ expect(scrollIntoView).toHaveBeenCalledWith({behavior:'smooth',block:'start'});
+ target.remove();
 });
 
 it('counts natural playback even when the browser throttles timeupdate events', () => {
