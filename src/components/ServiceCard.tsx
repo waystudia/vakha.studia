@@ -77,7 +77,7 @@ export function ServiceCard({ item, selected, related = false, readOnly = false,
     onLaminationChange?.(value);
     if (!selected) onToggle();
   };
-  return <article className={`public-catalog-card ${selected ? "selected" : ""} ${related ? "catalog-related-card" : ""} ${item.category === "Фото с видео" ? "catalog-interview-card" : ""}`}
+  return <article data-service-id={item.id} className={`public-catalog-card ${selected ? "selected" : ""} ${related ? "catalog-related-card" : ""} ${item.category === "Фото с видео" ? "catalog-interview-card" : ""}`}
     role="button" tabIndex={0} aria-label={`Смотреть услугу: ${item.name}`}
     onKeyDown={event => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); onOpen(); } }} onClick={onOpen}>
     <div className="public-catalog-image">

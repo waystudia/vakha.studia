@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { PublicOrderPage } from "./PublicOrderPage";
 import { cancelPublicOrder, getPublicClass, submitPublicOrder } from "../lib/publicRepository";
@@ -24,6 +24,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   Object.defineProperty(window, "scrollY", { value: 780, configurable: true });
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+  Object.defineProperty(Element.prototype, "scrollIntoView", { value: vi.fn(), configurable: true });
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
@@ -76,10 +77,16 @@ describe("child to catalog navigation", () => {
     });
     render(<MemoryRouter initialEntries={["/p/test"]}><Routes><Route path="/p/:token" element={<PublicOrderPage />} /></Routes></MemoryRouter>);
     fireEvent.click(await screen.findByRole("button", { name: /Первый ребёнок/ }));
-    expect(screen.getByRole("button", { name: "Убрать Первое фото из заказа" }).getAttribute("aria-pressed")).toBe("true");
+    const selectedCardButton = screen.getByRole("button", { name: "Убрать Первое фото из заказа" });
+    expect(selectedCardButton.getAttribute("aria-pressed")).toBe("true");
+    await waitFor(() => expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "center" }));
+    const dock = document.querySelector<HTMLElement>(".order-dock");
+    expect(dock).toBeTruthy();
+    expect(within(dock!).getByText("Первое фото")).toBeTruthy();
     expect(screen.getAllByRole("radio", { name: /Без защиты.*300/ }).find((item) => item.getAttribute("aria-checked") === "true")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Добавить Дополнительное фото в заказ" }));
-    fireEvent.click(screen.getByRole("button", { name: "Оформить заявку" }));
+    expect(within(dock!).getByText("Первое фото + ещё 1")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
     await waitFor(() => expect(submitPublicOrder).toHaveBeenCalledWith(expect.objectContaining({ itemIds: ["photo", "extra"], withoutLaminationIds: ["photo"] })));
   });
 
