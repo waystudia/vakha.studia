@@ -1,15 +1,15 @@
 import { hasWatchedParentIntro } from "../lib/parentIntroProgress";
 import { ParentIntro } from "../components/ParentIntro";
-import { ArrowLeft, Camera, CheckCircle2, LoaderCircle, Play, ShieldCheck, ShieldOff, ShoppingCart, Trash2, UserRound, Video, X } from "lucide-react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, Camera, CheckCircle2, LoaderCircle, MessageSquarePlus, Play, ShieldCheck, ShieldOff, ShoppingCart, Trash2, UserRound, Video, X } from "lucide-react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { Notice } from "../components/ui";
+import { Modal, Notice } from "../components/ui";
 import { ServiceCard } from "../components/ServiceCard";
 import { CatalogViewer } from "../components/CatalogViewer";
 import { humanError, money } from "../lib/helpers";
 import { buildCatalogSections, type CatalogGender } from "../lib/catalogSections";
 import { catalogMediaUrl } from "../lib/mediaUrl";
-import { cancelPublicOrder, getPublicClass, submitPublicOrder } from "../lib/publicRepository";
+import { cancelPublicOrder, getPublicClass, submitPublicCustomRequest, submitPublicOrder } from "../lib/publicRepository";
 import { trackPublicVisit } from "../lib/visitAnalytics";
 import type { PublicClassPayload, PublicOrderResult } from "../lib/types";
 
@@ -139,6 +139,7 @@ export function PublicOrderPage() {
   const [withoutLamination, setWithoutLamination] = useState<string[]>([]);
   const [lastRemovedId, setLastRemovedId] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
+  const [customRequestOpen, setCustomRequestOpen] = useState(false);
   const [result, setResult] = useState<PublicOrderResult | null>(null); const [previewItem, setPreviewItem] = useState<CatalogEntry | null>(null); const [gender, setGender] = useState<CatalogGender>("all");
   const [activeCategory, setActiveCategory] = useState("all");
   const [filtersPinned, setFiltersPinned] = useState(false);
@@ -190,7 +191,7 @@ export function PublicOrderPage() {
   }, [location]);
   const child = data?.children.find((item) => item.id === childId);
   const sortedChildren = useMemo(() => [...(data?.children || [])].sort((left, right) => russianNameCollator.compare(left.public_name.trim(), right.public_name.trim())), [data]);
-  const editingExisting = Boolean(child?.orders?.some((order) => order.status !== "cancelled"));
+  const editingExisting = Boolean(child?.orders?.some((order) => order.status !== "cancelled" && order.items.some((item) => Boolean(item.id && data?.catalog.some((entry) => entry.id === item.id)))));
   const selectedCatalogItems = useMemo(() => data?.catalog.filter((item) => selected.includes(item.id)) || [], [data, selected]);
   const total = useMemo(() => data?.catalog.filter((item) => selected.includes(item.id)).reduce((sum, item) => sum + Math.max(0, Number(item.price) - (withoutLamination.includes(item.id) ? 50 : 0)), 0) || 0, [data, selected, withoutLamination]);
   const sections = useMemo(() => buildCatalogSections(data?.catalog || [], gender), [data, gender]);
@@ -271,6 +272,7 @@ export function PublicOrderPage() {
     else restoreChildren();
   }
   async function submit() { if (!childId || pending || (!selected.length && !editingExisting)) return; setPending(true); setError(""); setNotice(""); try { if (!selected.length) { await cancelPublicOrder({ token, childId }); setData(current => current ? {...current, children: current.children.map(item => item.id === childId ? {...item, orders: []} : item)} : current); setWithoutLamination([]); setNotice("Заявка удалена. Можно выбрать услуги заново."); restoreChildren(); return; } const order = await submitPublicOrder({ token, childId, itemIds: selected, withoutLaminationIds: withoutLamination.filter((id) => selected.includes(id)), requestKey: requestKey.current, note: "" }); setData(current => current ? {...current, children: current.children.map(item => item.id === childId ? {...item, orders: [{status: order.status, items: order.selected_items}]} : item)} : current); setResult(order); setSelected(order.selected_items.map((item) => item.id)); setWithoutLamination(order.selected_items.filter((item) => item.comment === "Без ламинации (защиты)").map((item) => item.id)); setStep("done"); } catch (reason) { setError(humanError(reason)); } finally { setPending(false); } }
+  async function submitCustomRequest(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!childId || pending) return; const message = String(new FormData(event.currentTarget).get("message") || "").trim(); if (message.length < 3) { setError("Опишите, какой образ или услугу вы хотите."); return; } setPending(true); setError(""); try { const order = await submitPublicCustomRequest({ token, childId, message, requestKey: crypto.randomUUID() }); setData(current => current ? {...current, children: current.children.map(item => item.id === childId ? {...item, orders: [{status: order.status, items: order.selected_items}]} : item)} : current); setCustomRequestOpen(false); setResult(order); setStep("done"); } catch (reason) { setError(humanError(reason)); } finally { setPending(false); } }
   function chooseAnotherChild() { requestKey.current = crypto.randomUUID(); setResult(null); setSelected([]); setWithoutLamination([]); setChildId(""); setError(""); setPreviewItem(null); setStep("child"); }
   function orderLink(publicToken: string) { return `${window.location.origin}${import.meta.env.BASE_URL}order/${publicToken}`; }
   function renderCard(item: CatalogEntry, previewOnly = false) { return <ServiceCard key={item.id} item={item} selected={selected.includes(item.id)} related={previewOnly} withLamination={!withoutLamination.includes(item.id)} onOpen={() => setPreviewItem(item)} onToggle={() => toggle(item.id)} onLaminationChange={previewOnly ? undefined : (value) => setLamination(item.id, value)} />; }
@@ -298,6 +300,10 @@ export function PublicOrderPage() {
           </button>;
         })}
       </div>}
+      <button type="button" className="catalog-custom-request-card" onClick={() => { setError(""); setCustomRequestOpen(true); }}>
+        <img src={`${import.meta.env.BASE_URL}images/custom-photo-request-banner.webp`} alt="" loading="lazy" decoding="async" />
+        <span className="catalog-custom-request-copy"><MessageSquarePlus aria-hidden="true"/><strong>Не нашли нужный образ?</strong><small>Опишите идею — мы подберём вариант для {child?.public_name}.</small><b>Оставить заявку</b></span>
+      </button>
       {popularItems.length > 0 && <section className="catalog-popular-section" aria-label="Популярные услуги"><h2>Популярное</h2><p>Лучшие варианты — по одной услуге из каждой категории.</p><div className="service-list">{popularItems.map((item) => renderCard(item))}</div></section>}
       {data.catalog.length > 0 && <div className={`catalog-sticky-filters${filtersPinned ? " is-pinned" : ""}`}>
         <div className="catalog-gender-tabs" role="group" aria-label="Категория ребёнка">
@@ -316,6 +322,7 @@ export function PublicOrderPage() {
     </section>}
     {step === "services" && selected.length === 0 && editingExisting && <div className="empty-order-dock"><span>Вы убрали последнюю услугу. Удалить заявку целиком?</span><div className="empty-order-actions"><button className="button button-secondary" disabled={pending} onClick={restoreLastRemoved}>Нет, вернуть</button><button className="button button-danger" disabled={pending} onClick={() => void submit()}>{pending && <LoaderCircle className="spin" size={18} />}Да, удалить</button></div></div>}
     {previewItem && <CatalogViewer items={data.catalog} initialId={previewItem.id} initialGender={gender} selected={selected} onToggle={toggle} onClose={() => setPreviewItem(null)} />}
+    {customRequestOpen && <Modal title="Подобрать индивидуальный образ" onClose={() => setCustomRequestOpen(false)}><form className="form-stack custom-request-form" onSubmit={submitCustomRequest}><p>Напишите, какой образ, персонаж или формат съёмки нужен. Запрос будет прикреплён к карточке ребёнка и появится у студии.</p><label>Что вы хотите для {child?.public_name}?<textarea name="message" minLength={3} maxLength={1000} rows={5} autoFocus required placeholder="Например: сын хочет фото в образе пожарного…"/></label><div className="form-actions"><button className="button button-secondary" type="button" disabled={pending} onClick={() => setCustomRequestOpen(false)}>Отмена</button><button className="button button-primary" type="submit" disabled={pending}>{pending && <LoaderCircle className="spin" size={17}/>}Отправить запрос</button></div></form></Modal>}
     {step === "done" && result && <section className="success-screen"><div className="success-mark"><CheckCircle2 /></div><h1>{result.duplicate ? "Заявка уже была отправлена" : "Заявка сохранена"}</h1><span className="success-pill">Прикреплена к карточке ребёнка</span><div className="order-number">Номер заявки <strong>{result.order_number}</strong></div><div className="confirmation-card"><div><span>Ребёнок</span><strong>{result.child_name}</strong></div><div><span>Класс</span><strong>{result.class_name}</strong></div><div><span>Услуги</span><strong>{result.selected_items.map((item) => `${item.name}${(item.quantity || 1) > 1 ? ` × ${item.quantity}` : ""}${item.comment ? ` (${item.comment})` : ""}`).join(", ")}</strong></div><div><span>Итого</span><strong>{money(result.total_amount)}</strong></div></div><div className="success-items">{result.selected_items.map((item) => <div className="success-item" key={item.id}>{item.preview_url ? <img src={item.preview_url} alt="" loading="lazy" decoding="async" /> : <ServiceIcon type={item.type} />}<span>{item.name}{(item.quantity || 1) > 1 ? ` × ${item.quantity}` : ""}</span><strong>{money(item.price * (item.quantity || 1))}</strong></div>)}</div><p>Заявка сохранена в карточке ребёнка. Отправлять её в WhatsApp не нужно.</p><div className="success-actions">{import.meta.env.VITE_CRM_MODE === "true" && <a className="button button-primary" href={orderLink(result.public_token)}>Открыть мой заказ</a>}<button className="button button-secondary" onClick={() => setStep("services")}><ArrowLeft size={18}/>Назад к выбору</button>{data.children.length > 1 && <button className="button button-secondary" onClick={chooseAnotherChild}>Выбрать другого ребёнка</button>}<button className="button button-primary button-wide" onClick={chooseAnotherChild}>Готово</button></div></section>}
   </div></main>;
 }

@@ -491,6 +491,17 @@ export async function submitPublicOrder(input: {
   return data as PublicOrderResult;
 }
 
+export async function submitPublicCustomRequest(input: { token: string; childId: string; message: string; requestKey: string }): Promise<PublicOrderResult> {
+  const { data, error } = await supabase.rpc("submit_parent_custom_request", {
+    p_token: input.token,
+    p_child_id: input.childId,
+    p_message: input.message,
+    p_request_key: input.requestKey,
+  });
+  fail(error);
+  return data as PublicOrderResult;
+}
+
 export async function cancelPublicOrder(input: { token: string; childId: string }): Promise<PublicOrderResult> {
   const { data, error } = await supabase.rpc("cancel_parent_order", { p_token: input.token, p_child_id: input.childId });
   fail(error);

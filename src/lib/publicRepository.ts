@@ -23,6 +23,10 @@ export async function submitPublicOrder(input: {token: string; childId: string; 
   try { localStorage.setItem(storageKey,JSON.stringify({key:input.requestKey,items:[...input.itemIds].sort(),withoutLamination:[...input.withoutLaminationIds].sort()})); } catch { /* The in-memory key still protects retries. */ }
   return request('classes/'+encodeURIComponent(input.token),input);
 }
+export async function submitPublicCustomRequest(input: {token: string; childId: string; message: string; requestKey: string}): Promise<PublicOrderResult> {
+  if (!crm) return (await import('./repository')).submitPublicCustomRequest(input);
+  return request('classes/'+encodeURIComponent(input.token)+'/children/'+encodeURIComponent(input.childId)+'/custom-request', input);
+}
 export async function cancelPublicOrder(input: {token: string; childId: string}): Promise<PublicOrderResult> {
   if (!crm) return (await import('./repository')).cancelPublicOrder(input);
   return request('classes/'+encodeURIComponent(input.token)+'/children/'+encodeURIComponent(input.childId)+'/order/cancel', {});

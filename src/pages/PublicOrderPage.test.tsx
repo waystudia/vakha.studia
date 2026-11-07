@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { PublicOrderPage } from "./PublicOrderPage";
-import { cancelPublicOrder, getPublicClass, submitPublicOrder } from "../lib/publicRepository";
+import { cancelPublicOrder, getPublicClass, submitPublicCustomRequest, submitPublicOrder } from "../lib/publicRepository";
 import { hasWatchedParentIntro } from "../lib/parentIntroProgress";
 
 vi.mock("../lib/parentIntroProgress", () => ({ hasWatchedParentIntro: vi.fn(() => true) }));
@@ -18,6 +18,7 @@ vi.mock("../lib/publicRepository", () => ({
     whatsapp: {},
   })),
   submitPublicOrder: vi.fn(),
+  submitPublicCustomRequest: vi.fn(),
   cancelPublicOrder: vi.fn(),
 }));
 
@@ -108,6 +109,23 @@ describe("child to catalog navigation", () => {
     expect(dragonPreview.muted).toBe(true);
     expect(dragonPreview.autoplay).toBe(true);
     expect(dragonPreview.loop).toBe(true);
+  });
+
+  it("sends an individual request to the selected child's order card", async () => {
+    vi.mocked(submitPublicCustomRequest).mockResolvedValue({
+      duplicate: false, updated: false, order_number: "VS-CUSTOM", status: "new", total_amount: 0,
+      selected_items: [{ id: "custom-request", name: "Индивидуальный запрос", price: 0, type: "custom", comment: "Образ пожарного" }],
+      child_name: "Первый ребёнок", class_name: "1 А", public_token: "order-token",
+    });
+    render(<MemoryRouter initialEntries={["/p/test"]}><Routes><Route path="/p/:token" element={<PublicOrderPage />} /></Routes></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: /Первый ребёнок/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Не нашли нужный образ/ }));
+    const dialog = screen.getByRole("dialog", { name: "Подобрать индивидуальный образ" });
+    fireEvent.change(within(dialog).getByRole("textbox"), { target: { value: "Образ пожарного" } });
+    fireEvent.submit(within(dialog).getByRole("button", { name: "Отправить запрос" }).closest("form")!);
+    await waitFor(() => expect(submitPublicCustomRequest).toHaveBeenCalledWith(expect.objectContaining({ token: "test", childId: "first", message: "Образ пожарного" })));
+    expect(await screen.findByText("Заявка сохранена")).toBeTruthy();
+    expect(screen.getByText("Индивидуальный запрос")).toBeTruthy();
   });
 
   it("defaults to lamination and submits a 50 ₽ discount when protection is removed", async () => {
