@@ -143,7 +143,7 @@ export function PublicOrderPage() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [filtersPinned, setFiltersPinned] = useState(false);
   const requestKey = useRef(crypto.randomUUID());
-  const filtersSentinel = useRef<HTMLDivElement | null>(null);
+  const categoryCardsRef = useRef<HTMLDivElement | null>(null);
   const childOrigin = useRef<{ scrollY: number; childId: string }>({ scrollY: 0, childId: "" });
   const serviceScrollTarget = useRef("");
   const servicesEntry = useRef("");
@@ -210,9 +210,11 @@ export function PublicOrderPage() {
     return () => observer.disconnect();
   }, [sections, step]);
   useEffect(() => {
-    if (step !== "services" || !("IntersectionObserver" in window) || !filtersSentinel.current) return;
-    const observer = new IntersectionObserver(([entry]) => setFiltersPinned(!entry.isIntersecting), { threshold: 0 });
-    observer.observe(filtersSentinel.current);
+    if (step !== "services" || !("IntersectionObserver" in window) || !categoryCardsRef.current) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      setFiltersPinned(!entry.isIntersecting && entry.boundingClientRect.top < 0);
+    }, { threshold: 0 });
+    observer.observe(categoryCardsRef.current);
     return () => observer.disconnect();
   }, [step]);
   function scrollToCategory(id: string) {
@@ -281,7 +283,7 @@ export function PublicOrderPage() {
       <button className="service-back-floating" type="button" aria-label="Назад к списку детей" onClick={closeServices}><ArrowLeft size={20} /><span>Назад</span></button>
       <span className="eyebrow">{data.school.name} · {data.class.name}</span><h1>{child?.public_name}</h1>
       {error && <Notice kind="error">{error}</Notice>}
-      {sections.length > 0 && <div className="catalog-category-cards" aria-label="Категории услуг">
+      {sections.length > 0 && <div className="catalog-category-cards" ref={categoryCardsRef} aria-label="Категории услуг">
         {sections.map((section, index) => {
           const preferredGender = index % 2 === 0 ? "girls" : "boys";
           const dragonVideo = section.id === "video" ? section.items.find((item) => /дракон/i.test(item.name) && item.preview_url) : undefined;
@@ -294,7 +296,7 @@ export function PublicOrderPage() {
           </button>;
         })}
       </div>}
-      {data.catalog.length > 0 && <><div className="catalog-filter-sentinel" ref={filtersSentinel} aria-hidden="true" /><div className={`catalog-sticky-filters${filtersPinned ? " is-pinned" : ""}`}>
+      {data.catalog.length > 0 && <div className={`catalog-sticky-filters${filtersPinned ? " is-pinned" : ""}`}>
         <div className="catalog-gender-tabs" role="group" aria-label="Категория ребёнка">
           <button className={gender === "all" ? "active" : ""} onClick={() => setGender("all")}>Все</button>
           <button className={gender === "boys" ? "active" : ""} onClick={() => setGender("boys")}>Мальчики</button>
@@ -304,7 +306,7 @@ export function PublicOrderPage() {
           <button type="button" className={activeCategory === "all" ? "active" : ""} aria-current={activeCategory === "all" ? "true" : undefined} onClick={() => scrollToCategory("all")}>Все категории</button>
           {sections.map((section) => <button type="button" key={section.id} className={activeCategory === section.id ? "active" : ""} aria-current={activeCategory === section.id ? "true" : undefined} onClick={() => scrollToCategory(section.id)}>{section.title}</button>)}
         </nav>
-      </div></>}
+      </div>}
       <div className="catalog-section-list" data-catalog-section-list>{sections.map((section) => <section className="service-group catalog-section" data-catalog-section={section.id} key={section.id}><h2>{section.title}</h2>{section.notice && <div className="catalog-video-notice"><Video size={20}/><span>{section.notice}</span></div>}{section.items.length > 0 && <div className="service-list">{section.items.map((item) => renderCard(item))}</div>}{section.relatedItems?.length ? <><h3 className="catalog-related-title">{section.relatedTitle}</h3><div className="service-list">{section.relatedItems.map((item) => renderCard(item, true))}</div></> : null}</section>)}</div>
       {!data.catalog.length && <Notice kind="info">Каталог пуст.</Notice>}
       {selected.length > 0 && <OrderCart items={selectedCatalogItems} total={total} open={cartOpen} pending={pending} editing={editingExisting} withoutLamination={withoutLamination} onOpen={() => setCartOpen(true)} onClose={() => setCartOpen(false)} onRemove={toggle} onLaminationChange={setLamination} onSubmit={() => void submit()} />}
