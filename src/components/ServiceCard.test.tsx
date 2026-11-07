@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ServiceCard } from "./ServiceCard";
 
@@ -19,7 +19,13 @@ describe("interview service card", () => {
     }} selected={false} onOpen={() => {}} onToggle={() => {}} />);
     const card = screen.getByRole("button", { name: "Смотреть услугу: Интервью ребенка" });
     expect(card.classList.contains("catalog-interview-card")).toBe(true);
-    expect(screen.getByText("Интервью ребёнка")).toBeTruthy();
     expect(card.querySelector("img")?.getAttribute("src")).toBe("/girl.jpg");
+    const details = screen.getByRole("button", { name: "Что вы получите?" });
+    expect(details.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByText("QR-оживление")).toBeNull();
+    fireEvent.click(details);
+    expect(details.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText("QR-оживление")).toBeTruthy();
+    expect(screen.getByText("Интервью ребёнка")).toBeTruthy();
   });
 });

@@ -109,4 +109,16 @@ body.catalog-sheet-open{overflow:hidden}
 .lamination-choice button strong{font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .lamination-choice button.active{border-color:#4f8be9;background:#eaf2ff;color:#245da9;box-shadow:inset 0 0 0 1px rgba(54,127,242,.16)}
 .lamination-choice button:focus-visible{outline:3px solid rgba(54,127,242,.32);outline-offset:2px}
-@media(max-width:360px){.lamination-choice{gap:4px}.lamination-choice button{min-height:48px;padding:5px 2px}.lamination-choice button span{font-size:9px}.lamination-choice button strong{font-size:11px}}
+.lamination-choice button>svg{width:16px;height:16px;margin:0 auto;color:currentColor}
+.lamination-choice button span{white-space:nowrap;word-break:normal;overflow-wrap:normal;hyphens:none}
+.delivery-features{display:grid;gap:5px;min-width:0}
+.delivery-feature-toggle{width:100%;min-height:34px;display:flex;align-items:center;justify-content:space-between;gap:5px;padding:5px 7px;border:1px solid #d8e3f1;border-radius:9px;background:#f6f9fd;color:#33577f;font-size:10px;font-weight:850;line-height:1.1;text-align:left;cursor:pointer;touch-action:manipulation}
+.delivery-feature-toggle span{white-space:nowrap}
+.delivery-feature-toggle svg{width:14px;height:14px;flex:0 0 auto;transition:transform .18s ease}
+.delivery-features.is-expanded .delivery-feature-toggle svg{transform:rotate(180deg)}
+.delivery-features .delivery-feature-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
+.delivery-features .delivery-feature{display:grid;grid-template-columns:14px minmax(0,1fr);align-items:center;gap:4px;min-height:30px;padding:4px 5px;border-radius:8px;font-size:9px;line-height:1.05;white-space:normal;text-overflow:clip}
+.delivery-features .delivery-feature svg{width:14px;height:14px}
+.delivery-features .delivery-feature span{min-width:0;overflow-wrap:normal;word-break:normal;hyphens:none}
+@media(max-width:640px){.service-list>.public-catalog-card{border-radius:14px}.service-list .public-catalog-image{aspect-ratio:1/1}.service-list .public-catalog-copy{gap:6px;padding:7px}.service-list .public-catalog-title{gap:3px}.service-list .public-catalog-title strong,.service-list .public-catalog-title b{font-size:12px;line-height:1.12}.service-list .public-catalog-add{width:36px;height:36px}.lamination-choice button{min-height:58px;padding:5px 3px}.lamination-choice button span{font-size:9px}.lamination-choice button strong{font-size:10px}}
+@media(max-width:360px){.lamination-choice{gap:4px}.lamination-choice button{min-height:56px;padding:5px 2px}.lamination-choice button span{font-size:8px}.lamination-choice button strong{font-size:10px}.delivery-feature-toggle{padding-inline:5px;font-size:9px}.delivery-features .delivery-feature-list{grid-template-columns:1fr}.delivery-features .delivery-feature{min-height:28px}}

@@ -1,4 +1,5 @@
-import { Check, Image as ImageIcon, Play, Plus, Sparkles } from "lucide-react";
+import { useId, useState } from "react";
+import { Check, ChevronDown, Image as ImageIcon, Play, Plus, Printer, QrCode, ShieldCheck, ShieldOff, Sparkles, Video, WandSparkles } from "lucide-react";
 import { money } from "../lib/helpers";
 import type { PublicClassPayload } from "../lib/types";
 
@@ -25,8 +26,23 @@ function deliveryFeatures(item: ServiceCardItem): DeliveryFeature[] {
   return features;
 }
 
+function DeliveryFeatureIcon({ tone }: { tone: DeliveryFeature["tone"] }) {
+  if (tone === "print") return <Printer aria-hidden="true" />;
+  if (tone === "lamination") return <ShieldCheck aria-hidden="true" />;
+  if (tone === "qr") return <QrCode aria-hidden="true" />;
+  if (tone === "video") return <Video aria-hidden="true" />;
+  return <WandSparkles aria-hidden="true" />;
+}
+
 function DeliveryFeatures({ item }: { item: ServiceCardItem }) {
-  return <div className="delivery-feature-list" aria-label="Что получат родители">{deliveryFeatures(item).map((feature) => <span className={`delivery-feature delivery-feature-${feature.tone}`} key={feature.label}>{feature.label}</span>)}</div>;
+  const [expanded, setExpanded] = useState(false);
+  const detailsId = useId();
+  return <div className={`delivery-features ${expanded ? "is-expanded" : ""}`} onClick={event => event.stopPropagation()}>
+    <button type="button" className="delivery-feature-toggle" aria-expanded={expanded} aria-controls={detailsId} onClick={() => setExpanded(value => !value)}>
+      <span>Что вы получите?</span><ChevronDown aria-hidden="true" />
+    </button>
+    {expanded && <div className="delivery-feature-list" id={detailsId} aria-label="Что получат родители">{deliveryFeatures(item).map((feature) => <span className={`delivery-feature delivery-feature-${feature.tone}`} key={feature.label}><DeliveryFeatureIcon tone={feature.tone} /><span>{feature.label}</span></span>)}</div>}
+  </div>;
 }
 
 function AiVideoOption({ item }: { item: ServiceCardItem }) {
@@ -69,8 +85,8 @@ export function ServiceCard({ item, selected, related = false, readOnly = false,
         onClick={event => { event.stopPropagation(); onToggle(); }}>{selected ? <Check size={18} /> : <Plus size={19} />}</button>}
     </div>
     <div className="public-catalog-copy"><div className="public-catalog-title"><strong title={item.name}>{item.name}</strong><b>{money(selectedPrice)}</b></div><DeliveryFeatures item={item} />{!related && !readOnly && onLaminationChange && <div className="lamination-choice" role="radiogroup" aria-label={`Защита для услуги «${item.name}»`} onClick={event => event.stopPropagation()}>
-      <button type="button" role="radio" aria-checked={withLamination} className={withLamination ? "active" : ""} onClick={() => chooseLamination(true)}><span>С защитой</span><strong>{money(item.price)}</strong></button>
-      <button type="button" role="radio" aria-checked={!withLamination} className={!withLamination ? "active" : ""} onClick={() => chooseLamination(false)}><span>Без защиты</span><strong>{money(Math.max(0, Number(item.price) - 50))}</strong></button>
+      <button type="button" role="radio" aria-label={`С защитой ${money(item.price)}`} aria-checked={withLamination} className={withLamination ? "active" : ""} onClick={() => chooseLamination(true)}><ShieldCheck aria-hidden="true" /><span>Защита</span><strong>{money(item.price)}</strong></button>
+      <button type="button" role="radio" aria-label={`Без защиты ${money(Math.max(0, Number(item.price) - 50))}`} aria-checked={!withLamination} className={!withLamination ? "active" : ""} onClick={() => chooseLamination(false)}><ShieldOff aria-hidden="true" /><span>Без защиты</span><strong>{money(Math.max(0, Number(item.price) - 50))}</strong></button>
     </div>}<AiVideoOption item={item} />{related && <small>Доступно для другой категории</small>}</div>
   </article>;
 }
