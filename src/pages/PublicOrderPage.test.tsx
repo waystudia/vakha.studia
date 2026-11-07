@@ -107,6 +107,10 @@ describe("child to catalog navigation", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Первый ребёнок/ }));
     fireEvent.click(screen.getByRole("button", { name: /Корзина.*1.*350/ }));
     fireEvent.click(screen.getByRole("button", { name: "Убрать Первое фото из корзины" }));
+    fireEvent.click(screen.getByRole("button", { name: "Нет, вернуть" }));
+    expect(screen.getByRole("dialog", { name: "Корзина" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Убрать Первое фото из корзины" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Убрать Первое фото из корзины" }));
     fireEvent.click(screen.getByRole("button", { name: "Да, удалить" }));
     await waitFor(() => expect(cancelPublicOrder).toHaveBeenCalledWith({ token: "test", childId: "first" }));
     expect(await screen.findByText("Заявка удалена. Можно выбрать услуги заново.")).toBeTruthy();
