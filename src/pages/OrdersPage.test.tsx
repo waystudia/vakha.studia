@@ -41,6 +41,13 @@ const workspace = {
       child: { first_name: "Ребёнок", last_name: "Отменённый", public_name: "Отменённый Р." },
       class: { name: "1 А", school_id: "school-1", school: { name: "Школа №1" } },
     },
+    {
+      id: "order-archived-school", class_id: "class-old", child_id: "child-old", order_number: "VS-104", status: "new",
+      selected_items: [{ id: "old-photo", name: "Старый образ", price: 350, type: "photo" }],
+      total_amount: 350, created_at: "2026-11-07T15:00:00Z", parent_note: "",
+      child: { first_name: "Ребёнок", last_name: "Из архива", public_name: "Архивный Р." },
+      class: { name: "Старый класс", school_id: "school-archived", school: { name: "Архивная школа" } },
+    },
   ],
 } as unknown as OrdersWorkspace;
 
@@ -72,6 +79,12 @@ describe("orders hierarchy", () => {
     expect(screen.getByText("Ахмадова Асет")).toBeTruthy();
     expect(screen.getByText("Интервью ребёнка")).toBeTruthy();
     expect(screen.queryByText("Отменённый Ребёнок")).toBeNull();
+  });
+
+  it("does not count orders from archived projects in the active dashboard", async () => {
+    render(<MemoryRouter><OrdersPage/></MemoryRouter>);
+    expect(await screen.findByLabelText("Всего активных заявок: 2")).toBeTruthy();
+    expect(screen.queryByText("Архивная школа")).toBeNull();
   });
 
   it("keeps status editing available inside a child order card", async () => {

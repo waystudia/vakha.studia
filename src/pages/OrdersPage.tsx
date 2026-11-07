@@ -45,6 +45,13 @@ export function OrdersPage() {
     order.status !== "cancelled"
     && (status === "all" || order.status === status)
     && (!normalizedSearch || searchableOrder(order).includes(normalizedSearch))), [workspace.orders, status, normalizedSearch]);
+  // Orders from a school that has since been archived must never inflate the
+  // active dashboard total. They remain in the database for history, but the
+  // active hierarchy deliberately contains only current schools.
+  const activeProjectOrders = useMemo(() => {
+    const activeSchoolIds = new Set(workspace.schools.map((school) => school.id));
+    return filteredOrders.filter((order) => Boolean(order.class?.school_id && activeSchoolIds.has(order.class.school_id)));
+  }, [filteredOrders, workspace.schools]);
   const selectedSchool = workspace.schools.find((school) => school.id === schoolId);
   const selectedClass = workspace.classes.find((schoolClass) => schoolClass.id === classId);
   const schoolClasses = workspace.classes.filter((schoolClass) => schoolClass.school_id === schoolId);
@@ -52,7 +59,7 @@ export function OrdersPage() {
   const visibleSchools = workspace.schools.filter((school) => {
     if (!normalizedSearch) return true;
     if (`${school.name} ${school.city}`.toLocaleLowerCase("ru").includes(normalizedSearch)) return true;
-    return filteredOrders.some((order) => order.class?.school_id === school.id);
+    return activeProjectOrders.some((order) => order.class?.school_id === school.id);
   });
 
   async function changeStatus(order: ParentOrder, next: OrderStatus) {
@@ -118,12 +125,12 @@ export function OrdersPage() {
     {loading ? <Loader label="Загружаем заявки…"/> : !schoolId ? <section aria-labelledby="orders-projects-title">
       <div className="orders-section-heading">
         <div><span>Шаг 1</span><h2 id="orders-projects-title">Проекты и школы</h2></div>
-        <strong aria-label={`Всего активных заявок: ${filteredOrders.length}`}>Всего активных: {filteredOrders.length}</strong>
+        <strong aria-label={`Всего активных заявок: ${activeProjectOrders.length}`}>Всего активных: {activeProjectOrders.length}</strong>
       </div>
       {!visibleSchools.length ? <EmptyState icon={<Building2/>} title="Проекты не найдены" text="Измените поиск или фильтр статуса."/> : <div className="order-project-grid">
         {visibleSchools.map((school) => {
           const classes = workspace.classes.filter((item) => item.school_id === school.id);
-          const orders = filteredOrders.filter((order) => order.class?.school_id === school.id);
+          const orders = activeProjectOrders.filter((order) => order.class?.school_id === school.id);
           return <button type="button" className="order-project-card" key={school.id} onClick={() => { setSchoolId(school.id); setClassId(""); }}>
             <span className="order-project-icon"><Building2/></span>
             <span className="order-project-copy"><strong>{school.name}</strong><small>{school.city || "Город не указан"}</small></span>
@@ -139,7 +146,7 @@ export function OrdersPage() {
       </div>
       {!schoolClasses.length ? <EmptyState icon={<GraduationCap/>} title="Классов пока нет" text="В выбранном проекте ещё нет классов."/> : <div className="order-class-grid">
         {schoolClasses.map((schoolClass) => {
-          const orders = filteredOrders.filter((order) => order.class_id === schoolClass.id);
+          const orders = activeProjectOrders.filter((order) => order.class_id === schoolClass.id);
           return <button type="button" className="order-class-card" key={schoolClass.id} onClick={() => setClassId(schoolClass.id)}>
             <span className="order-class-badge">{schoolClass.name}</span>
             <span className="order-class-copy"><strong>{schoolClass.photo_session_name || `Класс ${schoolClass.name}`}</strong><small>{schoolClass.academic_year}</small></span>
