@@ -6,10 +6,13 @@
     <link rel="manifest" href="%BASE_URL%catalog.webmanifest" />
     <link rel="apple-touch-icon" href="%BASE_URL%pwa/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="Каталог VS" />
+    <meta name="apple-mobile-web-app-title" content="Каталог KZ" />
     <meta name="theme-color" content="#f5f7fb" />
-    <meta name="description" content="Vakha Studio — заявки родителей на школьную фотосессию" />
-    <title>Vakha Studio — школьные фотозаказы</title>
+    <meta name="description" content="Khan Zama — заявки родителей на школьную фотосессию" />
+    <title>Khan Zama — школьные фотозаказы</title>
+    <style>
+      .kz-boot{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:24px;background:linear-gradient(160deg,#f7faff 0%,#edf4ff 52%,#f7fbf8 100%);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17243b}.kz-boot-card{width:min(310px,100%);display:grid;justify-items:center;text-align:center}.kz-boot-mark{width:82px;height:82px;border-radius:25px;display:grid;place-items:center;background:linear-gradient(145deg,#62a4ff,#2874e8);box-shadow:0 18px 42px rgba(40,116,232,.28);color:#fff;font-size:29px;font-weight:900;letter-spacing:-2px}.kz-boot h1{margin:18px 0 2px;font-size:25px;line-height:1.1}.kz-boot-subtitle{margin:0;color:#65758e;font-size:13px}.kz-boot-progress{width:100%;height:7px;margin-top:28px;overflow:hidden;border-radius:99px;background:#dce8f8}.kz-boot-progress>span{display:block;width:0;height:100%;border-radius:inherit;background:linear-gradient(90deg,#347ff2,#69a7ff);transition:width .22s ease}.kz-boot-status{width:100%;margin-top:10px;display:flex;justify-content:space-between;gap:12px;color:#60728e;font-size:12px;font-weight:700}.kz-boot-status strong{color:#347ff2;font-variant-numeric:tabular-nums}
+    </style>
     <script>
       (function (location) {
         if (location.search.slice(0, 2) !== "?/") return;
@@ -23,7 +26,20 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div class="kz-boot" role="status" aria-live="polite" aria-label="Загружаем каталог"><div class="kz-boot-card"><div class="kz-boot-mark" aria-hidden="true">KZ</div><h1>Khan Zama</h1><p class="kz-boot-subtitle">Сохраняем детство во времени</p><div class="kz-boot-progress" aria-hidden="true"><span id="kz-boot-bar"></span></div><div class="kz-boot-status"><span>Подождите, скоро загрузится</span><strong id="kz-boot-percent">0%</strong></div></div></div></div>
+    <script>
+      (function () {
+        var progress = 0;
+        var timer = window.setInterval(function () {
+          var bar = document.getElementById("kz-boot-bar");
+          var label = document.getElementById("kz-boot-percent");
+          if (!bar || !label) { window.clearInterval(timer); return; }
+          progress = Math.min(90, progress + (progress < 45 ? 7 : progress < 75 ? 3 : 1));
+          bar.style.width = progress + "%";
+          label.textContent = progress + "%";
+        }, 180);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

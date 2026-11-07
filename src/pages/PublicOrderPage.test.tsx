@@ -3,8 +3,9 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { PublicOrderPage } from "./PublicOrderPage";
 import { cancelPublicOrder, getPublicClass, submitPublicOrder } from "../lib/publicRepository";
+import { hasWatchedParentIntro } from "../lib/parentIntroProgress";
 
-vi.mock("../lib/parentIntroProgress", () => ({ hasWatchedParentIntro: () => true }));
+vi.mock("../lib/parentIntroProgress", () => ({ hasWatchedParentIntro: vi.fn(() => true) }));
 vi.mock("../components/ParentIntro", () => ({ ParentIntro: () => null }));
 vi.mock("../lib/publicRepository", () => ({
   getPublicClass: vi.fn(async () => ({
@@ -22,6 +23,7 @@ vi.mock("../lib/publicRepository", () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(hasWatchedParentIntro).mockReturnValue(true);
   Object.defineProperty(window, "scrollY", { value: 780, configurable: true });
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
   Object.defineProperty(Element.prototype, "scrollIntoView", { value: vi.fn(), configurable: true });
@@ -29,6 +31,24 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe("child to catalog navigation", () => {
+  it("shows branded progress while the public class is loading", async () => {
+    vi.mocked(getPublicClass).mockReturnValueOnce(new Promise(() => {}));
+    render(<MemoryRouter initialEntries={["/p/test"]}><Routes><Route path="/p/:token" element={<PublicOrderPage />} /></Routes></MemoryRouter>);
+    expect(screen.getByRole("status", { name: "Загружаем каталог" })).toBeTruthy();
+    expect(screen.getByText("Khan Zama")).toBeTruthy();
+    expect(screen.getByText("Подождите, скоро загрузится")).toBeTruthy();
+  });
+
+  it("explains why the catalog is locked until the intro video is watched", async () => {
+    vi.mocked(hasWatchedParentIntro).mockReturnValueOnce(false);
+    render(<MemoryRouter initialEntries={["/p/test"]}><Routes><Route path="/p/:token" element={<PublicOrderPage />} /></Routes></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: /Первый ребёнок/ }));
+    const message = screen.getByRole("status");
+    expect(message.textContent).toContain("Сначала посмотрите видео");
+    expect(message.textContent).toContain("После полного просмотра откроется каталог фотографий");
+    expect(screen.queryByRole("button", { name: "Назад к списку детей" })).toBeNull();
+  });
+
   it("shows the parent child list in Russian alphabetical order", async () => {
     vi.mocked(getPublicClass).mockResolvedValueOnce({
       school: { name: "Школа №1", city: "" }, class: { id: "class", name: "1 А", academic_year: "2026", photo_session_name: "Фотосессия" },

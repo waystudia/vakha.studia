@@ -3,7 +3,7 @@ import { ParentIntro } from "../components/ParentIntro";
 import { ArrowLeft, Camera, CheckCircle2, LoaderCircle, Play, ShieldCheck, ShieldOff, ShoppingCart, Trash2, UserRound, Video, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { Loader, Notice } from "../components/ui";
+import { Notice } from "../components/ui";
 import { ServiceCard } from "../components/ServiceCard";
 import { CatalogViewer } from "../components/CatalogViewer";
 import { humanError, money } from "../lib/helpers";
@@ -28,6 +28,15 @@ function serviceCountLabel(count: number) {
   const mod10 = count % 10;
   const word = mod100 >= 11 && mod100 <= 14 ? "услуг" : mod10 === 1 ? "услуга" : mod10 >= 2 && mod10 <= 4 ? "услуги" : "услуг";
   return `${count} ${word}`;
+}
+
+function PublicLoadingScreen() {
+  const [progress, setProgress] = useState(0);
+  useEffect(() => {
+    const timer = window.setInterval(() => setProgress(current => Math.min(92, current + (current < 45 ? 7 : current < 75 ? 3 : 1))), 180);
+    return () => window.clearInterval(timer);
+  }, []);
+  return <main className="kz-loading-screen" role="status" aria-live="polite" aria-label="Загружаем каталог"><div className="kz-loading-card"><div className="kz-loading-mark" aria-hidden="true">KZ</div><h1>Khan Zama</h1><p>Сохраняем детство во времени</p><div className="kz-loading-progress" aria-hidden="true"><span style={{ width: `${progress}%` }} /></div><div className="kz-loading-status"><span>Подождите, скоро загрузится</span><strong>{progress}%</strong></div></div></main>;
 }
 
 function OrderCart({ items, total, open, pending, editing, withoutLamination, onOpen, onClose, onRemove, onLaminationChange, onSubmit }: {
@@ -131,7 +140,9 @@ export function PublicOrderPage() {
   const [cartOpen, setCartOpen] = useState(false);
   const [result, setResult] = useState<PublicOrderResult | null>(null); const [previewItem, setPreviewItem] = useState<CatalogEntry | null>(null); const [gender, setGender] = useState<CatalogGender>("all");
   const [activeCategory, setActiveCategory] = useState("");
+  const [videoGateNotice, setVideoGateNotice] = useState(false);
   const requestKey = useRef(crypto.randomUUID());
+  const videoGateTimer = useRef<number | null>(null);
   const childOrigin = useRef<{ scrollY: number; childId: string }>({ scrollY: 0, childId: "" });
   const serviceScrollTarget = useRef("");
   const servicesEntry = useRef("");
@@ -154,6 +165,7 @@ export function PublicOrderPage() {
     window.addEventListener("keydown", closeOnEscape);
     return () => { document.body.classList.remove("order-cart-open"); window.removeEventListener("keydown", closeOnEscape); };
   }, [cartOpen]);
+  useEffect(() => () => { if (videoGateTimer.current) window.clearTimeout(videoGateTimer.current); }, []);
   useLayoutEffect(() => {
     if (step !== "services") return;
     const targetId = serviceScrollTarget.current;
@@ -201,6 +213,15 @@ export function PublicOrderPage() {
     const target = Array.from(document.querySelectorAll<HTMLElement>("[data-catalog-section]"))
       .find((element) => element.dataset.catalogSection === id);
     target?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function explainVideoGate() {
+    setVideoGateNotice(true);
+    if (videoGateTimer.current) window.clearTimeout(videoGateTimer.current);
+    videoGateTimer.current = window.setTimeout(() => setVideoGateNotice(false), 4800);
+  }
+  function goToIntroVideo() {
+    setVideoGateNotice(false);
+    document.querySelector<HTMLElement>(".parent-intro")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   function toggle(id: string) {
     setSelected((items) => {
@@ -258,13 +279,13 @@ export function PublicOrderPage() {
     return phone ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}` : "";
   }
   function renderCard(item: CatalogEntry, previewOnly = false) { return <ServiceCard key={item.id} item={item} selected={selected.includes(item.id)} related={previewOnly} withLamination={!withoutLamination.includes(item.id)} onOpen={() => setPreviewItem(item)} onToggle={() => toggle(item.id)} onLaminationChange={previewOnly ? undefined : (value) => setLamination(item.id, value)} />; }
-  if (loading) return <main className="public-page"><Loader label="Открываем класс…" /></main>;
+  if (loading) return <PublicLoadingScreen />;
   if (error && !data) return <main className="public-page"><section className="public-error"><div className="error-illustration">!</div><h1>Ссылка недоступна</h1><p>{error}</p><span>Попросите учителя отправить актуальную ссылку.</span></section></main>;
   if (!data) return null;
-  return <main className="public-page"><div className="public-shell"><header className="public-header"><div className="public-logo"><span className="brand-mark">VS</span><div><strong>Vakha Studio</strong><small>Школьная фотография</small></div></div><span className="step-indicator">{step === "child" ? "Шаг 1 из 2" : step === "services" ? "Шаг 2 из 2" : "Готово"}</span></header>
+  return <main className="public-page"><div className="public-shell"><header className="public-header"><div className="public-logo"><span className="brand-mark">KZ</span><div><strong>Khan Zama</strong><small>Школьная фотография</small></div></div><span className="step-indicator">{step === "child" ? "Шаг 1 из 2" : step === "services" ? "Шаг 2 из 2" : "Готово"}</span></header>
     <ParentIntro watched={introClosed} onComplete={() => setIntroClosed(true)} />
     {step === "child" && notice && <div className="public-inline-notice"><Notice kind="info">{notice}</Notice></div>}
-    {step === "child" && <section className="public-content" id="public-catalog-start"><span className="eyebrow">{data.school.name} · {data.class.name}</span><h1>{data.class.photo_session_name}</h1><p className="public-lead">Выберите своего ребёнка</p>{!sortedChildren.length ? <Notice kind="info">Список детей пока не добавлен. Обратитесь к учителю.</Notice> : <div className="children-grid">{sortedChildren.map((item, index) => <button className={`child-choice ${childId === item.id ? "is-current" : ""}`} data-child-id={item.id} aria-pressed={childId === item.id} key={item.id} onClick={() => { setChildId(item.id); if (introClosed) openServices(item.id); }}><span className={`avatar avatar-${index % 3}`}><UserRound /></span><span className="child-choice-copy"><strong>{item.public_name}</strong><small>{item.orders?.length ? "Выбрал/а: " + item.orders.flatMap(order => order.items.map(service => `${service.name}${(service.quantity || 1) > 1 ? ` × ${service.quantity}` : ""}`)).join(", ") : "Пока без заявки"}</small></span><span className="child-order-previews">{item.orders?.flatMap(order => order.items).slice(0, 2).map((service, index) => { const named = data.catalog.filter(entry => entry.name === service.name); const image = data.catalog.find(entry => entry.id === service.id)?.preview_url || (named.length === 1 ? named[0].preview_url : "") || service.preview_url; return image ? <img key={`${service.id || service.name}-${index}`} src={image} alt={service.name} loading="lazy" onError={event => { const image = event.currentTarget; const named = data.catalog.filter(entry => entry.name === service.name); const fallback = named.length === 1 ? named[0].preview_url : ""; if (fallback && image.getAttribute("src") !== fallback) image.src = fallback; }} /> : null; })}</span></button>)}</div>}{childId && <div className="child-catalog-entry"><button className="button button-primary" disabled={!introClosed} onClick={() => openServices(childId)}>{introClosed ? "Открыть каталог фотографий" : "Каталог откроется после видео"}</button></div>}<div className="privacy-note">Выберите своего ребёнка из списка класса.</div></section>}
+    {step === "child" && <section className="public-content" id="public-catalog-start"><span className="eyebrow">{data.school.name} · {data.class.name}</span><h1>{data.class.photo_session_name}</h1><p className="public-lead">Выберите своего ребёнка</p>{!sortedChildren.length ? <Notice kind="info">Список детей пока не добавлен. Обратитесь к учителю.</Notice> : <div className="children-grid">{sortedChildren.map((item, index) => <button className={`child-choice ${childId === item.id ? "is-current" : ""}`} data-child-id={item.id} aria-pressed={childId === item.id} key={item.id} onClick={() => { setChildId(item.id); if (introClosed) openServices(item.id); else explainVideoGate(); }}><span className={`avatar avatar-${index % 3}`}><UserRound /></span><span className="child-choice-copy"><strong>{item.public_name}</strong><small>{item.orders?.length ? "Выбрал/а: " + item.orders.flatMap(order => order.items.map(service => `${service.name}${(service.quantity || 1) > 1 ? ` × ${service.quantity}` : ""}`)).join(", ") : "Пока без заявки"}</small></span><span className="child-order-previews">{item.orders?.flatMap(order => order.items).slice(0, 2).map((service, index) => { const named = data.catalog.filter(entry => entry.name === service.name); const image = data.catalog.find(entry => entry.id === service.id)?.preview_url || (named.length === 1 ? named[0].preview_url : "") || service.preview_url; return image ? <img key={`${service.id || service.name}-${index}`} src={image} alt={service.name} loading="lazy" onError={event => { const image = event.currentTarget; const named = data.catalog.filter(entry => entry.name === service.name); const fallback = named.length === 1 ? named[0].preview_url : ""; if (fallback && image.getAttribute("src") !== fallback) image.src = fallback; }} /> : null; })}</span></button>)}</div>}{childId && <div className="child-catalog-entry"><button className="button button-primary" onClick={() => introClosed ? openServices(childId) : explainVideoGate()}>{introClosed ? "Открыть каталог фотографий" : "Сначала посмотрите видео"}</button></div>}<div className="privacy-note">Выберите своего ребёнка из списка класса.</div></section>}
     {step === "services" && <section className="public-content service-step" id="public-catalog-start">
       <button className="service-back-floating" type="button" aria-label="Назад к списку детей" onClick={closeServices}><ArrowLeft size={20} /><span>Назад</span></button>
       <span className="eyebrow">{data.school.name} · {data.class.name}</span><h1>{child?.public_name}</h1>
@@ -299,5 +320,6 @@ export function PublicOrderPage() {
     {step === "services" && selected.length === 0 && editingExisting && <div className="empty-order-dock"><span>Вы убрали последнюю услугу. Удалить заявку целиком?</span><div className="empty-order-actions"><button className="button button-secondary" disabled={pending} onClick={restoreLastRemoved}>Нет, вернуть</button><button className="button button-danger" disabled={pending} onClick={() => void submit()}>{pending && <LoaderCircle className="spin" size={18} />}Да, удалить</button></div></div>}
     {previewItem && <CatalogViewer items={data.catalog} initialId={previewItem.id} initialGender={gender} selected={selected} onToggle={toggle} onClose={() => setPreviewItem(null)} />}
     {step === "done" && result && <section className="success-screen"><div className="success-mark"><CheckCircle2 /></div><h1>{result.duplicate ? "Заявка уже была отправлена" : "Заявка отправлена"}</h1><span className="success-pill">Ваша заявка принята</span><div className="order-number">Номер заявки <strong>{result.order_number}</strong></div><div className="confirmation-card"><div><span>Ребёнок</span><strong>{result.child_name}</strong></div><div><span>Класс</span><strong>{result.class_name}</strong></div><div><span>Услуги</span><strong>{result.selected_items.map((item) => `${item.name}${(item.quantity || 1) > 1 ? ` × ${item.quantity}` : ""}${item.comment ? ` (${item.comment})` : ""}`).join(", ")}</strong></div><div><span>Итого</span><strong>{money(result.total_amount)}</strong></div></div><div className="success-items">{result.selected_items.map((item) => <div className="success-item" key={item.id}>{item.preview_url ? <img src={item.preview_url} alt="" loading="lazy" decoding="async" /> : <ServiceIcon type={item.type} />}<span>{item.name}{(item.quantity || 1) > 1 ? ` × ${item.quantity}` : ""}</span><strong>{money(item.price * (item.quantity || 1))}</strong></div>)}</div><p>Спасибо! Мы сохраним прекрасные моменты детства.</p><div className="success-actions">{import.meta.env.VITE_CRM_MODE === "true" && <a className="button button-primary" href={orderLink(result.public_token)}>Открыть мой заказ</a>}<button className="button button-secondary" onClick={() => setStep("services")}><ArrowLeft size={18}/>Назад к выбору</button>{data.children.length > 1 && <button className="button button-secondary" onClick={chooseAnotherChild}>Выбрать другого ребёнка</button>}{whatsappUrl() && <a className="button button-primary" href={whatsappUrl()} target="_blank" rel="noreferrer">Отправить в WhatsApp</a>}<button className="button button-primary button-wide" onClick={chooseAnotherChild}>Готово</button></div></section>}
+    {videoGateNotice && <div className="video-gate-toast" role="status"><span className="video-gate-icon" aria-hidden="true"><Play fill="currentColor" /></span><span><strong>Сначала посмотрите видео</strong><small>После полного просмотра откроется каталог фотографий.</small><button className="video-gate-action" type="button" onClick={goToIntroVideo}>Перейти к видео</button></span></div>}
   </div></main>;
 }
