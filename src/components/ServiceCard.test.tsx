@@ -28,4 +28,21 @@ describe("interview service card", () => {
     expect(screen.getByText("QR-оживление")).toBeTruthy();
     expect(screen.getByText("Интервью ребёнка")).toBeTruthy();
   });
+
+  it("uses the bundled WebP when Supabase has no preview URL", () => {
+    const { container } = render(<ServiceCard item={{
+      id: "racing",
+      name: "Гоночный чемпион",
+      description: "",
+      short_description: "",
+      type: "photo",
+      category: "Детские образы",
+      gender: "boys",
+      price: 350,
+      preview_url: "",
+      preview_video_url: "",
+      parent_preview_mode: "auto",
+    }} selected={false} onOpen={() => {}} onToggle={() => {}} />);
+    expect(container.querySelector<HTMLImageElement>(".public-catalog-image > img")?.src).toContain("catalog-fallbacks/child-boy-racing-champion.webp");
+  });
 });
