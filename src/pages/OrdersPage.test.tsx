@@ -22,7 +22,11 @@ const workspace = {
   orders: [
     {
       id: "order-1", class_id: "class-1", child_id: "child-1", order_number: "VS-101", status: "new",
-      selected_items: [{ id: "photo", name: "Чеченский джигит", price: 350, type: "photo", preview_url: "/jigit.webp" }],
+      selected_items: [
+        { id: "photo", name: "Чеченский джигит", price: 350, type: "photo", preview_url: "/jigit.webp" },
+        { id: "photo-2", name: "Горный спасатель", price: 350, type: "photo" },
+        { id: "photo-3", name: "Полевой наблюдатель", price: 350, type: "photo" },
+      ],
       total_amount: 350, created_at: "2026-11-07T12:00:00Z", parent_note: "",
       child: { first_name: "Али", last_name: "Абдуллаев", public_name: "Али А." },
       class: { name: "1 А", school_id: "school-1", school: { name: "Школа №1" } },
@@ -64,13 +68,15 @@ describe("orders hierarchy", () => {
     render(<MemoryRouter><OrdersPage/></MemoryRouter>);
 
     const project = await screen.findByRole("button", { name: /Школа №1/ });
-    expect(project.textContent).toContain("2 классов");
-    expect(project.textContent).toContain("2 заявок");
+    expect(project.textContent).toContain("2 класса");
+    expect(project.textContent).toContain("2 заявки");
+    expect(project.textContent).toContain("4 заказа");
     fireEvent.click(project);
 
     expect(screen.getByRole("heading", { name: "Классы" })).toBeTruthy();
     const schoolClass = screen.getByRole("button", { name: /1 А/ });
-    expect(schoolClass.textContent).toContain("2заявок");
+    expect(schoolClass.textContent).toContain("2заявки");
+    expect(schoolClass.textContent).toContain("4заказа");
     fireEvent.click(schoolClass);
 
     expect(screen.getByRole("heading", { name: "Карточки детей" })).toBeTruthy();
@@ -83,7 +89,7 @@ describe("orders hierarchy", () => {
 
   it("does not count orders from archived projects in the active dashboard", async () => {
     render(<MemoryRouter><OrdersPage/></MemoryRouter>);
-    expect(await screen.findByLabelText("Всего активных заявок: 2")).toBeTruthy();
+    expect(await screen.findByLabelText("2 активные заявки, 4 заказа")).toBeTruthy();
     expect(screen.queryByText("Архивная школа")).toBeNull();
   });
 

@@ -18,6 +18,17 @@ function searchableOrder(order: ParentOrder) {
   ].filter(Boolean).join(" ").toLocaleLowerCase("ru");
 }
 
+function orderedServiceCount(orders: ParentOrder[]) {
+  return orders.reduce((total, order) => total + order.selected_items.reduce((sum, item) => sum + Math.max(1, Number(item.quantity) || 1), 0), 0);
+}
+
+function countLabel(count: number, one: string, few: string, many: string) {
+  const mod100 = count % 100;
+  const mod10 = count % 10;
+  const word = mod100 >= 11 && mod100 <= 14 ? many : mod10 === 1 ? one : mod10 >= 2 && mod10 <= 4 ? few : many;
+  return `${count} ${word}`;
+}
+
 export function OrdersPage() {
   const [workspace, setWorkspace] = useState<OrdersWorkspace>(emptyWorkspace);
   const [loading, setLoading] = useState(true);
@@ -125,7 +136,7 @@ export function OrdersPage() {
     {loading ? <Loader label="Загружаем заявки…"/> : !schoolId ? <section aria-labelledby="orders-projects-title">
       <div className="orders-section-heading">
         <div><span>Шаг 1</span><h2 id="orders-projects-title">Проекты и школы</h2></div>
-        <strong aria-label={`Всего активных заявок: ${activeProjectOrders.length}`}>Всего активных: {activeProjectOrders.length}</strong>
+        <strong className="orders-total" aria-label={`${countLabel(activeProjectOrders.length, "активная заявка", "активные заявки", "активных заявок")}, ${countLabel(orderedServiceCount(activeProjectOrders), "заказ", "заказа", "заказов")}`}><span>{countLabel(activeProjectOrders.length, "заявка", "заявки", "заявок")}</span><span>{countLabel(orderedServiceCount(activeProjectOrders), "заказ", "заказа", "заказов")}</span></strong>
       </div>
       {!visibleSchools.length ? <EmptyState icon={<Building2/>} title="Проекты не найдены" text="Измените поиск или фильтр статуса."/> : <div className="order-project-grid">
         {visibleSchools.map((school) => {
@@ -134,7 +145,7 @@ export function OrdersPage() {
           return <button type="button" className="order-project-card" key={school.id} onClick={() => { setSchoolId(school.id); setClassId(""); }}>
             <span className="order-project-icon"><Building2/></span>
             <span className="order-project-copy"><strong>{school.name}</strong><small>{school.city || "Город не указан"}</small></span>
-            <span className="order-project-stats"><span><b>{classes.length}</b> классов</span><span><b>{orders.length}</b> заявок</span></span>
+            <span className="order-project-stats"><span><b>{classes.length}</b> {countLabel(classes.length, "класс", "класса", "классов").replace(/^\d+ /, "")}</span><span><b>{orders.length}</b> {countLabel(orders.length, "заявка", "заявки", "заявок").replace(/^\d+ /, "")}</span><span><b>{orderedServiceCount(orders)}</b> {countLabel(orderedServiceCount(orders), "заказ", "заказа", "заказов").replace(/^\d+ /, "")}</span></span>
             <ChevronRight aria-hidden="true"/>
           </button>;
         })}
@@ -142,7 +153,7 @@ export function OrdersPage() {
     </section> : !classId ? <section aria-labelledby="orders-classes-title">
       <div className="orders-section-heading">
         <div><span>Шаг 2</span><h2 id="orders-classes-title">Классы</h2></div>
-        <strong>{schoolClasses.length} классов</strong>
+        <strong className="orders-total"><span>{countLabel(activeProjectOrders.filter((order) => order.class?.school_id === schoolId).length, "заявка", "заявки", "заявок")}</span><span>{countLabel(orderedServiceCount(activeProjectOrders.filter((order) => order.class?.school_id === schoolId)), "заказ", "заказа", "заказов")}</span></strong>
       </div>
       {!schoolClasses.length ? <EmptyState icon={<GraduationCap/>} title="Классов пока нет" text="В выбранном проекте ещё нет классов."/> : <div className="order-class-grid">
         {schoolClasses.map((schoolClass) => {
@@ -150,7 +161,8 @@ export function OrdersPage() {
           return <button type="button" className="order-class-card" key={schoolClass.id} onClick={() => setClassId(schoolClass.id)}>
             <span className="order-class-badge">{schoolClass.name}</span>
             <span className="order-class-copy"><strong>{schoolClass.photo_session_name || `Класс ${schoolClass.name}`}</strong><small>{schoolClass.academic_year}</small></span>
-            <span className="order-class-count"><b>{orders.length}</b><small>заявок</small></span>
+            <span className="order-class-count"><b>{orders.length}</b><small>{countLabel(orders.length, "заявка", "заявки", "заявок").replace(/^\d+ /, "")}</small></span>
+            <span className="order-class-count order-class-orders"><b>{orderedServiceCount(orders)}</b><small>{countLabel(orderedServiceCount(orders), "заказ", "заказа", "заказов").replace(/^\d+ /, "")}</small></span>
             <ChevronRight aria-hidden="true"/>
           </button>;
         })}
@@ -158,7 +170,7 @@ export function OrdersPage() {
     </section> : <section aria-labelledby="orders-children-title">
       <div className="orders-section-heading">
         <div><span>Шаг 3</span><h2 id="orders-children-title">Карточки детей</h2></div>
-        <strong>{visibleOrders.length} заявок</strong>
+        <strong className="orders-total"><span>{countLabel(visibleOrders.length, "заявка", "заявки", "заявок")}</span><span>{countLabel(orderedServiceCount(visibleOrders), "заказ", "заказа", "заказов")}</span></strong>
       </div>
       {!visibleOrders.length ? <EmptyState icon={<ClipboardList/>} title="Заявок в классе пока нет" text="После выбора услуг родителем карточка появится здесь."/> : <div className="order-child-grid">
         {visibleOrders.map((order) => {
