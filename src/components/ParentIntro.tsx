@@ -12,6 +12,7 @@ export function ParentIntro({onComplete, watched = false}: {onComplete: () => vo
   const [failed, setFailed] = useState(false);
   const [done, setDone] = useState(watched);
   const [expanded, setExpanded] = useState(!watched);
+  const [showCatalogLink, setShowCatalogLink] = useState(false);
   useEffect(() => {
     const player = video.current;
     if (!player || watched) return;
@@ -31,6 +32,21 @@ export function ParentIntro({onComplete, watched = false}: {onComplete: () => vo
     document.addEventListener('click', retryOnTouch, {once: true});
     return () => document.removeEventListener('click', retryOnTouch);
   }, [blocked, expanded, failed]);
+  useEffect(() => {
+    if (!done || expanded) return;
+    let frame = 0;
+    const update = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const target = document.getElementById('public-catalog-start');
+        setShowCatalogLink(Boolean(target && target.getBoundingClientRect().top > window.innerHeight));
+      });
+    };
+    update();
+    window.addEventListener('scroll', update, {passive: true});
+    window.addEventListener('resize', update);
+    return () => { cancelAnimationFrame(frame); window.removeEventListener('scroll', update); window.removeEventListener('resize', update); };
+  }, [done, expanded]);
   function start() {
     const player = video.current;
     if (!player) return;
@@ -52,7 +68,7 @@ export function ParentIntro({onComplete, watched = false}: {onComplete: () => vo
       <span className="parent-intro-complete"><span className="parent-intro-complete-mark" aria-hidden="true"><Check /></span><span><strong>Видео просмотрено</strong><small>Можно выбирать фотографии</small></span></span>
       <button className="parent-intro-replay" type="button" onClick={(event) => { event.stopPropagation(); replay(); }}><RotateCcw aria-hidden="true" />Посмотреть ещё раз</button>
     </section>
-    <button className="catalog-float-link" type="button" onClick={openCatalog}><span>Наш каталог</span><ArrowDown aria-hidden="true" /></button>
+    {showCatalogLink && <button className="catalog-float-link" type="button" onClick={openCatalog}><span>Наш каталог</span><ArrowDown aria-hidden="true" /></button>}
   </>;
   return <section className="parent-intro" aria-label="Знакомство со студией Хан Зама">
     <p className="parent-intro-message" role="status">{done ? 'Повторный просмотр видео' : 'Вы сможете посмотреть каталог фотографий после полного просмотра видео. Пока можно выбрать ребёнка ниже.'}</p>

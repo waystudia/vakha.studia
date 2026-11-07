@@ -11,7 +11,7 @@ it('attempts audible autoplay and offers one tap when the browser blocks it', as
  expect(container.querySelector('video')!.controls).toBe(true);
  expect(screen.queryByText(/Пропустить/)).toBeNull();
  fireEvent.click(document.body);
- expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(2);
+ await waitFor(()=>expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(2));
  expect(complete).not.toHaveBeenCalled();
  expect(hasWatchedParentIntro()).toBe(false);
  fireEvent.error(container.querySelector('video')!);
@@ -50,12 +50,15 @@ it('restores a completed viewing without forcing autoplay again', () => {
  expect(play).toHaveBeenCalledTimes(1);
 });
 
-it('scrolls from the floating catalog button to the current selection step', () => {
+it('shows the catalog shortcut only before the catalog reaches the viewport', async () => {
  const target=document.createElement('div');target.id='public-catalog-start';document.body.appendChild(target);
+ let targetTop=900;vi.spyOn(target,'getBoundingClientRect').mockImplementation(()=>({top:targetTop,bottom:targetTop+100,left:0,right:100,width:100,height:100,x:0,y:targetTop,toJSON:()=>({})}));
  const scrollIntoView=vi.fn();Object.defineProperty(target,'scrollIntoView',{value:scrollIntoView,configurable:true});
  render(<ParentIntro watched onComplete={vi.fn()}/>);
- fireEvent.click(screen.getByRole('button',{name:/Наш каталог/}));
+ const shortcut=await screen.findByRole('button',{name:/Наш каталог/});fireEvent.click(shortcut);
  expect(scrollIntoView).toHaveBeenCalledWith({behavior:'smooth',block:'start'});
+ targetTop=200;fireEvent.scroll(window);
+ await waitFor(()=>expect(screen.queryByRole('button',{name:/Наш каталог/})).toBeNull());
  target.remove();
 });
 
