@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { PublicOrderPage } from "./PublicOrderPage";
-import { getPublicClass, submitPublicOrder } from "../lib/publicRepository";
+import { cancelPublicOrder, getPublicClass, submitPublicOrder } from "../lib/publicRepository";
 
 vi.mock("../lib/parentIntroProgress", () => ({ hasWatchedParentIntro: () => true }));
 vi.mock("../components/ParentIntro", () => ({ ParentIntro: () => null }));
@@ -17,6 +17,7 @@ vi.mock("../lib/publicRepository", () => ({
     whatsapp: {},
   })),
   submitPublicOrder: vi.fn(),
+  cancelPublicOrder: vi.fn(),
 }));
 
 beforeEach(() => {
@@ -80,5 +81,24 @@ describe("child to catalog navigation", () => {
     fireEvent.click(screen.getByRole("button", { name: "Добавить Дополнительное фото в заказ" }));
     fireEvent.click(screen.getByRole("button", { name: "Оформить заявку" }));
     await waitFor(() => expect(submitPublicOrder).toHaveBeenCalledWith(expect.objectContaining({ itemIds: ["photo", "extra"], withoutLaminationIds: ["photo"] })));
+  });
+
+  it("lets a parent remove the final service and cancel the existing order", async () => {
+    vi.mocked(getPublicClass).mockResolvedValueOnce({
+      school: { name: "Школа №1", city: "" }, class: { id: "class", name: "1 А", academic_year: "2026", photo_session_name: "Фотосессия" },
+      children: [{ id: "first", public_name: "Первый ребёнок", orders: [{ status: "new", items: [{ id: "photo", name: "Первое фото" }] }] }],
+      catalog: [{ id: "photo", name: "Первое фото", price: 350, category: "Фото", gender: "unisex", type: "photo", preview_url: "/photo.webp", preview_video_url: "", description: "", short_description: "", parent_preview_mode: "auto" }], whatsapp: {},
+    });
+    vi.mocked(cancelPublicOrder).mockResolvedValue({
+      duplicate: false, updated: true, order_number: "VS-1", status: "cancelled", selected_items: [], total_amount: 0,
+      child_name: "Первый ребёнок", class_name: "1 А", public_token: "order-token",
+    });
+    render(<MemoryRouter initialEntries={["/p/test"]}><Routes><Route path="/p/:token" element={<PublicOrderPage />} /></Routes></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: /Первый ребёнок/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Убрать Первое фото из заказа" }));
+    fireEvent.click(screen.getByRole("button", { name: "Удалить заявку" }));
+    await waitFor(() => expect(cancelPublicOrder).toHaveBeenCalledWith({ token: "test", childId: "first" }));
+    expect(await screen.findByText("Заявка удалена. Можно выбрать услуги заново.")).toBeTruthy();
+    expect(screen.getByText("Пока без заявки")).toBeTruthy();
   });
 });

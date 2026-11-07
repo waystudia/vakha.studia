@@ -523,3 +523,9 @@ export async function submitPublicOrder(input: {
   fail(error);
   return data as PublicOrderResult;
 }
+
+export async function cancelPublicOrder(input: { token: string; childId: string }): Promise<PublicOrderResult> {
+  const { data, error } = await supabase.rpc("cancel_parent_order", { p_token: input.token, p_child_id: input.childId });
+  fail(error);
+  return data as PublicOrderResult;
+}
