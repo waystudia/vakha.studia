@@ -39,14 +39,12 @@ describe("child to catalog navigation", () => {
     expect(screen.getByText("Подождите, скоро загрузится")).toBeTruthy();
   });
 
-  it("explains why the catalog is locked until the intro video is watched", async () => {
+  it("opens the catalog even when the intro video has not been watched", async () => {
     vi.mocked(hasWatchedParentIntro).mockReturnValueOnce(false);
     render(<MemoryRouter initialEntries={["/p/test"]}><Routes><Route path="/p/:token" element={<PublicOrderPage />} /></Routes></MemoryRouter>);
     fireEvent.click(await screen.findByRole("button", { name: /Первый ребёнок/ }));
-    const message = screen.getByRole("status");
-    expect(message.textContent).toContain("Сначала посмотрите видео");
-    expect(message.textContent).toContain("После полного просмотра откроется каталог фотографий");
-    expect(screen.queryByRole("button", { name: "Назад к списку детей" })).toBeNull();
+    expect(await screen.findByRole("button", { name: "Назад к списку детей" })).toBeTruthy();
+    expect(screen.queryByText("Сначала посмотрите видео")).toBeNull();
   });
 
   it("shows the parent child list in Russian alphabetical order", async () => {
