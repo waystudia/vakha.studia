@@ -131,6 +131,21 @@ export interface OrdersWorkspace {
   orders: ParentOrder[];
 }
 
+export interface PublicPageVisit {
+  id: number;
+  owner_id: string;
+  source_key: string;
+  page_kind: "class" | "catalog";
+  school_id: string | null;
+  class_id: string | null;
+  visitor_hash: string;
+  open_count: number;
+  first_seen_at: string;
+  last_seen_at: string;
+  school?: Pick<School, "name" | "city"> | null;
+  class?: Pick<SchoolClass, "name"> | null;
+}
+
 export interface PublicClassPayload {
   school: { name: string; city: string };
   whatsapp?: { phone?: string; company?: string; manager?: string; template?: string };

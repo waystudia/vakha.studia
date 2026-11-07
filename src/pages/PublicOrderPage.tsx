@@ -10,6 +10,7 @@ import { humanError, money } from "../lib/helpers";
 import { buildCatalogSections, type CatalogGender } from "../lib/catalogSections";
 import { catalogMediaUrl } from "../lib/mediaUrl";
 import { cancelPublicOrder, getPublicClass, submitPublicOrder } from "../lib/publicRepository";
+import { trackPublicVisit } from "../lib/visitAnalytics";
 import type { PublicClassPayload, PublicOrderResult } from "../lib/types";
 
 type Step = "child" | "services" | "done";
@@ -148,6 +149,7 @@ export function PublicOrderPage() {
   const stepRef = useRef<Step>("child");
   stepRef.current = step;
 
+  useEffect(() => { trackPublicVisit(token, "class"); }, [token]);
   useEffect(() => { void (async () => { try { const payload = await getPublicClass(token); if (!payload) throw new Error("Ссылка недействительна или срок её действия истёк"); setData(payload); } catch (reason) { setError(humanError(reason)); } finally { setLoading(false); } })(); }, [token]);
   useEffect(() => {
     let alive = true;

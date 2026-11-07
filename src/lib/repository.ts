@@ -13,6 +13,7 @@ import type {
   PublicClassPayload,
   PublicOrderPayload,
   PublicOrderResult,
+  PublicPageVisit,
   School,
   SchoolClass,
   SchoolWithStats,
@@ -412,6 +413,15 @@ export async function loadOrdersWorkspace(): Promise<OrdersWorkspace> {
     classes: (classesResult.data || []) as SchoolClass[],
     orders: (ordersResult.data || []) as unknown as ParentOrder[],
   };
+}
+
+export async function loadVisitAnalytics(): Promise<PublicPageVisit[]> {
+  const { data, error } = await supabase
+    .from("public_page_visits")
+    .select("*, school:schools(name,city), class:classes(name)")
+    .order("last_seen_at", { ascending: false });
+  fail(error);
+  return (data || []) as unknown as PublicPageVisit[];
 }
 
 export async function updateOrderStatus(id: string, status: ParentOrder["status"]) {

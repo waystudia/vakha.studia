@@ -14,6 +14,7 @@ import { getPublicCatalog } from "../lib/repository";
 import { ParentIntro } from "../components/ParentIntro";
 import { hasWatchedParentIntro } from "../lib/parentIntroProgress";
 import type { PublicCatalogPayload } from "../lib/types";
+import { trackPublicVisit } from "../lib/visitAnalytics";
 
 type CatalogItem = PublicCatalogPayload["catalog"][number];
 
@@ -53,6 +54,7 @@ export function PublicCatalogPage({ catalogToken, presentation = false, internal
   const toggle = (id: string) => setSelected(old => old.includes(id) ? old.filter(value => value !== id) : [...old, id]);
   const setLamination = (id: string, protectedPhoto: boolean) => setWithoutLamination(old => protectedPhoto ? old.filter(value => value !== id) : old.includes(id) ? old : [...old, id]);
 
+  useEffect(() => { if (!internal && !immersive) trackPublicVisit(token, "catalog"); }, [immersive, internal, token]);
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
     window.addEventListener("online", update); window.addEventListener("offline", update);

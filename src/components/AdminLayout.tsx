@@ -1,4 +1,4 @@
-import { BookOpen, MonitorPlay, Eye, Building2, ClipboardList, LogOut, Menu, UserRound, X } from "lucide-react";
+import { BarChart3, BookOpen, MonitorPlay, Eye, Building2, ClipboardList, LogOut, Menu, UserRound, X } from "lucide-react";
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { signOut } from "../lib/repository";
@@ -23,6 +23,7 @@ export function AdminLayout() {
           <NavLink to="/admin/public-catalog" onClick={close}><Eye size={20} />Каталог для родителей</NavLink>
           <NavLink to="/admin/inquiries" onClick={close}><Building2 size={20} />Новые школы и садики</NavLink>
           <NavLink to="/admin/orders" onClick={close}><ClipboardList size={20} />Заявки</NavLink>
+          <NavLink to="/admin/analytics" onClick={close}><BarChart3 size={20} />Аналитика</NavLink>
           <NavLink to="/admin/profile" onClick={close}><UserRound size={20} />Профиль и WhatsApp</NavLink>
         </nav>
         <div className="sidebar-note">
