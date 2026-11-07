@@ -141,7 +141,9 @@ export function PublicOrderPage() {
   const [cartOpen, setCartOpen] = useState(false);
   const [result, setResult] = useState<PublicOrderResult | null>(null); const [previewItem, setPreviewItem] = useState<CatalogEntry | null>(null); const [gender, setGender] = useState<CatalogGender>("all");
   const [activeCategory, setActiveCategory] = useState("all");
+  const [filtersPinned, setFiltersPinned] = useState(false);
   const requestKey = useRef(crypto.randomUUID());
+  const filtersSentinel = useRef<HTMLDivElement | null>(null);
   const childOrigin = useRef<{ scrollY: number; childId: string }>({ scrollY: 0, childId: "" });
   const serviceScrollTarget = useRef("");
   const servicesEntry = useRef("");
@@ -207,6 +209,12 @@ export function PublicOrderPage() {
     nodes.forEach((node) => observer.observe(node));
     return () => observer.disconnect();
   }, [sections, step]);
+  useEffect(() => {
+    if (step !== "services" || !("IntersectionObserver" in window) || !filtersSentinel.current) return;
+    const observer = new IntersectionObserver(([entry]) => setFiltersPinned(!entry.isIntersecting), { threshold: 0 });
+    observer.observe(filtersSentinel.current);
+    return () => observer.disconnect();
+  }, [step]);
   function scrollToCategory(id: string) {
     setActiveCategory(id);
     const target = id === "all"
@@ -286,7 +294,7 @@ export function PublicOrderPage() {
           </button>;
         })}
       </div>}
-      {data.catalog.length > 0 && <div className="catalog-sticky-filters">
+      {data.catalog.length > 0 && <><div className="catalog-filter-sentinel" ref={filtersSentinel} aria-hidden="true" /><div className={`catalog-sticky-filters${filtersPinned ? " is-pinned" : ""}`}>
         <div className="catalog-gender-tabs" role="group" aria-label="Категория ребёнка">
           <button className={gender === "all" ? "active" : ""} onClick={() => setGender("all")}>Все</button>
           <button className={gender === "boys" ? "active" : ""} onClick={() => setGender("boys")}>Мальчики</button>
@@ -296,7 +304,7 @@ export function PublicOrderPage() {
           <button type="button" className={activeCategory === "all" ? "active" : ""} aria-current={activeCategory === "all" ? "true" : undefined} onClick={() => scrollToCategory("all")}>Все категории</button>
           {sections.map((section) => <button type="button" key={section.id} className={activeCategory === section.id ? "active" : ""} aria-current={activeCategory === section.id ? "true" : undefined} onClick={() => scrollToCategory(section.id)}>{section.title}</button>)}
         </nav>
-      </div>}
+      </div></>}
       <div className="catalog-section-list" data-catalog-section-list>{sections.map((section) => <section className="service-group catalog-section" data-catalog-section={section.id} key={section.id}><h2>{section.title}</h2>{section.notice && <div className="catalog-video-notice"><Video size={20}/><span>{section.notice}</span></div>}{section.items.length > 0 && <div className="service-list">{section.items.map((item) => renderCard(item))}</div>}{section.relatedItems?.length ? <><h3 className="catalog-related-title">{section.relatedTitle}</h3><div className="service-list">{section.relatedItems.map((item) => renderCard(item, true))}</div></> : null}</section>)}</div>
       {!data.catalog.length && <Notice kind="info">Каталог пуст.</Notice>}
       {selected.length > 0 && <OrderCart items={selectedCatalogItems} total={total} open={cartOpen} pending={pending} editing={editingExisting} withoutLamination={withoutLamination} onOpen={() => setCartOpen(true)} onClose={() => setCartOpen(false)} onRemove={toggle} onLaminationChange={setLamination} onSubmit={() => void submit()} />}
