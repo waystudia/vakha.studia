@@ -443,6 +443,66 @@ export async function getPublicCatalog(token: string): Promise<PublicCatalogPayl
   return data as PublicCatalogPayload | null;
 }
 
+export interface CatalogInstitutionMatch {
+  id: string;
+  name: string;
+  city: string;
+  classes: Array<{ id: string; name: string; academic_year: string }>;
+}
+
+export interface CatalogIntakeResult {
+  inquiry_id: string;
+  school_id: string;
+  class_id: string;
+  child_id: string;
+  order_id: string;
+  order_number: string;
+  institution: string;
+  city: string;
+  group_name: string;
+}
+
+export async function searchCatalogInstitutions(token: string, query: string): Promise<CatalogInstitutionMatch[]> {
+  const { data, error } = await supabase.rpc("search_catalog_institutions", {
+    p_token: token,
+    p_query: query,
+  });
+  fail(error);
+  return (data || []) as CatalogInstitutionMatch[];
+}
+
+export async function submitCatalogIntake(input: {
+  token: string;
+  requestKey: string;
+  schoolId?: string;
+  institutionName: string;
+  city: string;
+  classId?: string;
+  groupName: string;
+  childFirstName: string;
+  childLastName: string;
+  phone: string;
+  itemIds: string[];
+  note: string;
+}): Promise<CatalogIntakeResult> {
+  const { data, error } = await supabase.rpc("submit_catalog_intake", {
+    p_token: input.token,
+    p_request_key: input.requestKey,
+    p_school_id: input.schoolId || null,
+    p_institution_name: input.institutionName,
+    p_city: input.city,
+    p_class_id: input.classId || null,
+    p_group_name: input.groupName,
+    p_child_first_name: input.childFirstName,
+    p_child_last_name: input.childLastName,
+    p_phone: input.phone,
+    p_item_ids: input.itemIds,
+    p_note: input.note,
+  });
+  fail(error);
+  return data as CatalogIntakeResult;
+}
+
 export async function submitCatalogInquiry(input: {
   token: string;
   requestKey: string;
