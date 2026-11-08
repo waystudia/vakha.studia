@@ -247,9 +247,13 @@ describe("child to catalog navigation", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Первый ребёнок/ }));
     fireEvent.click(screen.getByRole("button", { name: "Добавить Первое фото в заказ" }));
     fireEvent.click(screen.getByRole("button", { name: /ИИ.*видео.*Добавить/ }));
-    const form = screen.getByRole("dialog", { name: "Индивидуальное ИИ‑видео" });
-    fireEvent.change(within(form).getByRole("textbox"), { target: { value: "Герой скачет к башне" } });
-    fireEvent.click(within(form).getByRole("button", { name: "В корзину" }));
+    const form = screen.getByRole("dialog", { name: "Пожелание к «Первое фото»" });
+    const comment = within(form).getByRole("textbox");
+    fireEvent.click(within(form).getByRole("button", { name: "К сценарию" }));
+    expect(document.activeElement).toBe(comment);
+    fireEvent.change(comment, { target: { value: "Герой скачет к башне" } });
+    fireEvent.click(within(form).getByRole("button", { name: "Сохранить" }));
+    fireEvent.click(screen.getByRole("button", { name: /Оформить заказ. Корзина/ }));
     const cart = screen.getByRole("dialog", { name: "Корзина" });
     expect(within(cart).getByText(/Сценарий: Герой скачет к башне/)).toBeTruthy();
     expect(submitPublicOrder).not.toHaveBeenCalled();
