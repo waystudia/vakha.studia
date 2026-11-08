@@ -270,6 +270,10 @@ export function PublicOrderPage() {
         .find((element) => element.dataset.catalogSection === id);
     target?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
+  function openAiVideoCatalog() {
+    setPreferenceItem(null);
+    requestAnimationFrame(() => scrollToCategory("video"));
+  }
   function toggle(id: string) {
     setSelected((items) => {
       if (items.includes(id)) { setLastRemovedId(id); setServicePreferences(current => { const next = {...current}; delete next[id]; return next; }); return items.filter((item) => item !== id); }
@@ -425,7 +429,7 @@ export function PublicOrderPage() {
       <label className="service-preference-comment"><span>Короткий комментарий <small>{preferenceDraft.comment.length}/240</small></span><textarea maxLength={240} rows={3} value={preferenceDraft.comment} onChange={(event) => setPreferenceDraft(value => ({...value, comment: event.currentTarget.value}))} placeholder="Например: добавить мяч в руки…"/></label>
       <label className={`service-animation-toggle${preferenceDraft.videoAddonRequested ? " active" : ""}`}><input type="checkbox" checked={preferenceDraft.videoAddonRequested} onChange={(event) => { const checked = event.currentTarget.checked; setPreferenceDraft(value => ({...value, videoAddonRequested: checked, videoFile: checked ? value.videoFile : undefined, videoName: checked ? value.videoName : undefined})); }}/><span className="service-animation-icon"><Video aria-hidden="true"/></span><span className="service-animation-copy"><strong>Оживление фото</strong><small>Ваше видео откроется с фотографии</small></span><b>+500 ₽</b><i aria-hidden="true"/></label>
       {preferenceDraft.videoAddonRequested && <label className="service-video-file"><span><Video size={18}/>Прикрепить видео для оживления</span><input type="file" accept="video/mp4,video/webm,video/quicktime,video/*" onChange={(event) => choosePreferenceVideo(event.currentTarget.files?.[0])}/><small>{preferenceDraft.videoName || "До 120 МБ — перед отправкой видео автоматически сожмётся"}</small></label>}
-      <div className="service-ai-video-note"><Sparkles aria-hidden="true"/><span><strong>Для любой выбранной фотографии</strong><small>Оживление с вашим видео можно добавить к любому фото.</small></span></div>
+      <button type="button" className="service-ai-video-note" onClick={openAiVideoCatalog}><Sparkles aria-hidden="true"/><span><strong>ИИ‑видео · от 1 200 ₽</strong><small>Отдельное видео по выбранному образу.</small></span><b>Выбрать</b></button>
       <div className="form-actions"><button type="button" className="button button-secondary" onClick={() => setPreferenceItem(null)}>Отмена</button><button type="button" className="button button-primary" onClick={savePreference}>Сохранить</button></div>
     </div></Modal>}
     {uploadStatus && <div className="media-upload-status" role="status"><LoaderCircle className="spin" size={18}/>{uploadStatus}</div>}

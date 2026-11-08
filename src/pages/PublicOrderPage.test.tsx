@@ -212,7 +212,7 @@ describe("child to catalog navigation", () => {
     await waitFor(() => expect(cart.closest(".order-cart-layer")?.getAttribute("aria-hidden")).toBe("true"));
   });
 
-  it("separates the 500 ruble photo animation from 800 ruble interview and 1200 ruble AI video", async () => {
+  it("separates the 500 ruble photo animation from the 1200 ruble AI video catalog", async () => {
     vi.mocked(submitPublicOrder).mockResolvedValueOnce({
       duplicate: false, updated: false, order_number: "VS-VIDEO", status: "new",
       selected_items: [{ id: "photo", name: "Первое фото", price: 850, type: "photo", video_addon_requested: true }],
@@ -226,8 +226,7 @@ describe("child to catalog navigation", () => {
     const comment = screen.getByRole("textbox", { name: /Короткий комментарий/ });
     const animation = screen.getByRole("checkbox", { name: /Оживление фото.*500/ });
     expect(comment.compareDocumentPosition(animation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByText("Для любой выбранной фотографии")).toBeTruthy();
-    expect(screen.getByText(/Оживление с вашим видео можно добавить к любому фото/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /ИИ.*видео.*1.*200 ₽.*Отдельное видео.*Выбрать/ })).toBeTruthy();
     fireEvent.click(animation);
     fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
     expect(screen.getByText("Оживление фото · +500 ₽")).toBeTruthy();
