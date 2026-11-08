@@ -26,7 +26,7 @@ export async function getPublicClass(token: string): Promise<PublicClassPayload 
 export async function getPublicOrder(token: string): Promise<PublicOrderPayload | null> {
   return crm ? request('orders/'+encodeURIComponent(token)) : (await import('./repository')).getPublicOrder(token);
 }
-export async function submitPublicOrder(input: {token: string; childId: string; itemIds: string[]; withoutLaminationIds: string[]; requestKey: string; note: string}): Promise<PublicOrderResult> {
+export async function submitPublicOrder(input: {token: string; childId: string; itemIds: string[]; withoutLaminationIds: string[]; requestKey: string; note: string; itemPreferences?: Record<string, {comment?: string; animationRequested?: boolean}>}): Promise<PublicOrderResult> {
   if (!crm) return (await import('./repository')).submitPublicOrder(input);
   const storageKey='vakha-order:'+input.token+':'+input.childId;
   let saved: {key:string; items:string[]; withoutLamination?:string[]} | null=null;

@@ -478,14 +478,16 @@ export async function submitPublicOrder(input: {
   withoutLaminationIds: string[];
   requestKey: string;
   note: string;
+  itemPreferences?: Record<string, { comment?: string; animationRequested?: boolean }>;
 }): Promise<PublicOrderResult> {
-  const { data, error } = await supabase.rpc("submit_parent_order_v2", {
+  const { data, error } = await supabase.rpc("submit_parent_order_v3", {
     p_token: input.token,
     p_child_id: input.childId,
     p_item_ids: input.itemIds,
     p_without_lamination_ids: input.withoutLaminationIds,
     p_request_key: input.requestKey,
     p_parent_note: input.note,
+    p_item_preferences: input.itemPreferences || {},
   });
   fail(error);
   return data as PublicOrderResult;

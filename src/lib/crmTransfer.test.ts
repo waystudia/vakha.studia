@@ -34,6 +34,14 @@ describe('CRM order transfer', () => {
     });
     expect(exported.items[0].referenceMediaId).toContain('parent_request_');
   });
+  it('exports a parent wish and neural animation request with the regular service', () => {
+    const wishedOrder = {...order, selected_items: [{...order.selected_items[0], comment: 'С ламинацией (защиты)', parent_comment: 'С мячом в руках', animation_requested: true}]} as ParentOrder;
+    expect(orderRecord(wishedOrder).items[0]).toMatchObject({
+      parentComment: 'С мячом в руках', animationRequested: true,
+      comment: 'С ламинацией (защиты) · Оживить фото / нейросетевое видео · Пожелание родителя: С мячом в руках'
+    });
+    expect(studentRecord({id:'crm-child',crm_source_id:'crm-child'} as Child, 'crm-class', [wishedOrder]).selectedServices[0]).toMatchObject({parentComment:'С мячом в руках',animationRequested:true});
+  });
   it('builds a public class link for CRM',()=>expect(crmParentCatalogUrl('class token','https://waystudia.github.io/vakha.studia')).toBe('https://waystudia.github.io/p/class%20token'));
 });
 

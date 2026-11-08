@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import { Check, ChevronDown, Image as ImageIcon, Play, Plus, Printer, QrCode, ShieldCheck, ShieldOff, Sparkles, Video, WandSparkles } from "lucide-react";
+import { Check, ChevronDown, Image as ImageIcon, MessageSquarePlus, Play, Plus, Printer, QrCode, ShieldCheck, ShieldOff, Sparkles, Video, WandSparkles } from "lucide-react";
 import { money } from "../lib/helpers";
 import { catalogPreviewUrl } from "../lib/catalogPreview";
 import type { PublicClassPayload } from "../lib/types";
@@ -46,9 +46,9 @@ function DeliveryFeatures({ item }: { item: ServiceCardItem }) {
   </div>;
 }
 
-function AiVideoOption({ item }: { item: ServiceCardItem }) {
+function AiVideoOption({ item, selected, onPreference }: { item: ServiceCardItem; selected: boolean; onPreference?: () => void }) {
   if (item.preview_video_url || !item.preview_url || item.category !== "Детские образы") return null;
-  return <div className="public-catalog-ai-option"><Sparkles size={14} aria-hidden="true" /><span><strong>Можно оживить фото</strong><br />Нейросетевое видео</span></div>;
+  return <button type="button" className="public-catalog-ai-option" onClick={(event) => { event.stopPropagation(); if (!selected) return; onPreference?.(); }} aria-label={selected ? `Добавить пожелание к ${item.name}` : "Сначала добавьте услугу в корзину"}><Sparkles size={14} aria-hidden="true" /><span><strong>Можно оживить фото</strong><br />{selected ? "Добавить пожелание" : "Сначала выберите услугу"}</span></button>;
 }
 
 function CatalogVideoPhone({ item, onOpen }: { item: ServiceCardItem; onOpen: () => void }) {
@@ -67,9 +67,10 @@ function CatalogVideoPhone({ item, onOpen }: { item: ServiceCardItem; onOpen: ()
 }
 
 
-export function ServiceCard({ item, selected, related = false, readOnly = false, withLamination = true, watermark = { text: "Vakha Studio", opacity: .28 }, onOpen, onToggle, onLaminationChange }: {
+export function ServiceCard({ item, selected, related = false, readOnly = false, withLamination = true, watermark = { text: "Vakha Studio", opacity: .28 }, onOpen, onToggle, onLaminationChange, onPreference }: {
   item: ServiceCardItem; selected: boolean; related?: boolean; readOnly?: boolean; watermark?: Watermark;
   withLamination?: boolean; onOpen: () => void; onToggle: () => void; onLaminationChange?: (withLamination: boolean) => void;
+  onPreference?: () => void;
 }) {
   const selectedPrice = Math.max(0, Number(item.price) - (withLamination ? 0 : 50));
   const preview = catalogPreviewUrl(item);
@@ -90,6 +91,6 @@ export function ServiceCard({ item, selected, related = false, readOnly = false,
     <div className="public-catalog-copy"><div className="public-catalog-title"><strong title={item.name}>{item.name}</strong><b>{money(selectedPrice)}</b></div><DeliveryFeatures item={item} />{!related && !readOnly && onLaminationChange && <div className="lamination-choice" role="radiogroup" aria-label={`Защита для услуги «${item.name}»`} onClick={event => event.stopPropagation()}>
       <button type="button" role="radio" aria-label={`С защитой ${money(item.price)}`} aria-checked={withLamination} className={withLamination ? "active" : ""} onClick={() => chooseLamination(true)}><ShieldCheck aria-hidden="true" /><span>Защита</span><strong>{money(item.price)}</strong></button>
       <button type="button" role="radio" aria-label={`Без защиты ${money(Math.max(0, Number(item.price) - 50))}`} aria-checked={!withLamination} className={!withLamination ? "active" : ""} onClick={() => chooseLamination(false)}><ShieldOff aria-hidden="true" /><span>Без защиты</span><strong>{money(Math.max(0, Number(item.price) - 50))}</strong></button>
-    </div>}<AiVideoOption item={item} />{related && <small>Доступно для другой категории</small>}</div>
+    </div>}{selected && onPreference && <button type="button" className="service-preference-button" onClick={(event) => { event.stopPropagation(); onPreference(); }}><MessageSquarePlus size={14}/>Пожелание к услуге</button>}<AiVideoOption item={item} selected={selected} onPreference={onPreference} />{related && <small>Доступно для другой категории</small>}</div>
   </article>;
 }

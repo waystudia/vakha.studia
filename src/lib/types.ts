@@ -85,6 +85,8 @@ export interface SelectedOrderItem {
   request_key?: string;
   quantity?: number;
   comment?: string;
+  parent_comment?: string;
+  animation_requested?: boolean;
   reference_path?: string;
   reference_name?: string;
   reference_content_type?: string;
