@@ -491,12 +491,13 @@ export async function submitPublicOrder(input: {
   return data as PublicOrderResult;
 }
 
-export async function submitPublicCustomRequest(input: { token: string; childId: string; message: string; requestKey: string }): Promise<PublicOrderResult> {
+export async function submitPublicCustomRequest(input: { token: string; childId: string; message: string; requestKey: string; catalogItemId?: string }): Promise<PublicOrderResult> {
   const { data, error } = await supabase.rpc("submit_parent_custom_request", {
     p_token: input.token,
     p_child_id: input.childId,
     p_message: input.message,
     p_request_key: input.requestKey,
+    p_catalog_item_id: input.catalogItemId || null,
   });
   fail(error);
   return data as PublicOrderResult;

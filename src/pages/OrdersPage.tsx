@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { EmptyState, Loader, Notice } from "../components/ui";
 import { fullChildName, downloadCsv, formatDateTime, humanError, money, orderStatusLabels } from "../lib/helpers";
 import { loadOrdersWorkspace, updateOrderStatus } from "../lib/repository";
+import { supabase } from "../lib/supabase";
 import type { OrderStatus, OrdersWorkspace, ParentOrder } from "../lib/types";
 
 const emptyWorkspace: OrdersWorkspace = { schools: [], classes: [], orders: [] };
@@ -37,6 +38,7 @@ export function OrdersPage() {
   const [search, setSearch] = useState("");
   const [schoolId, setSchoolId] = useState("");
   const [classId, setClassId] = useState("");
+  const [referenceUrls, setReferenceUrls] = useState<Record<string, string>>({});
 
   async function refresh() {
     setLoading(true);
@@ -50,6 +52,16 @@ export function OrdersPage() {
   }
 
   useEffect(() => { void refresh(); }, []);
+  useEffect(() => {
+    let active = true;
+    const paths = [...new Set(workspace.orders.flatMap((order) => order.selected_items.map((item) => item.reference_path).filter((path): path is string => Boolean(path))))];
+    if (!paths.length) { setReferenceUrls({}); return; }
+    void Promise.all(paths.map(async (path) => {
+      const { data, error } = await supabase.storage.from("parent-request-references").createSignedUrl(path, 60 * 60);
+      return error || !data?.signedUrl ? [path, ""] as const : [path, data.signedUrl] as const;
+    })).then((entries) => { if (active) setReferenceUrls(Object.fromEntries(entries.filter(([, url]) => url))); });
+    return () => { active = false; };
+  }, [workspace.orders]);
 
   const normalizedSearch = search.trim().toLocaleLowerCase("ru");
   const filteredOrders = useMemo(() => workspace.orders.filter((order) =>
@@ -179,7 +191,7 @@ export function OrdersPage() {
             <div className="order-child-preview">{preview ? <img src={preview} alt="" loading="lazy" decoding="async"/> : <ImageIcon aria-hidden="true"/>}</div>
             <div className="order-child-main">
               <div className="order-child-title"><span className="order-child-avatar"><UserRound/></span><div><strong>{fullChildName(order.child) || "Ребёнок"}</strong><small>{order.order_number} · {formatDateTime(order.created_at)}</small></div></div>
-              <div className="order-service-list">{order.selected_items.map((item, index) => <div key={`${item.id}-${index}`}><span>{item.name}{(item.quantity || 1) > 1 ? ` × ${item.quantity}` : ""}</span><strong>{money(item.price * (item.quantity || 1))}</strong>{item.comment && <small>{item.comment}</small>}</div>)}</div>
+              <div className="order-service-list">{order.selected_items.map((item, index) => <div key={`${item.id}-${index}`}><span>{item.name}{(item.quantity || 1) > 1 ? ` × ${item.quantity}` : ""}</span><strong>{money(item.price * (item.quantity || 1))}</strong>{item.comment && <small>{item.comment}</small>}{item.reference_service_name && <small>Услуга-референс: {item.reference_service_name}</small>}{item.reference_path && referenceUrls[item.reference_path] && <a className="order-reference-preview" href={referenceUrls[item.reference_path]} target="_blank" rel="noreferrer"><img src={referenceUrls[item.reference_path]} alt="Скрин-референс" loading="lazy"/>Открыть скрин</a>}</div>)}</div>
             </div>
             <footer><strong>{money(order.total_amount)}</strong><select aria-label={`Статус заявки ${fullChildName(order.child)}`} className={`status-select status-${order.status}`} value={order.status} onChange={(event) => void changeStatus(order, event.target.value as OrderStatus)}>{Object.entries(orderStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></footer>
           </article>;

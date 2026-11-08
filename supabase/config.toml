@@ -9,3 +9,9 @@ entrypoint = "./functions/track-public-visit/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/track-public-visit/*.html" ]
+
+[functions.submit-parent-request]
+enabled = true
+verify_jwt = false
+import_map = "./functions/submit-parent-request/deno.json"
+entrypoint = "./functions/submit-parent-request/index.ts"

@@ -1,5 +1,6 @@
 import type { PublicClassPayload, PublicOrderPayload, PublicOrderResult } from './types';
 import { catalogPreviewUrl } from './catalogPreview';
+import { supabase } from './supabase';
 const crm = import.meta.env.VITE_CRM_MODE === 'true';
 async function request<T>(path: string, body?: unknown): Promise<T> {
   const response = await fetch('/api/v1/public/' + path, {method: body ? 'POST' : 'GET', cache: 'no-store', credentials: 'omit', headers: body ? {'Content-Type':'application/json'} : {}, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(20000)});
@@ -23,7 +24,17 @@ export async function submitPublicOrder(input: {token: string; childId: string; 
   try { localStorage.setItem(storageKey,JSON.stringify({key:input.requestKey,items:[...input.itemIds].sort(),withoutLamination:[...input.withoutLaminationIds].sort()})); } catch { /* The in-memory key still protects retries. */ }
   return request('classes/'+encodeURIComponent(input.token),input);
 }
-export async function submitPublicCustomRequest(input: {token: string; childId: string; message: string; requestKey: string}): Promise<PublicOrderResult> {
+export async function submitPublicCustomRequest(input: {token: string; childId: string; message: string; requestKey: string; catalogItemId?: string; referenceFile?: File | null}): Promise<PublicOrderResult> {
+  if (input.referenceFile || input.catalogItemId) {
+    const form = new FormData();
+    form.set('token', input.token); form.set('childId', input.childId); form.set('message', input.message); form.set('requestKey', input.requestKey);
+    if (input.catalogItemId) form.set('catalogItemId', input.catalogItemId);
+    if (input.referenceFile) form.set('reference', input.referenceFile, input.referenceFile.name);
+    const { data, error } = await supabase.functions.invoke('submit-parent-request', { body: form });
+    if (error) throw new Error(error.message || 'Не удалось прикрепить референс. Повторите попытку.');
+    if (data?.error) throw new Error(data.error);
+    return data as PublicOrderResult;
+  }
   if (!crm) return (await import('./repository')).submitPublicCustomRequest(input);
   return request('classes/'+encodeURIComponent(input.token)+'/children/'+encodeURIComponent(input.childId)+'/custom-request', input);
 }

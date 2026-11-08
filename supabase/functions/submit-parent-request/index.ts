@@ -1,0 +1,101 @@
+import "@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.116.0";
+
+const maxFileSize = 5 * 1024 * 1024;
+const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" } });
+}
+
+function extensionFor(file: File) {
+  return file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+}
+
+function validImage(bytes: Uint8Array, type: string) {
+  if (type === "image/jpeg") return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (type === "image/png") return bytes.length >= 8 && [137, 80, 78, 71, 13, 10, 26, 10].every((value, index) => bytes[index] === value);
+  return bytes.length >= 12 && new TextDecoder().decode(bytes.slice(0, 4)) === "RIFF" && new TextDecoder().decode(bytes.slice(8, 12)) === "WEBP";
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return json({ error: "Метод не поддерживается" }, 405);
+
+  let uploadedPath = "";
+  try {
+    const form = await req.formData();
+    const token = String(form.get("token") || "").trim();
+    const childId = String(form.get("childId") || "").trim();
+    const message = String(form.get("message") || "").trim().slice(0, 1000);
+    const requestKey = String(form.get("requestKey") || "").trim();
+    const catalogItemId = String(form.get("catalogItemId") || "").trim() || null;
+    const reference = form.get("reference");
+
+    if (!/^[a-zA-Z0-9_-]{32,160}$/.test(token) || !/^[0-9a-f-]{36}$/i.test(childId) || !/^[0-9a-f-]{36}$/i.test(requestKey)) {
+      return json({ error: "Ссылка или данные запроса недействительны" }, 400);
+    }
+    if (catalogItemId && !/^[0-9a-f-]{36}$/i.test(catalogItemId)) return json({ error: "Услуга выбрана неверно" }, 400);
+    if (message.length < 3 && !catalogItemId && !(reference instanceof File)) return json({ error: "Опишите идею или прикрепите референс" }, 400);
+
+    const url = Deno.env.get("SUPABASE_URL");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !serviceKey) throw new Error("Сервер вложений не настроен");
+    const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
+
+    const { data: schoolClass, error: classError } = await admin.from("classes").select("id, owner_id, public_expires_at").eq("public_token", token).eq("status", "active").maybeSingle();
+    if (classError) throw classError;
+    if (!schoolClass || (schoolClass.public_expires_at && Date.parse(schoolClass.public_expires_at) <= Date.now())) return json({ error: "Ссылка недействительна или просрочена" }, 403);
+    const { data: child, error: childError } = await admin.from("children").select("id").eq("id", childId).eq("class_id", schoolClass.id).eq("status", "active").maybeSingle();
+    if (childError) throw childError;
+    if (!child) return json({ error: "Ребёнок не найден в этом классе" }, 403);
+
+    if (reference instanceof File && reference.size > 0) {
+      if (!allowedTypes.has(reference.type) || reference.size > maxFileSize) return json({ error: "Прикрепите JPG, PNG или WebP не больше 5 МБ" }, 400);
+      const bytes = new Uint8Array(await reference.arrayBuffer());
+      if (!validImage(bytes, reference.type)) return json({ error: "Файл не похож на изображение. Выберите JPG, PNG или WebP." }, 400);
+      uploadedPath = `${schoolClass.owner_id}/${schoolClass.id}/${childId}/${crypto.randomUUID()}.${extensionFor(reference)}`;
+      const { error: uploadError } = await admin.storage.from("parent-request-references").upload(uploadedPath, bytes, { contentType: reference.type, cacheControl: "31536000", upsert: false });
+      if (uploadError) throw uploadError;
+    }
+
+    const { data: order, error: orderError } = await admin.rpc("submit_parent_custom_request", {
+      p_token: token,
+      p_child_id: childId,
+      p_message: message,
+      p_request_key: requestKey,
+      p_catalog_item_id: catalogItemId,
+    });
+    if (orderError) throw orderError;
+
+    if (uploadedPath) {
+      const { data: storedOrder, error: storedOrderError } = await admin.from("parent_orders").select("id, selected_items").eq("public_token", order.public_token).single();
+      if (storedOrderError) throw storedOrderError;
+      const selectedItems = (storedOrder.selected_items as Array<Record<string, unknown>>).map((item) => item.id === "custom-request" ? {
+        ...item,
+        reference_path: uploadedPath,
+        reference_name: reference instanceof File ? reference.name.slice(0, 140) : "Референс",
+        reference_content_type: reference instanceof File ? reference.type : "",
+      } : item);
+      const { error: updateError } = await admin.from("parent_orders").update({ selected_items: selectedItems }).eq("id", storedOrder.id);
+      if (updateError) throw updateError;
+      order.selected_items = selectedItems;
+    }
+
+    return json(order);
+  } catch (error) {
+    if (uploadedPath) {
+      try {
+        const url = Deno.env.get("SUPABASE_URL"); const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+        if (url && serviceKey) await createClient(url, serviceKey, { auth: { persistSession: false } }).storage.from("parent-request-references").remove([uploadedPath]);
+      } catch { /* Preserve the primary request error. */ }
+    }
+    console.error("Parent request attachment error", error instanceof Error ? error.message : "unknown");
+    return json({ error: "Не удалось прикрепить референс. Попробуйте ещё раз." }, 500);
+  }
+});

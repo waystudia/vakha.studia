@@ -84,6 +84,11 @@ export interface CatalogItem {
 export interface SelectedOrderItem {
   quantity?: number;
   comment?: string;
+  reference_path?: string;
+  reference_name?: string;
+  reference_content_type?: string;
+  reference_service_id?: string;
+  reference_service_name?: string;
   id: string;
   name: string;
   price: number;

@@ -128,6 +128,22 @@ describe("child to catalog navigation", () => {
     expect(screen.getByText("Индивидуальный запрос")).toBeTruthy();
   });
 
+  it("attaches a catalog service or a screenshot reference to an individual request", async () => {
+    vi.mocked(submitPublicCustomRequest).mockResolvedValue({
+      duplicate: false, updated: false, order_number: "VS-CUSTOM", status: "new", total_amount: 0,
+      selected_items: [{ id: "custom-request", name: "Индивидуальный запрос", price: 0, type: "custom" }],
+      child_name: "Первый ребёнок", class_name: "1 А", public_token: "order-token",
+    });
+    render(<MemoryRouter initialEntries={["/p/test"]}><Routes><Route path="/p/:token" element={<PublicOrderPage />} /></Routes></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: /Первый ребёнок/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Не нашли нужный образ/ }));
+    const dialog = screen.getByRole("dialog", { name: "Подобрать индивидуальный образ" });
+    fireEvent.change(within(dialog).getByLabelText("Услуга из каталога"), { target: { value: "photo" } });
+    fireEvent.submit(within(dialog).getByRole("button", { name: "Отправить запрос" }).closest("form")!);
+    await waitFor(() => expect(submitPublicCustomRequest).toHaveBeenCalledWith(expect.objectContaining({ catalogItemId: "photo" })));
+    expect(await screen.findByText("Заявка сохранена")).toBeTruthy();
+  });
+
   it("defaults to lamination and submits a 50 ₽ discount when protection is removed", async () => {
     vi.mocked(submitPublicOrder).mockResolvedValue({
       duplicate: false,
