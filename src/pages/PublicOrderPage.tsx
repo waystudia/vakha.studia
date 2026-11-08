@@ -195,6 +195,13 @@ export function PublicOrderPage() {
     window.addEventListener("keydown", closeOnEscape);
     return () => { document.body.classList.remove("order-cart-open"); window.removeEventListener("keydown", closeOnEscape); };
   }, [cartOpen]);
+  useEffect(() => {
+    if (!customRequestOpen) return;
+    document.body.classList.add("custom-request-open");
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") closeCustomRequest(); };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => { document.body.classList.remove("custom-request-open"); window.removeEventListener("keydown", closeOnEscape); };
+  }, [customRequestOpen]);
   useLayoutEffect(() => {
     if (step !== "services") return;
     const targetId = serviceScrollTarget.current;
