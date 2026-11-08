@@ -106,9 +106,9 @@ function OrderCart({ items, customItems, total, open, pending, editing, withoutL
     if (shouldClose) onClose();
   }
   return <>
-    <button className="order-cart-trigger" type="button" aria-haspopup="dialog" aria-expanded={open} onClick={onOpen}>
+    <button className="order-cart-trigger" type="button" aria-label={`Оформить заказ. Корзина: ${allCount}, ${money(total)}`} aria-haspopup="dialog" aria-expanded={open} onClick={onOpen}>
       <span className="order-cart-trigger-preview">{first?.preview_url ? <img src={first.preview_url} alt="" /> : <ServiceIcon type={first?.type || "photo"} />}</span>
-      <span className="order-cart-trigger-copy"><strong><ShoppingCart aria-hidden="true" />Корзина</strong><small>{allCount} · {money(total)}</small></span>
+      <span className="order-cart-trigger-copy"><strong><ShoppingCart aria-hidden="true" />Оформить заказ</strong><small>{allCount} · {money(total)}</small></span>
       <span className="order-cart-count" aria-hidden="true">{allCount}</span>
     </button>
     <div className="order-cart-layer" data-open={open} aria-hidden={!open} onClick={onClose}>
