@@ -11,7 +11,7 @@ import { buildCatalogSections, type CatalogGender } from "../lib/catalogSections
 import { catalogMediaUrl } from "../lib/mediaUrl";
 import { cancelPublicOrder, getPublicClass, submitPublicCustomRequest, submitPublicOrder } from "../lib/publicRepository";
 import { trackPublicVisit } from "../lib/visitAnalytics";
-import type { PublicClassPayload, PublicOrderResult } from "../lib/types";
+import type { PublicClassPayload, PublicOrderResult, PublicSelectedOrderItem } from "../lib/types";
 
 type Step = "child" | "services" | "done";
 type CatalogEntry = PublicClassPayload["catalog"][number];
@@ -40,8 +40,9 @@ function PublicLoadingScreen() {
   return <main className="kz-loading-screen" role="status" aria-live="polite" aria-label="Загружаем каталог"><div className="kz-loading-card"><div className="kz-loading-mark" aria-hidden="true">KZ</div><h1>Khan Zama</h1><p>Сохраняем детство во времени</p><div className="kz-loading-progress" aria-hidden="true"><span style={{ width: `${progress}%` }} /></div><div className="kz-loading-status"><span>Подождите, скоро загрузится</span><strong>{progress}%</strong></div></div></main>;
 }
 
-function OrderCart({ items, total, open, pending, editing, withoutLamination, onOpen, onClose, onRemove, onLaminationChange, onSubmit }: {
+function OrderCart({ items, customItems, total, open, pending, editing, withoutLamination, onOpen, onClose, onRemove, onLaminationChange, onSubmit }: {
   items: CatalogEntry[];
+  customItems: PublicSelectedOrderItem[];
   total: number;
   open: boolean;
   pending: boolean;
@@ -58,7 +59,8 @@ function OrderCart({ items, total, open, pending, editing, withoutLamination, on
   const dragDistance = useRef(0);
   const suppressDragClick = useRef(false);
   const [dragY, setDragY] = useState(0);
-  const first = items[0];
+  const allCount = items.length + customItems.length;
+  const first = items[0] || customItems[0];
   useEffect(() => { if (open) closeButton.current?.focus(); }, [open]);
   useEffect(() => { if (!open) setDragY(0); }, [open]);
   function startDrag(event: React.PointerEvent<HTMLElement>) {
@@ -102,14 +104,19 @@ function OrderCart({ items, total, open, pending, editing, withoutLamination, on
   return <>
     <button className="order-cart-trigger" type="button" aria-haspopup="dialog" aria-expanded={open} onClick={onOpen}>
       <span className="order-cart-trigger-preview">{first?.preview_url ? <img src={first.preview_url} alt="" /> : <ServiceIcon type={first?.type || "photo"} />}</span>
-      <span className="order-cart-trigger-copy"><strong><ShoppingCart aria-hidden="true" />Корзина</strong><small>{items.length} · {money(total)}</small></span>
-      <span className="order-cart-count" aria-hidden="true">{items.length}</span>
+      <span className="order-cart-trigger-copy"><strong><ShoppingCart aria-hidden="true" />Корзина</strong><small>{allCount} · {money(total)}</small></span>
+      <span className="order-cart-count" aria-hidden="true">{allCount}</span>
     </button>
     <div className="order-cart-layer" data-open={open} aria-hidden={!open} onClick={onClose}>
       <section className="order-cart-sheet" data-dragging={dragY > 0} style={dragY > 0 ? { transform: `translateY(${dragY}px)` } : undefined} role="dialog" aria-modal="true" aria-labelledby="order-cart-title" onClickCapture={event => { if (suppressDragClick.current) { event.preventDefault(); event.stopPropagation(); suppressDragClick.current = false; } }} onClick={event => event.stopPropagation()} onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={finishDrag} onPointerCancel={finishDrag}>
         <div className="order-cart-handle" aria-hidden="true" />
         <header><div><span>Ваш выбор</span><h2 id="order-cart-title">Корзина</h2></div><button ref={closeButton} type="button" className="order-cart-close" aria-label="Закрыть корзину" onClick={onClose}><X /></button></header>
-        <div className="order-cart-items">{items.map(item => {
+        <div className="order-cart-items">{customItems.map((item, index) => <article className="order-cart-item order-cart-custom-item" key={item.id || `custom-${index}`}>
+          <div className="order-cart-photo">{item.preview_url ? <img src={item.preview_url} alt={item.reference_name || item.reference_service_name || "Референс"} /> : <ImagePlus />}</div>
+          <div className="order-cart-item-copy"><strong>Индивидуальный заказ</strong>{item.reference_service_name && <b>{item.reference_service_name}</b>}</div>
+          <span className="order-cart-custom-badge">{item.reference_path ? "Скрин прикреплён" : "По каталогу"}</span>
+          {item.comment && <p className="order-cart-custom-comment">{item.comment}</p>}
+        </article>)}{items.map(item => {
           const protectedPhoto = !withoutLamination.includes(item.id);
           return <article className="order-cart-item" key={item.id}>
             <div className="order-cart-photo">{item.preview_url ? <img src={item.preview_url} alt={item.name} /> : <ServiceIcon type={item.type} />}</div>
@@ -122,7 +129,9 @@ function OrderCart({ items, total, open, pending, editing, withoutLamination, on
           </article>;
         })}</div>
         <button type="button" className="order-cart-add-more" onClick={onClose}>+ Добавить ещё услугу из каталога</button>
-        <footer><div><span>Итого</span><strong>{money(total)}</strong></div><button className="button button-primary" disabled={pending} onClick={onSubmit}>{pending && <LoaderCircle className="spin" size={18} />}{editing ? "Сохранить изменения" : "Оформить заявку"}</button></footer>
+        <footer><div><span>Итого</span><strong>{money(total)}</strong></div>{items.length > 0
+          ? <button className="button button-primary" disabled={pending} onClick={onSubmit}>{pending && <LoaderCircle className="spin" size={18} />}{editing ? "Сохранить изменения" : "Оформить заявку"}</button>
+          : <button className="button button-primary" onClick={onClose}>Готово</button>}</footer>
       </section>
     </div>
   </>;
@@ -203,6 +212,7 @@ export function PublicOrderPage() {
   const sortedChildren = useMemo(() => [...(data?.children || [])].sort((left, right) => russianNameCollator.compare(left.public_name.trim(), right.public_name.trim())), [data]);
   const editingExisting = Boolean(child?.orders?.some((order) => order.status !== "cancelled" && order.items.some((item) => Boolean(item.id && data?.catalog.some((entry) => entry.id === item.id)))));
   const selectedCatalogItems = useMemo(() => data?.catalog.filter((item) => selected.includes(item.id)) || [], [data, selected]);
+  const customOrderItems = useMemo(() => child?.orders?.filter((order) => order.status !== "cancelled").flatMap((order) => order.items.filter((item) => item.type === "custom" || item.id?.startsWith("custom-request"))) || [], [child]);
   const total = useMemo(() => data?.catalog.filter((item) => selected.includes(item.id)).reduce((sum, item) => sum + Math.max(0, Number(item.price) - (withoutLamination.includes(item.id) ? 50 : 0)), 0) || 0, [data, selected, withoutLamination]);
   const sections = useMemo(() => buildCatalogSections(data?.catalog || [], gender), [data, gender]);
   const prioritizedSections = useMemo(() => sections.map((section) => ({ ...section, items: [...section.items].sort((left, right) => Number(Boolean(right.popular)) - Number(Boolean(left.popular))) })), [sections]);
@@ -335,7 +345,7 @@ export function PublicOrderPage() {
       </div>}
       <div className="catalog-section-list" data-catalog-section-list>{prioritizedSections.map((section) => <section className="service-group catalog-section" data-catalog-section={section.id} key={section.id}><h2>{section.title}</h2>{section.notice && <div className="catalog-video-notice"><Video size={20}/><span>{section.notice}</span></div>}{section.items.length > 0 && <div className="service-list">{section.items.map((item) => renderCard(item))}</div>}{section.relatedItems?.length ? <><h3 className="catalog-related-title">{section.relatedTitle}</h3><div className="service-list">{section.relatedItems.map((item) => renderCard(item, true))}</div></> : null}</section>)}</div>
       {!data.catalog.length && <Notice kind="info">Каталог пуст.</Notice>}
-      {selected.length > 0 && <OrderCart items={selectedCatalogItems} total={total} open={cartOpen} pending={pending} editing={editingExisting} withoutLamination={withoutLamination} onOpen={() => setCartOpen(true)} onClose={() => setCartOpen(false)} onRemove={toggle} onLaminationChange={setLamination} onSubmit={() => void submit()} />}
+      {(selected.length > 0 || customOrderItems.length > 0) && <OrderCart items={selectedCatalogItems} customItems={customOrderItems} total={total} open={cartOpen} pending={pending} editing={editingExisting} withoutLamination={withoutLamination} onOpen={() => setCartOpen(true)} onClose={() => setCartOpen(false)} onRemove={toggle} onLaminationChange={setLamination} onSubmit={() => void submit()} />}
     </section>}
     {step === "services" && selected.length === 0 && editingExisting && <div className="empty-order-dock"><span>Вы убрали последнюю услугу. Удалить заявку целиком?</span><div className="empty-order-actions"><button className="button button-secondary" disabled={pending} onClick={restoreLastRemoved}>Нет, вернуть</button><button className="button button-danger" disabled={pending} onClick={() => void submit()}>{pending && <LoaderCircle className="spin" size={18} />}Да, удалить</button></div></div>}
     {previewItem && <CatalogViewer items={data.catalog} initialId={previewItem.id} initialGender={gender} selected={selected} onToggle={toggle} onClose={() => setPreviewItem(null)} />}

@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
     const { data: order, error: orderError } = await admin.rpc("submit_parent_custom_request", {
       p_token: token,
       p_child_id: childId,
-      p_message: message,
+      p_message: message || (uploadedPath ? "Референс на скрине" : ""),
       p_request_key: requestKey,
       p_catalog_item_id: catalogItemId,
     });
@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
     if (uploadedPath) {
       const { data: storedOrder, error: storedOrderError } = await admin.from("parent_orders").select("id, selected_items").eq("public_token", order.public_token).single();
       if (storedOrderError) throw storedOrderError;
-      const selectedItems = (storedOrder.selected_items as Array<Record<string, unknown>>).map((item) => item.id === "custom-request" ? {
+      const selectedItems = (storedOrder.selected_items as Array<Record<string, unknown>>).map((item) => item.request_key === requestKey ? {
         ...item,
         reference_path: uploadedPath,
         reference_name: reference instanceof File ? reference.name.slice(0, 140) : "Референс",
@@ -84,7 +84,10 @@ Deno.serve(async (req) => {
       } : item);
       const { error: updateError } = await admin.from("parent_orders").update({ selected_items: selectedItems }).eq("id", storedOrder.id);
       if (updateError) throw updateError;
-      order.selected_items = selectedItems;
+      const { data: signedReference } = await admin.storage.from("parent-request-references").createSignedUrl(uploadedPath, 60 * 60);
+      order.selected_items = selectedItems.map((item) => item.request_key === requestKey && signedReference?.signedUrl
+        ? { ...item, preview_url: signedReference.signedUrl }
+        : item);
     }
 
     return json(order);

@@ -150,6 +150,31 @@ describe("child to catalog navigation", () => {
     expect(await screen.findByText("Заявка сохранена")).toBeTruthy();
   });
 
+  it("keeps multiple individual requests visible in the cart", async () => {
+    vi.mocked(submitPublicCustomRequest).mockResolvedValue({
+      duplicate: false, updated: true, order_number: "VS-CUSTOM", status: "new", total_amount: 0,
+      selected_items: [
+        { id: "custom-request-one", request_key: "one", name: "Индивидуальный запрос", price: 0, type: "custom", comment: "Мяч в руках", reference_service_name: "Футболист", preview_url: "/football.webp" },
+        { id: "custom-request-two", request_key: "two", name: "Индивидуальный запрос", price: 0, type: "custom", comment: "Как на скрине", reference_path: "owner/screen.webp", reference_name: "screen.webp", preview_url: "/signed-screen.webp" },
+      ],
+      child_name: "Первый ребёнок", class_name: "1 А", public_token: "order-token",
+    });
+    render(<MemoryRouter initialEntries={["/p/test"]}><Routes><Route path="/p/:token" element={<PublicOrderPage />} /></Routes></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: /Первый ребёнок/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Не нашли нужный образ/ }));
+    const dialog = screen.getByRole("dialog", { name: "Подобрать индивидуальный образ" });
+    fireEvent.change(within(dialog).getByRole("textbox"), { target: { value: "Как на скрине" } });
+    fireEvent.submit(within(dialog).getByRole("button", { name: "Отправить запрос" }).closest("form")!);
+    fireEvent.click(await screen.findByRole("button", { name: /Назад к выбору/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Корзина/ }));
+    const cart = screen.getByRole("dialog", { name: "Корзина" });
+    expect(within(cart).getAllByText("Индивидуальный заказ")).toHaveLength(2);
+    expect(within(cart).getByText("Мяч в руках")).toBeTruthy();
+    expect(within(cart).getByText("Как на скрине")).toBeTruthy();
+    expect(within(cart).getByText("Скрин прикреплён")).toBeTruthy();
+    expect(within(cart).getByAltText("screen.webp").getAttribute("src")).toBe("/signed-screen.webp");
+  });
+
   it("defaults to lamination and submits a 50 ₽ discount when protection is removed", async () => {
     vi.mocked(submitPublicOrder).mockResolvedValue({
       duplicate: false,

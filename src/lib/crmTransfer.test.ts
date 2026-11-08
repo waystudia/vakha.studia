@@ -56,19 +56,26 @@ describe('complete CRM ZIP contract', () => {
     expect(data.services[0]).toMatchObject({id:'local-service',name:'Фото',price:350});
     expect(data.orders[0].items[0].serviceId).toBe(data.services[0].id);
   });
-  it('bundles a private parent screenshot and links it to the imported CRM order', async () => {
+  it('bundles every private parent screenshot and links each request to the imported CRM order', async () => {
     prepare();
     mockReferenceDownload.mockResolvedValue({data:new Blob(['reference'],{type:'image/webp'}),error:null});
     vi.mocked(loadClass).mockResolvedValue({
       school, schoolClass:classes[0], children:[{id:'local-child',crm_source_id:'crm-child',first_name:'Имя',last_name:'Фамилия'}],
-      orders:[{id:'order-custom',order_number:'VS-CUSTOM',child_id:'local-child',status:'new',created_at:'2026-11-08',selected_items:[{id:'custom',name:'Индивидуальный образ',price:0,quantity:1,comment:'Как на скрине',reference_path:'owner/request/screen.webp',reference_name:'screen.webp',reference_content_type:'image/webp',reference_service_id:'dragon',reference_service_name:'Парень с драконом'}],total_amount:0}]
+      orders:[{id:'order-custom',order_number:'VS-CUSTOM',child_id:'local-child',status:'new',created_at:'2026-11-08',selected_items:[
+        {id:'custom-one',name:'Индивидуальный образ',price:0,quantity:1,comment:'Мяч в руках',reference_path:'owner/request/ball.webp',reference_name:'ball.webp',reference_content_type:'image/webp',reference_service_id:'football',reference_service_name:'Футболист'},
+        {id:'custom-two',name:'Индивидуальный образ',price:0,quantity:1,comment:'Как на скрине',reference_path:'owner/request/screen.webp',reference_name:'screen.webp',reference_content_type:'image/webp',reference_service_id:'dragon',reference_service_name:'Парень с драконом'}
+      ],total_amount:0}]
     } as never);
     const {zip}=await buildCrmTransfer({kind:'class',id:'c1'});
     const data=JSON.parse(await zip.file('data.json')!.async('string'));
-    expect(data.media).toHaveLength(1);
+    expect(data.media).toHaveLength(2);
     expect(data.media[0]).toMatchObject({studentId:'crm-child',purpose:'parent_request_reference',mimeType:'image/webp'});
-    expect(data.orders[0].items[0]).toMatchObject({requestType:'custom',referenceServiceName:'Парень с драконом',referenceMediaId:data.media[0].id});
+    expect(data.orders[0].items).toEqual(expect.arrayContaining([
+      expect.objectContaining({requestType:'custom',comment:'Мяч в руках',referenceServiceName:'Футболист',referenceMediaId:data.media[0].id}),
+      expect.objectContaining({requestType:'custom',comment:'Как на скрине',referenceServiceName:'Парень с драконом',referenceMediaId:data.media[1].id})
+    ]));
     expect(await zip.file(`media/student_files/${data.media[0].id}/${data.media[0].fileName}`)!.async('string')).toBe('reference');
+    expect(await zip.file(`media/student_files/${data.media[1].id}/${data.media[1].fileName}`)!.async('string')).toBe('reference');
   });
   it.each([['school','s','project',2],['class','c1','class',1]] as const)('exports %s with scoped relationships and original CRM IDs', async (kind,id,exportType,count) => {
     prepare();

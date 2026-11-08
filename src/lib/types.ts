@@ -82,6 +82,7 @@ export interface CatalogItem {
 }
 
 export interface SelectedOrderItem {
+  request_key?: string;
   quantity?: number;
   comment?: string;
   reference_path?: string;
@@ -97,6 +98,8 @@ export interface SelectedOrderItem {
   preview_video_url?: string;
   category?: string;
 }
+
+export type PublicSelectedOrderItem = Partial<SelectedOrderItem> & Pick<SelectedOrderItem, "name">;
 
 export interface Profile {
   id: string;
@@ -161,7 +164,7 @@ export interface PublicClassPayload {
     academic_year: string;
     photo_session_name: string;
   };
-  children: Array<{ id: string; public_name: string; orders?: Array<{status: OrderStatus; items: Array<{id?: string; name: string; quantity?: number; preview_url?: string; comment?: string}>}> }>;
+  children: Array<{ id: string; public_name: string; orders?: Array<{status: OrderStatus; items: PublicSelectedOrderItem[]}> }>;
   catalog: Array<{
     id: string;
     name: string;
