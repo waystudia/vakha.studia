@@ -276,6 +276,14 @@ export function PublicOrderPage() {
       setLastRemovedId(""); return [...items, id];
     });
   }
+  function toggleWithPreference(item: CatalogEntry) {
+    if (selected.includes(item.id)) {
+      toggle(item.id);
+      return;
+    }
+    toggle(item.id);
+    openPreference(item);
+  }
   function restoreLastRemoved() {
     if (!lastRemovedId) return;
     setSelected((items) => items.includes(lastRemovedId) ? items : [...items, lastRemovedId]);
@@ -365,7 +373,7 @@ export function PublicOrderPage() {
   async function submitCustomRequest(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!childId || pending) return; const message = String(new FormData(event.currentTarget).get("message") || "").trim(); if (message.length < 3 && !customReferenceFile && !customReferenceServiceId) { setError("Опишите идею или прикрепите скрин либо услугу из каталога."); return; } setPending(true); setError(""); try { const order = await submitPublicCustomRequest({ token, childId, message, requestKey: crypto.randomUUID(), catalogItemId: customReferenceServiceId || undefined, referenceFile: customReferenceFile }); setData(current => current ? {...current, children: current.children.map(item => item.id === childId ? {...item, orders: [{status: order.status, items: order.selected_items}]} : item)} : current); closeCustomRequest(); setResult(order); setStep("done"); } catch (reason) { setError(humanError(reason)); } finally { setPending(false); } }
   function chooseAnotherChild() { requestKey.current = crypto.randomUUID(); setResult(null); setSelected([]); setWithoutLamination([]); setServicePreferences({}); setChildId(""); setError(""); setPreviewItem(null); setStep("child"); }
   function orderLink(publicToken: string) { return `${window.location.origin}${import.meta.env.BASE_URL}order/${publicToken}`; }
-  function renderCard(item: CatalogEntry, previewOnly = false) { return <ServiceCard key={item.id} item={item} selected={selected.includes(item.id)} related={previewOnly} withLamination={!withoutLamination.includes(item.id)} onOpen={() => setPreviewItem(item)} onToggle={() => toggle(item.id)} onLaminationChange={previewOnly ? undefined : (value) => setLamination(item.id, value)} onPreference={previewOnly ? undefined : () => openPreference(item)} />; }
+  function renderCard(item: CatalogEntry, previewOnly = false) { return <ServiceCard key={item.id} item={item} selected={selected.includes(item.id)} related={previewOnly} withLamination={!withoutLamination.includes(item.id)} onOpen={() => setPreviewItem(item)} onToggle={() => toggleWithPreference(item)} onLaminationChange={previewOnly ? undefined : (value) => setLamination(item.id, value)} onPreference={previewOnly ? undefined : () => openPreference(item)} />; }
   if (loading) return <PublicLoadingScreen />;
   if (error && !data) return <main className="public-page"><section className="public-error"><div className="error-illustration">!</div><h1>Ссылка недоступна</h1><p>{error}</p><span>Попросите учителя отправить актуальную ссылку.</span></section></main>;
   if (!data) return null;

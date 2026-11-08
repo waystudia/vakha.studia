@@ -203,6 +203,7 @@ describe("child to catalog navigation", () => {
     render(<MemoryRouter initialEntries={["/p/test"]}><Routes><Route path="/p/:token" element={<PublicOrderPage />} /></Routes></MemoryRouter>);
     fireEvent.click(await screen.findByRole("button", { name: /Первый ребёнок/ }));
     fireEvent.click(screen.getByRole("button", { name: "Добавить Первое фото в заказ" }));
+    fireEvent.click(screen.getByRole("button", { name: "Отмена" }));
     fireEvent.click(screen.getByRole("button", { name: /Корзина.*1.*350/ }));
     const cart = screen.getByRole("dialog", { name: "Корзина" });
     fireEvent.pointerDown(cart, { pointerId: 1, pointerType: "mouse", isPrimary: true, clientX: 160, clientY: 120 });
@@ -220,9 +221,8 @@ describe("child to catalog navigation", () => {
     render(<MemoryRouter initialEntries={["/p/test"]}><Routes><Route path="/p/:token" element={<PublicOrderPage />} /></Routes></MemoryRouter>);
     fireEvent.click(await screen.findByRole("button", { name: /Первый ребёнок/ }));
     fireEvent.click(screen.getByRole("button", { name: "Добавить Первое фото в заказ" }));
-    fireEvent.click(screen.getByRole("button", { name: /Корзина.*1.*350/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Добавить пожелание" }));
     expect(screen.getByRole("dialog", { name: "Корзина", hidden: true }).closest(".order-cart-layer")?.getAttribute("aria-hidden")).toBe("true");
+    expect(screen.getByRole("dialog", { name: "Пожелание к «Первое фото»" })).toBeTruthy();
     const comment = screen.getByRole("textbox", { name: /Короткий комментарий/ });
     const animation = screen.getByRole("checkbox", { name: /Оживление фото.*500/ });
     expect(comment.compareDocumentPosition(animation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -261,6 +261,7 @@ describe("child to catalog navigation", () => {
     expect(cartButton.querySelector("img")?.getAttribute("src")).toBe("/photo.webp");
     expect(screen.getAllByRole("radio", { name: /Без защиты.*300/ }).find((item) => item.getAttribute("aria-checked") === "true")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Добавить Дополнительное фото в заказ" }));
+    fireEvent.click(screen.getByRole("button", { name: "Отмена" }));
     fireEvent.click(screen.getByRole("button", { name: /Корзина.*2.*650/ }));
     const cart = screen.getByRole("dialog", { name: "Корзина" });
     expect(within(cart).getByRole("img", { name: "Первое фото" }).getAttribute("src")).toBe("/photo.webp");
