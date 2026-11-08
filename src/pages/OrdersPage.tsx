@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { EmptyState, Loader, Notice } from "../components/ui";
 import { fullChildName, downloadCsv, formatDateTime, humanError, money, orderStatusLabels } from "../lib/helpers";
 import { loadOrdersWorkspace, updateOrderStatus } from "../lib/repository";
-import { supabase } from "../lib/supabase";
 import type { OrderStatus, OrdersWorkspace, ParentOrder } from "../lib/types";
 
 const emptyWorkspace: OrdersWorkspace = { schools: [], classes: [], orders: [] };
@@ -56,10 +55,14 @@ export function OrdersPage() {
     let active = true;
     const paths = [...new Set(workspace.orders.flatMap((order) => order.selected_items.map((item) => item.reference_path).filter((path): path is string => Boolean(path))))];
     if (!paths.length) { setReferenceUrls({}); return; }
-    void Promise.all(paths.map(async (path) => {
-      const { data, error } = await supabase.storage.from("parent-request-references").createSignedUrl(path, 60 * 60);
-      return error || !data?.signedUrl ? [path, ""] as const : [path, data.signedUrl] as const;
-    })).then((entries) => { if (active) setReferenceUrls(Object.fromEntries(entries.filter(([, url]) => url))); });
+    void (async () => {
+      const { supabase } = await import("../lib/supabase");
+      const entries = await Promise.all(paths.map(async (path) => {
+        const { data, error } = await supabase.storage.from("parent-request-references").createSignedUrl(path, 60 * 60);
+        return error || !data?.signedUrl ? [path, ""] as const : [path, data.signedUrl] as const;
+      }));
+      if (active) setReferenceUrls(Object.fromEntries(entries.filter(([, url]) => url)));
+    })().catch(() => { if (active) setReferenceUrls({}); });
     return () => { active = false; };
   }, [workspace.orders]);
 
