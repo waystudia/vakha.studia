@@ -138,7 +138,13 @@ describe("child to catalog navigation", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Первый ребёнок/ }));
     fireEvent.click(screen.getByRole("button", { name: /Не нашли нужный образ/ }));
     const dialog = screen.getByRole("dialog", { name: "Подобрать индивидуальный образ" });
-    fireEvent.change(within(dialog).getByLabelText("Услуга из каталога"), { target: { value: "photo" } });
+    expect(dialog.classList.contains("custom-request-modal")).toBe(true);
+    const serviceCard = within(dialog).getByRole("radio", { name: /Первое фото/ });
+    expect(serviceCard.querySelector("img")?.getAttribute("src")).toBe("/photo.webp");
+    fireEvent.change(within(dialog).getByLabelText("Поиск услуги"), { target: { value: "не найдено" } });
+    expect(within(dialog).getByText("Ничего не найдено. Попробуйте другое слово.")).toBeTruthy();
+    fireEvent.change(within(dialog).getByLabelText("Поиск услуги"), { target: { value: "первое" } });
+    fireEvent.click(within(dialog).getByRole("radio", { name: /Первое фото/ }));
     fireEvent.submit(within(dialog).getByRole("button", { name: "Отправить запрос" }).closest("form")!);
     await waitFor(() => expect(submitPublicCustomRequest).toHaveBeenCalledWith(expect.objectContaining({ catalogItemId: "photo" })));
     expect(await screen.findByText("Заявка сохранена")).toBeTruthy();
