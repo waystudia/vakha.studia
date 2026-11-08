@@ -17,6 +17,7 @@ import type { PublicClassPayload, PublicOrderResult, PublicSelectedOrderItem } f
 type Step = "child" | "services" | "done";
 type CatalogEntry = PublicClassPayload["catalog"][number];
 type ServicePreference = { comment: string; videoAddonRequested: boolean; videoFile?: File; videoName?: string };
+const aiPrefix = "Индивидуальное ИИ-видео (от 1 200 ₽). Сценарий: ";
 const russianNameCollator = new Intl.Collator("ru", { sensitivity: "base", numeric: true });
 
 function ServiceIcon({ type }: { type: string }) {
@@ -134,7 +135,7 @@ function OrderCart({ items, customItems, total, open, pending, editing, withoutL
           </article>;
         })}</div>
         <button type="button" className="order-cart-add-more" onClick={onClose}>+ Добавить ещё услугу из каталога</button>
-        <footer><div><span>Итого</span><strong>{money(total)}</strong></div>{items.length > 0
+        <footer><div><span>{items.some(item => preferences[item.id]?.comment.startsWith(aiPrefix)) ? "Итого без ИИ‑видео" : "Итого"}</span><strong>{money(total)}</strong></div>{items.length > 0
           ? <button className="button button-primary" disabled={pending} onClick={onSubmit}>{pending && <LoaderCircle className="spin" size={18} />}{editing ? "Сохранить изменения" : "Оформить заявку"}</button>
           : <button className="button button-primary" onClick={onClose}>Готово</button>}</footer>
       </section>
@@ -270,30 +271,23 @@ export function PublicOrderPage() {
         .find((element) => element.dataset.catalogSection === id);
     target?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
-  const [aiVideoRequest, setAiVideoRequest] = useState<{ script: string; key: string; error?: string; orderNumber?: string } | null>(null);
-  function closeAiVideoRequest() {
-    if (!pending) setAiVideoRequest(null);
-  }
-  async function submitAiVideoRequest(event: FormEvent<HTMLFormElement>) {
+  const [aiVideoRequest, setAiVideoRequest] = useState<{ script: string; error?: string } | null>(null);
+  const hasAiVideo = preferenceDraft.comment.startsWith(aiPrefix);
+  const commentText = hasAiVideo ? preferenceDraft.comment.slice(aiPrefix.length) : preferenceDraft.comment;
+  function closeAiVideoRequest() { setAiVideoRequest(null); }
+  function saveAiVideoRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!preferenceItem || !aiVideoRequest || !childId || pending) return;
+    if (!preferenceItem || !aiVideoRequest) return;
     const script = aiVideoRequest.script.trim();
     if (script.length < 3) {
       setAiVideoRequest({ ...aiVideoRequest, error: "Опишите, что должно происходить в кадре." });
       return;
     }
-    setPending(true);
-    try {
-      const order = await submitPublicCustomRequest({
-        token, childId, catalogItemId: preferenceItem.id, requestKey: aiVideoRequest.key,
-        message: `Индивидуальное ИИ-видео по образу «${preferenceItem.name}». Стоимость от 1 200 ₽.\nСценарий: ${script}`,
-      });
-      setAiVideoRequest(current => current?.key === aiVideoRequest.key ? { ...current, error: undefined, orderNumber: order.order_number } : current);
-    } catch (reason) {
-      setAiVideoRequest(current => current?.key === aiVideoRequest.key ? { ...current, error: humanError(reason) } : current);
-    } finally {
-      setPending(false);
-    }
+    const value = { ...preferenceDraft, comment: aiPrefix + script };
+    setServicePreferences(current => ({ ...current, [preferenceItem.id]: value }));
+    setAiVideoRequest(null);
+    setPreferenceItem(null);
+    setCartOpen(true);
   }
   function toggle(id: string) {
     setSelected((items) => {
@@ -448,25 +442,24 @@ export function PublicOrderPage() {
     {step === "services" && selected.length === 0 && editingExisting && <div className="empty-order-dock"><span>Вы убрали последнюю услугу. Удалить заявку целиком?</span><div className="empty-order-actions"><button className="button button-secondary" disabled={pending} onClick={restoreLastRemoved}>Нет, вернуть</button><button className="button button-danger" disabled={pending} onClick={() => void submit()}>{pending && <LoaderCircle className="spin" size={18} />}Да, удалить</button></div></div>}
     {previewItem && <CatalogViewer items={data.catalog} initialId={previewItem.id} initialGender={gender} selected={selected} onToggle={toggle} onCheckout={() => { checkoutAfterViewer.current = true; }} onClose={closeViewer} />}
     {preferenceItem && aiVideoRequest && <Modal title="Индивидуальное ИИ‑видео" className="service-preference-modal" onClose={closeAiVideoRequest}>
-      <form className="service-preference-form" onSubmit={submitAiVideoRequest}>
+      <form className="service-preference-form" onSubmit={saveAiVideoRequest}>
         <p><strong>{preferenceItem.name} · от 1 200 ₽</strong></p>
-        {aiVideoRequest.orderNumber ? <Notice>Заявка № {aiVideoRequest.orderNumber} отправлена в студию.</Notice> : <>
-          <p>Студия создаст видео по выбранному образу и вашему сценарию. Итоговую цену уточнит студия.</p>
-          <label className="service-preference-comment">Что должно происходить в кадре?
-            <textarea name="scenario" required minLength={3} maxLength={800} rows={3} autoFocus disabled={pending} value={aiVideoRequest.script} onChange={(event) => setAiVideoRequest({ ...aiVideoRequest, script: event.currentTarget.value })} placeholder="Например: джигит садится на коня и скачет к башне…"/>
-          </label>
-          {aiVideoRequest.error && <Notice kind="error">{aiVideoRequest.error}</Notice>}
-        </>}
-        <div className="form-actions"><button type="button" className="button button-secondary" disabled={pending} onClick={closeAiVideoRequest}>Назад</button>{!aiVideoRequest.orderNumber && <button type="submit" className="button button-primary" disabled={pending}>{pending ? "Отправляем…" : "Отправить заявку"}</button>}</div>
+        <p>Добавим сценарий к фото в корзине. Цена ИИ‑видео в итог корзины не входит: её уточнит студия.</p>
+        <label className="service-preference-comment">Что должно происходить в кадре?
+          <textarea name="scenario" required minLength={3} maxLength={240 - aiPrefix.length} rows={3} autoFocus value={aiVideoRequest.script} onChange={(event) => setAiVideoRequest({ script: event.currentTarget.value })} placeholder="Например: джигит садится на коня и скачет к башне…"/>
+        </label>
+        {aiVideoRequest.error && <Notice kind="error">{aiVideoRequest.error}</Notice>}
+        <div className="form-actions"><button type="button" className="button button-secondary" onClick={closeAiVideoRequest}>Назад</button><button type="submit" className="button button-primary">В корзину</button></div>
       </form>
     </Modal>}
     {preferenceItem && !aiVideoRequest && <Modal title={`Пожелание к «${preferenceItem.name}»`} className="service-preference-modal" onClose={() => setPreferenceItem(null)}><div className="service-preference-form">
       <p>Комментарий увидят студия и учитель.</p>
-      <label className="service-preference-comment"><span>Короткий комментарий <small>{preferenceDraft.comment.length}/240</small></span><textarea maxLength={240} rows={3} value={preferenceDraft.comment} onChange={(event) => setPreferenceDraft(value => ({...value, comment: event.currentTarget.value}))} placeholder="Например: добавить мяч в руки…"/></label>
+      <label className="service-preference-comment"><span>{hasAiVideo ? "Сценарий ИИ‑видео" : "Короткий комментарий"} <small>{commentText.length}/{240 - (hasAiVideo ? aiPrefix.length : 0)}</small></span><textarea maxLength={240 - (hasAiVideo ? aiPrefix.length : 0)} rows={3} value={commentText} onChange={(event) => { const comment = (hasAiVideo ? aiPrefix : "") + event.currentTarget.value; setPreferenceDraft(value => ({...value, comment})); }} placeholder="Например: добавить мяч в руки…"/></label>
       <label className={`service-animation-toggle${preferenceDraft.videoAddonRequested ? " active" : ""}`}><input type="checkbox" checked={preferenceDraft.videoAddonRequested} onChange={(event) => { const checked = event.currentTarget.checked; setPreferenceDraft(value => ({...value, videoAddonRequested: checked, videoFile: checked ? value.videoFile : undefined, videoName: checked ? value.videoName : undefined})); }}/><span className="service-animation-icon"><Video aria-hidden="true"/></span><span className="service-animation-copy"><strong>Оживление фото</strong><small>Ваше видео откроется с фотографии</small></span><b>+500 ₽</b><i aria-hidden="true"/></label>
+      {hasAiVideo && <button type="button" className="button button-secondary" onClick={() => setPreferenceDraft(value => ({ ...value, comment: commentText }))}>Убрать ИИ‑видео</button>}
       {preferenceDraft.videoAddonRequested && <label className="service-video-file"><span><Video size={18}/>Прикрепить видео для оживления</span><input type="file" accept="video/mp4,video/webm,video/quicktime,video/*" onChange={(event) => choosePreferenceVideo(event.currentTarget.files?.[0])}/><small>{preferenceDraft.videoName || "До 120 МБ — перед отправкой видео автоматически сожмётся"}</small></label>}
-      <button type="button" className="service-ai-video-note" onClick={() => setAiVideoRequest({ script: preferenceDraft.comment, key: crypto.randomUUID() })}><Sparkles aria-hidden="true"/><span><strong>ИИ‑видео · от 1 200 ₽</strong><small>Создадим видео по этому фото и вашему сценарию.</small></span><b>Заказать</b></button>
-      <div className="form-actions"><button type="button" className="button button-secondary" onClick={() => setPreferenceItem(null)}>Отмена</button><button type="button" className="button button-primary" onClick={savePreference}>Сохранить</button></div>
+      <button type="button" className="service-ai-video-note" onClick={() => setAiVideoRequest({ script: commentText.slice(0, 240 - aiPrefix.length) })}><Sparkles aria-hidden="true"/><span><strong>ИИ‑видео · от 1 200 ₽</strong><small>Создадим видео по этому фото и вашему сценарию.</small></span><b>{hasAiVideo ? "Изменить" : "Добавить"}</b></button>
+      <div className="form-actions"><button type="button" className="button button-secondary" onClick={() => setPreferenceItem(null)}>Отмена</button><button type="button" className="button button-primary" disabled={hasAiVideo && commentText.trim().length < 3} onClick={savePreference}>Сохранить</button></div>
     </div></Modal>}
     {uploadStatus && <div className="media-upload-status" role="status"><LoaderCircle className="spin" size={18}/>{uploadStatus}</div>}
     {customRequestOpen && <Modal title="Подобрать индивидуальный образ" className="custom-request-modal" onClose={closeCustomRequest}><form className="form-stack custom-request-form" onSubmit={submitCustomRequest}><p>Опишите идею и, если хотите, приложите скрин или выберите похожую услугу. Всё сохранится в карточке ребёнка.</p><label>Что вы хотите для {child?.public_name}?<textarea name="message" minLength={3} maxLength={1000} rows={4} autoFocus placeholder="Например: сын хочет фото в образе пожарного…"/></label><div className="custom-request-attachments"><label className="custom-request-file"><span><ImagePlus size={18}/>Скрин или референс</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => chooseCustomReferenceFile(event.currentTarget.files?.[0])}/><small>JPG, PNG или WebP до 5 МБ</small></label>{customReferencePreview && <div className="custom-request-preview"><img src={customReferencePreview} alt="Прикреплённый референс"/><button type="button" aria-label="Убрать прикреплённый скрин" onClick={() => setCustomReferenceFile(null)}><X size={16}/></button></div>}<fieldset className="custom-request-service"><legend>Похожая услуга из каталога</legend><label className="custom-request-search">Поиск услуги<input type="search" value={customServiceSearch} onChange={(event) => setCustomServiceSearch(event.currentTarget.value)} placeholder="Например: дракон, футбол…"/></label><div className="custom-request-service-list" role="radiogroup" aria-label="Услуга из каталога"><button type="button" role="radio" aria-checked={!customReferenceServiceId} className={`custom-request-service-card custom-request-service-empty${!customReferenceServiceId ? " selected" : ""}`} onClick={() => setCustomReferenceServiceId("")}><span><X size={19}/></span><strong>Без услуги</strong><small>Только текст или скрин</small></button>{customServiceResults.map((item) => <button type="button" role="radio" aria-checked={customReferenceServiceId === item.id} className={`custom-request-service-card${customReferenceServiceId === item.id ? " selected" : ""}`} key={item.id} onClick={() => setCustomReferenceServiceId(item.id)}>{item.preview_url ? <img src={item.preview_url} alt="" loading="lazy" decoding="async"/> : <span><ServiceIcon type={item.type}/></span>}<span className="custom-request-service-copy"><strong>{item.name}</strong><small>{item.category || "Услуга"}</small></span>{customReferenceServiceId === item.id && <CheckCircle2 className="custom-request-service-check" aria-hidden="true"/>}</button>)}</div>{!customServiceResults.length && <p className="custom-request-service-empty-state">Ничего не найдено. Попробуйте другое слово.</p>}</fieldset></div><div className="form-actions"><button className="button button-secondary" type="button" disabled={pending} onClick={closeCustomRequest}>Отмена</button><button className="button button-primary" type="submit" disabled={pending}>{pending && <LoaderCircle className="spin" size={17}/>}Отправить запрос</button></div></form></Modal>}
