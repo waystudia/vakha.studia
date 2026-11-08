@@ -109,7 +109,6 @@ function OrderCart({ items, customItems, total, open, pending, editing, withoutL
     <button className="order-cart-trigger" type="button" aria-label={`Оформить заказ. Корзина: ${allCount}, ${money(total)}`} aria-haspopup="dialog" aria-expanded={open} onClick={onOpen}>
       <span className="order-cart-trigger-preview">{first?.preview_url ? <img src={first.preview_url} alt="" /> : <ServiceIcon type={first?.type || "photo"} />}</span>
       <span className="order-cart-trigger-copy"><strong><ShoppingCart aria-hidden="true" />Оформить заказ</strong><small>{allCount} · {money(total)}</small></span>
-      <span className="order-cart-count" aria-hidden="true">{allCount}</span>
     </button>
     <div className="order-cart-layer" data-open={open} aria-hidden={!open} onClick={onClose}>
       <section className="order-cart-sheet" data-dragging={dragY > 0} style={dragY > 0 ? { transform: `translateY(${dragY}px)` } : undefined} role="dialog" aria-modal="true" aria-labelledby="order-cart-title" onClickCapture={event => { if (suppressDragClick.current) { event.preventDefault(); event.stopPropagation(); suppressDragClick.current = false; } }} onClick={event => event.stopPropagation()} onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={finishDrag} onPointerCancel={finishDrag}>
