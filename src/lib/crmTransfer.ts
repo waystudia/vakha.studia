@@ -7,7 +7,7 @@ type TransferScope = { kind: "class" | "school"; id: string };
 function safeName(value: string) { return String(value || "export").replace(/[^a-zA-Z0-9а-яА-ЯёЁ_-]+/g, "_").slice(0, 80); }
 function referenceFileName(name: string | undefined, contentType: string | undefined, fallback: string) {
   const base = String(name || fallback).replace(/\.[a-z0-9]+$/i, "");
-  const extension = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
+  const extension = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : contentType === "video/webm" ? "webm" : contentType === "video/quicktime" ? "mov" : contentType?.startsWith("video/") ? "mp4" : "jpg";
   return `${safeName(base)}.${extension}`;
 }
 export function crmParentCatalogUrl(publicToken: string, origin = typeof window === "undefined" ? "" : window.location.origin) {
@@ -16,9 +16,9 @@ export function crmParentCatalogUrl(publicToken: string, origin = typeof window 
 }
 function serviceRecord(item: CatalogItem) { return { id: item.source_id || item.id, serviceId: item.source_id || item.id, title: item.name, name: item.name, price: Number(item.price), description: item.description || item.short_description || "", shortDescription: item.short_description || "", category: item.category || "", gender: item.gender || "unisex", type: item.type || "photo", previewSrc: item.preview_url || "", previewVideoSrc: item.preview_video_url || "" }; }
 function referenceMediaId(order: ParentOrder, itemId: string, index: number) { return `parent_request_${safeName(order.id)}_${safeName(itemId)}_${index + 1}`; }
-function crmItemComment(item: ParentOrder["selected_items"][number]) { return [item.comment, item.animation_requested ? "Оживить фото / нейросетевое видео" : "", item.parent_comment ? `Пожелание родителя: ${item.parent_comment}` : ""].filter(Boolean).join(" · "); }
-export function studentRecord(child: Child, classId: string, orders: ParentOrder[]) { const order = [...orders].filter(item => item.child_id === child.id && item.status !== "cancelled").sort((a,b) => (b.created_at || "").localeCompare(a.created_at || ""))[0]; const selected = order?.selected_items || []; const serviceIds = selected.map((item) => item.id); return { id: child.crm_source_id || child.id, studentId: child.crm_source_id || child.id, classId, firstName: child.first_name, lastName: child.last_name, publicName: child.public_name,  catalogId: serviceIds[0] || "", catalogIds: serviceIds, selectedServices: selected.map((item) => ({ serviceId: item.id, quantity: item.quantity || 1, comment: crmItemComment(item), parentComment: item.parent_comment || "", animationRequested: Boolean(item.animation_requested), name: item.name, price: Number(item.price), requestType: item.reference_path || item.reference_service_id ? "custom" : "catalog", referenceServiceId: item.reference_service_id || "", referenceServiceName: item.reference_service_name || "" })), paymentStatus: "unpaid", orderStatus: order?.status || "", status: order?.status || "" }; }
-export function orderRecord(order: ParentOrder) { return { id: `order_${order.child_id}`, orderId: `order_${order.child_id}`, vakhaOrderId: order.id, vakhaOrderNumber: order.order_number || "", studentId: order.child_id, status: order.status, catalogId: order.selected_items[0]?.id || "", catalogIds: order.selected_items.map((item) => item.id), items: order.selected_items.map((item, index) => ({ id: `order_${order.child_id}_${item.id}`, taskId: `order_${order.child_id}_${item.id}`, type: item.id, serviceId: item.id, title: item.name, label: item.name, price: Number(item.price), quantity: item.quantity || 1, comment: crmItemComment(item), parentComment: item.parent_comment || "", animationRequested: Boolean(item.animation_requested), requestType: item.reference_path || item.reference_service_id ? "custom" : "catalog", referenceServiceId: item.reference_service_id || "", referenceServiceName: item.reference_service_name || "", referenceMediaId: item.reference_path ? referenceMediaId(order, item.id, index) : "", referenceFileName: item.reference_name || "", status: order.status })), totalAmount: Number(order.total_amount), comment: order.parent_note || "", createdAt: order.created_at, updatedAt: order.updated_at }; }
+function crmItemComment(item: ParentOrder["selected_items"][number]) { return [item.comment, item.video_addon_requested ? "Оживление фото (+500 ₽)" : "", item.parent_video_path ? "Видео родителя прикреплено" : "", item.parent_comment ? `Пожелание родителя: ${item.parent_comment}` : ""].filter(Boolean).join(" · "); }
+export function studentRecord(child: Child, classId: string, orders: ParentOrder[]) { const order = [...orders].filter(item => item.child_id === child.id && item.status !== "cancelled").sort((a,b) => (b.created_at || "").localeCompare(a.created_at || ""))[0]; const selected = order?.selected_items || []; const serviceIds = selected.map((item) => item.id); return { id: child.crm_source_id || child.id, studentId: child.crm_source_id || child.id, classId, firstName: child.first_name, lastName: child.last_name, publicName: child.public_name,  catalogId: serviceIds[0] || "", catalogIds: serviceIds, selectedServices: selected.map((item) => ({ serviceId: item.id, quantity: item.quantity || 1, comment: crmItemComment(item), parentComment: item.parent_comment || "", videoAddonRequested: Boolean(item.video_addon_requested), parentVideoName: item.parent_video_name || "", name: item.name, price: Number(item.price), requestType: item.reference_path || item.reference_service_id ? "custom" : "catalog", referenceServiceId: item.reference_service_id || "", referenceServiceName: item.reference_service_name || "" })), paymentStatus: "unpaid", orderStatus: order?.status || "", status: order?.status || "" }; }
+export function orderRecord(order: ParentOrder) { return { id: `order_${order.child_id}`, orderId: `order_${order.child_id}`, vakhaOrderId: order.id, vakhaOrderNumber: order.order_number || "", studentId: order.child_id, status: order.status, catalogId: order.selected_items[0]?.id || "", catalogIds: order.selected_items.map((item) => item.id), items: order.selected_items.map((item, index) => ({ id: `order_${order.child_id}_${item.id}`, taskId: `order_${order.child_id}_${item.id}`, type: item.id, serviceId: item.id, title: item.name, label: item.name, price: Number(item.price), quantity: item.quantity || 1, comment: crmItemComment(item), parentComment: item.parent_comment || "", videoAddonRequested: Boolean(item.video_addon_requested), parentVideoName: item.parent_video_name || "", requestType: item.reference_path || item.reference_service_id ? "custom" : "catalog", referenceServiceId: item.reference_service_id || "", referenceServiceName: item.reference_service_name || "", referenceMediaId: item.reference_path ? referenceMediaId(order, item.id, index) : "", parentVideoMediaId: item.parent_video_path ? `${referenceMediaId(order, item.id, index)}_video` : "", referenceFileName: item.reference_name || "", status: order.status })), totalAmount: Number(order.total_amount), comment: order.parent_note || "", createdAt: order.created_at, updatedAt: order.updated_at }; }
 
 export async function buildCrmTransfer(scope: TransferScope) {
   const schoolData = scope.kind === "school" ? await loadSchool(scope.id) : null;
@@ -64,11 +64,18 @@ export async function buildCrmTransfer(scope: TransferScope) {
   const media: Array<Record<string, unknown>> = [];
   const referenceFiles: Array<{path: string; storagePath: string}> = [];
   for (const payload of classPayloads) for (const order of payload.orders) order.selected_items.forEach((item, index) => {
-    if (!item.reference_path) return;
-    const id = referenceMediaId(order, item.id, index);
-    const fileName = referenceFileName(item.reference_name, item.reference_content_type, id);
-    media.push({ id, mediaId: id, studentId: order.child_id, orderId: `order_${order.child_id}`, serviceId: item.id, purpose: "parent_request_reference", source: "vakha.studia", type: "image", fileName, mimeType: item.reference_content_type || "image/jpeg", createdAt: order.created_at });
-    referenceFiles.push({ path: `media/student_files/${id}/${fileName}`, storagePath: item.reference_path! });
+    if (item.reference_path) {
+      const id = referenceMediaId(order, item.id, index);
+      const fileName = referenceFileName(item.reference_name, item.reference_content_type, id);
+      media.push({ id, mediaId: id, studentId: order.child_id, orderId: `order_${order.child_id}`, serviceId: item.id, purpose: "parent_request_reference", source: "vakha.studia", type: "image", fileName, mimeType: item.reference_content_type || "image/jpeg", createdAt: order.created_at });
+      referenceFiles.push({ path: `media/student_files/${id}/${fileName}`, storagePath: item.reference_path });
+    }
+    if (item.parent_video_path) {
+      const id = `${referenceMediaId(order, item.id, index)}_video`;
+      const fileName = referenceFileName(item.parent_video_name, item.parent_video_content_type, id);
+      media.push({ id, mediaId: id, studentId: order.child_id, orderId: `order_${order.child_id}`, serviceId: item.id, purpose: "parent_service_video", source: "vakha.studia", type: "video", fileName, mimeType: item.parent_video_content_type || "video/mp4", createdAt: order.created_at });
+      referenceFiles.push({ path: `media/student_files/${id}/${fileName}`, storagePath: item.parent_video_path });
+    }
   });
   const data = { projects, classes: classRecords, students: children, services, orders, operators: [], operatorEvents: [], media, finalWorks: [], documents: [], settings: [], checklistTemplates: [], templates: [], tasks: orders.flatMap((order) => order.items.map((item) => ({ ...item, orderId: order.id, studentId: order.studentId }))), statuses: [] };
   const manifest = { app: "Vakha Studio", schemaVersion: 2, exportType: scope.kind === "school" ? "project" : "class", scope: scope.kind, exportedAt: new Date().toISOString(), exportedBy: "vakha.studia", containsMedia: media.length > 0, includesParentCatalogLinks: true, includesParentRequestReferences: media.length > 0, counts: { classes: classRecords.length, students: children.length, orders: orders.length, services: services.length, parentRequestReferences: media.length } };
@@ -77,7 +84,7 @@ export async function buildCrmTransfer(scope: TransferScope) {
     const { supabase } = await import("./supabase");
     for (const file of referenceFiles) {
       const { data: blob, error } = await supabase.storage.from("parent-request-references").download(file.storagePath);
-      if (error || !blob) throw new Error(`Не удалось добавить скрин индивидуальной заявки в ZIP: ${error?.message || file.storagePath}`);
+      if (error || !blob) throw new Error(`Не удалось добавить вложение родительской заявки в ZIP: ${error?.message || file.storagePath}`);
       zip.file(file.path, blob);
     }
   }

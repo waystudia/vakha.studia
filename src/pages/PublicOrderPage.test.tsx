@@ -18,6 +18,7 @@ vi.mock("../lib/publicRepository", () => ({
     whatsapp: {},
   })),
   submitPublicOrder: vi.fn(),
+  attachPublicServiceVideo: vi.fn(),
   submitPublicCustomRequest: vi.fn(),
   cancelPublicOrder: vi.fn(),
 }));
@@ -208,6 +209,28 @@ describe("child to catalog navigation", () => {
     fireEvent.pointerMove(cart, { pointerId: 1, pointerType: "mouse", isPrimary: true, clientX: 160, clientY: 230 });
     fireEvent.pointerUp(cart, { pointerId: 1, pointerType: "mouse", isPrimary: true, clientX: 160, clientY: 230 });
     await waitFor(() => expect(cart.closest(".order-cart-layer")?.getAttribute("aria-hidden")).toBe("true"));
+  });
+
+  it("separates the 500 ruble photo animation from 800 ruble interview and 1200 ruble AI video", async () => {
+    vi.mocked(submitPublicOrder).mockResolvedValueOnce({
+      duplicate: false, updated: false, order_number: "VS-VIDEO", status: "new",
+      selected_items: [{ id: "photo", name: "Первое фото", price: 850, type: "photo", video_addon_requested: true }],
+      total_amount: 850, child_name: "Первый ребёнок", class_name: "1 А", public_token: "order-token",
+    });
+    render(<MemoryRouter initialEntries={["/p/test"]}><Routes><Route path="/p/:token" element={<PublicOrderPage />} /></Routes></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: /Первый ребёнок/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Добавить Первое фото в заказ" }));
+    fireEvent.click(screen.getByRole("button", { name: /Корзина.*1.*350/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Добавить пожелание" }));
+    expect(screen.getByText(/Интервью.*800 ₽.*ИИ.*видео.*1.*200 ₽/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("checkbox", { name: /Оживление фото.*500/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+    expect(screen.getByText("Оживление фото · +500 ₽")).toBeTruthy();
+    expect(screen.getByText("850 ₽")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Оформить заявку" }));
+    await waitFor(() => expect(submitPublicOrder).toHaveBeenCalledWith(expect.objectContaining({
+      itemPreferences: { photo: { comment: "", videoAddonRequested: true } },
+    })));
   });
 
   it("restores an existing order so a parent can replace or add services", async () => {

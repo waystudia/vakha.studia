@@ -87,6 +87,11 @@ export interface SelectedOrderItem {
   comment?: string;
   parent_comment?: string;
   animation_requested?: boolean;
+  video_addon_requested?: boolean;
+  parent_video_path?: string;
+  parent_video_name?: string;
+  parent_video_content_type?: string;
+  parent_video_url?: string;
   reference_path?: string;
   reference_name?: string;
   reference_content_type?: string;

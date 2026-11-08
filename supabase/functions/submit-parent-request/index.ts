@@ -2,7 +2,9 @@ import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.116.0";
 
 const maxFileSize = 5 * 1024 * 1024;
+const maxVideoSize = 25 * 1024 * 1024;
 const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+const allowedVideoTypes = new Set(["video/mp4", "video/webm", "video/quicktime"]);
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -15,6 +17,15 @@ function json(body: unknown, status = 200) {
 
 function extensionFor(file: File) {
   return file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+}
+
+function videoExtensionFor(file: File) {
+  return file.type === "video/webm" ? "webm" : file.type === "video/quicktime" ? "mov" : "mp4";
+}
+
+function validVideo(bytes: Uint8Array, type: string) {
+  if (type === "video/webm") return bytes.length >= 4 && bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3;
+  return bytes.length >= 12 && new TextDecoder().decode(bytes.slice(4, 8)) === "ftyp";
 }
 
 function validImage(bytes: Uint8Array, type: string) {
@@ -38,14 +49,14 @@ Deno.serve(async (req) => {
       const body = await req.json().catch(() => ({})) as { action?: string; token?: string };
       const token = String(body.token || "").trim();
       if (body.action !== "signPreviews" || !/^[a-zA-Z0-9_-]{32,160}$/.test(token)) return json({ error: "Запрос недействителен" }, 400);
-      const { data: schoolClass, error: classError } = await admin.from("classes").select("id, owner_id, public_expires_at").eq("public_token", token).eq("status", "active").maybeSingle();
+      const { data: schoolClass, error: classError } = await admin.from("classes").select("id, owner_id, name, public_expires_at").eq("public_token", token).eq("status", "active").maybeSingle();
       if (classError) throw classError;
       if (!schoolClass || (schoolClass.public_expires_at && Date.parse(schoolClass.public_expires_at) <= Date.now())) return json({ error: "Ссылка недействительна или просрочена" }, 403);
       const { data: orders, error: ordersError } = await admin.from("parent_orders").select("selected_items").eq("class_id", schoolClass.id).neq("status", "cancelled");
       if (ordersError) throw ordersError;
       const prefix = `${schoolClass.owner_id}/${schoolClass.id}/`;
       const paths = [...new Set((orders || []).flatMap((order) => (order.selected_items as Array<Record<string, unknown>> || [])
-        .map((item) => String(item.reference_path || ""))
+        .flatMap((item) => [String(item.reference_path || ""), String(item.parent_video_path || "")])
         .filter((path) => path.startsWith(prefix))))];
       const signed = await Promise.all(paths.map(async (path) => {
         const { data } = await admin.storage.from("parent-request-references").createSignedUrl(path, 60 * 60);
@@ -55,6 +66,7 @@ Deno.serve(async (req) => {
     }
 
     const form = await req.formData();
+    const mode = String(form.get("mode") || "");
     const token = String(form.get("token") || "").trim();
     const childId = String(form.get("childId") || "").trim();
     const message = String(form.get("message") || "").trim().slice(0, 1000);
@@ -62,18 +74,41 @@ Deno.serve(async (req) => {
     const catalogItemId = String(form.get("catalogItemId") || "").trim() || null;
     const reference = form.get("reference");
 
-    if (!/^[a-zA-Z0-9_-]{32,160}$/.test(token) || !/^[0-9a-f-]{36}$/i.test(childId) || !/^[0-9a-f-]{36}$/i.test(requestKey)) {
+    if (!/^[a-zA-Z0-9_-]{32,160}$/.test(token) || !/^[0-9a-f-]{36}$/i.test(childId) || (mode !== "attachServiceVideo" && !/^[0-9a-f-]{36}$/i.test(requestKey))) {
       return json({ error: "Ссылка или данные запроса недействительны" }, 400);
     }
     if (catalogItemId && !/^[0-9a-f-]{36}$/i.test(catalogItemId)) return json({ error: "Услуга выбрана неверно" }, 400);
     if (message.length < 3 && !catalogItemId && !(reference instanceof File)) return json({ error: "Опишите идею или прикрепите референс" }, 400);
 
-    const { data: schoolClass, error: classError } = await admin.from("classes").select("id, owner_id, public_expires_at").eq("public_token", token).eq("status", "active").maybeSingle();
+    const { data: schoolClass, error: classError } = await admin.from("classes").select("id, owner_id, name, public_expires_at").eq("public_token", token).eq("status", "active").maybeSingle();
     if (classError) throw classError;
     if (!schoolClass || (schoolClass.public_expires_at && Date.parse(schoolClass.public_expires_at) <= Date.now())) return json({ error: "Ссылка недействительна или просрочена" }, 403);
-    const { data: child, error: childError } = await admin.from("children").select("id").eq("id", childId).eq("class_id", schoolClass.id).eq("status", "active").maybeSingle();
+    const { data: child, error: childError } = await admin.from("children").select("id, public_name").eq("id", childId).eq("class_id", schoolClass.id).eq("status", "active").maybeSingle();
     if (childError) throw childError;
     if (!child) return json({ error: "Ребёнок не найден в этом классе" }, 403);
+
+    if (mode === "attachServiceVideo") {
+      const itemId = String(form.get("itemId") || "").trim();
+      const video = form.get("video");
+      if (!/^[0-9a-f-]{36}$/i.test(itemId) || !(video instanceof File) || !video.size) return json({ error: "Видео или услуга не выбраны" }, 400);
+      if (!allowedVideoTypes.has(video.type) || video.size > maxVideoSize) return json({ error: "После сжатия видео должно быть MP4, WebM или MOV и не больше 25 МБ" }, 400);
+      const bytes = new Uint8Array(await video.arrayBuffer());
+      if (!validVideo(bytes, video.type)) return json({ error: "Файл не похож на видео. Выберите MP4, WebM или MOV." }, 400);
+      const { data: storedOrder, error: storedOrderError } = await admin.from("parent_orders").select("id, public_token, status, selected_items, total_amount, order_number, class_id, child_id").eq("child_id", childId).eq("class_id", schoolClass.id).neq("status", "cancelled").order("created_at", {ascending: false}).limit(1).maybeSingle();
+      if (storedOrderError) throw storedOrderError;
+      if (!storedOrder || !["new", "confirmed"].includes(storedOrder.status)) return json({ error: "Сначала сохраните выбранную услугу" }, 409);
+      const selectedItems = storedOrder.selected_items as Array<Record<string, unknown>>;
+      const target = selectedItems.find((item) => String(item.id) === itemId);
+      if (!target || !target.video_addon_requested) return json({ error: "Для этой услуги не выбрано оживление фотографии" }, 400);
+      uploadedPath = `${schoolClass.owner_id}/${schoolClass.id}/${childId}/service-video-${itemId}-${crypto.randomUUID()}.${videoExtensionFor(video)}`;
+      const { error: uploadError } = await admin.storage.from("parent-request-references").upload(uploadedPath, bytes, {contentType: video.type, cacheControl: "31536000", upsert: false});
+      if (uploadError) throw uploadError;
+      const updatedItems = selectedItems.map((item) => String(item.id) === itemId ? {...item, parent_video_path: uploadedPath, parent_video_name: video.name.slice(0, 140), parent_video_content_type: video.type} : item);
+      const { error: updateError } = await admin.from("parent_orders").update({selected_items: updatedItems}).eq("id", storedOrder.id);
+      if (updateError) throw updateError;
+      uploadedPath = "";
+      return json({duplicate: false, updated: true, order_number: storedOrder.order_number, public_token: storedOrder.public_token, status: storedOrder.status, selected_items: updatedItems, total_amount: storedOrder.total_amount, child_name: child.public_name, class_name: schoolClass.name});
+    }
 
     if (reference instanceof File && reference.size > 0) {
       if (!allowedTypes.has(reference.type) || reference.size > maxFileSize) return json({ error: "Прикрепите JPG, PNG или WebP не больше 5 МБ" }, 400);

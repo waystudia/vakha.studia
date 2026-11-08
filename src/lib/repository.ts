@@ -478,7 +478,7 @@ export async function submitPublicOrder(input: {
   withoutLaminationIds: string[];
   requestKey: string;
   note: string;
-  itemPreferences?: Record<string, { comment?: string; animationRequested?: boolean }>;
+  itemPreferences?: Record<string, { comment?: string; videoAddonRequested?: boolean }>;
 }): Promise<PublicOrderResult> {
   const { data, error } = await supabase.rpc("submit_parent_order_v3", {
     p_token: input.token,

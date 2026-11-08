@@ -11,7 +11,7 @@ async function request<T>(path: string, body?: unknown): Promise<T> {
 export async function getPublicClass(token: string): Promise<PublicClassPayload | null> {
   const payload = crm ? await request<PublicClassPayload | null>('classes/'+encodeURIComponent(token)) : await (await import('./repository')).getPublicClass(token);
   if (!payload) return null;
-  const referencePaths = payload.children.flatMap(child => child.orders?.flatMap(order => order.items.flatMap(item => item.reference_path ? [item.reference_path] : [])) || []);
+  const referencePaths = payload.children.flatMap(child => child.orders?.flatMap(order => order.items.flatMap(item => [item.reference_path, item.parent_video_path].filter((path): path is string => Boolean(path)))) || []);
   let previews: Record<string, string> = {};
   if (referencePaths.length) {
     const { data } = await supabase.functions.invoke('submit-parent-request', { body: { action: 'signPreviews', token } });
@@ -19,14 +19,14 @@ export async function getPublicClass(token: string): Promise<PublicClassPayload 
   }
   return {
     ...payload,
-    children: payload.children.map(child => ({...child, orders: child.orders?.map(order => ({...order, items: order.items.map(item => item.reference_path && previews[item.reference_path] ? {...item, preview_url: previews[item.reference_path]} : item)}))})),
+    children: payload.children.map(child => ({...child, orders: child.orders?.map(order => ({...order, items: order.items.map(item => ({...item, ...(item.reference_path && previews[item.reference_path] ? {preview_url: previews[item.reference_path]} : {}), ...(item.parent_video_path && previews[item.parent_video_path] ? {parent_video_url: previews[item.parent_video_path]} : {})}))}))})),
     catalog: payload.catalog.map(item => ({...item, preview_url: catalogPreviewUrl(item)})),
   };
 }
 export async function getPublicOrder(token: string): Promise<PublicOrderPayload | null> {
   return crm ? request('orders/'+encodeURIComponent(token)) : (await import('./repository')).getPublicOrder(token);
 }
-export async function submitPublicOrder(input: {token: string; childId: string; itemIds: string[]; withoutLaminationIds: string[]; requestKey: string; note: string; itemPreferences?: Record<string, {comment?: string; animationRequested?: boolean}>}): Promise<PublicOrderResult> {
+export async function submitPublicOrder(input: {token: string; childId: string; itemIds: string[]; withoutLaminationIds: string[]; requestKey: string; note: string; itemPreferences?: Record<string, {comment?: string; videoAddonRequested?: boolean}>}): Promise<PublicOrderResult> {
   if (!crm) return (await import('./repository')).submitPublicOrder(input);
   const storageKey='vakha-order:'+input.token+':'+input.childId;
   let saved: {key:string; items:string[]; withoutLamination?:string[]} | null=null;
@@ -34,6 +34,15 @@ export async function submitPublicOrder(input: {token: string; childId: string; 
   if (saved && saved.items.join('|')===[...input.itemIds].sort().join('|') && (saved.withoutLamination || []).join('|')===[...input.withoutLaminationIds].sort().join('|')) input={...input,requestKey:saved.key};
   try { localStorage.setItem(storageKey,JSON.stringify({key:input.requestKey,items:[...input.itemIds].sort(),withoutLamination:[...input.withoutLaminationIds].sort()})); } catch { /* The in-memory key still protects retries. */ }
   return request('classes/'+encodeURIComponent(input.token),input);
+}
+export async function attachPublicServiceVideo(input: {token: string; childId: string; itemId: string; video: File}): Promise<PublicOrderResult> {
+  const form = new FormData();
+  form.set('mode', 'attachServiceVideo'); form.set('token', input.token); form.set('childId', input.childId); form.set('itemId', input.itemId);
+  form.set('video', input.video, input.video.name);
+  const { data, error } = await supabase.functions.invoke('submit-parent-request', { body: form });
+  if (error) throw new Error(error.message || 'Не удалось прикрепить видео. Повторите попытку.');
+  if (data?.error) throw new Error(data.error);
+  return data as PublicOrderResult;
 }
 export async function submitPublicCustomRequest(input: {token: string; childId: string; message: string; requestKey: string; catalogItemId?: string; referenceFile?: File | null}): Promise<PublicOrderResult> {
   if (input.referenceFile || input.catalogItemId) {
