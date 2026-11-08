@@ -222,11 +222,16 @@ describe("child to catalog navigation", () => {
     fireEvent.click(screen.getByRole("button", { name: "Добавить Первое фото в заказ" }));
     fireEvent.click(screen.getByRole("button", { name: /Корзина.*1.*350/ }));
     fireEvent.click(screen.getByRole("button", { name: "Добавить пожелание" }));
+    expect(screen.getByRole("dialog", { name: "Корзина", hidden: true }).closest(".order-cart-layer")?.getAttribute("aria-hidden")).toBe("true");
+    const comment = screen.getByRole("textbox", { name: /Короткий комментарий/ });
+    const animation = screen.getByRole("checkbox", { name: /Оживление фото.*500/ });
+    expect(comment.compareDocumentPosition(animation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByText(/Интервью.*800 ₽.*ИИ.*видео.*1.*200 ₽/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("checkbox", { name: /Оживление фото.*500/ }));
+    fireEvent.click(animation);
     fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
     expect(screen.getByText("Оживление фото · +500 ₽")).toBeTruthy();
     expect(screen.getByText("850 ₽")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Корзина.*1.*850/ }));
     fireEvent.click(screen.getByRole("button", { name: "Оформить заявку" }));
     await waitFor(() => expect(submitPublicOrder).toHaveBeenCalledWith(expect.objectContaining({
       itemPreferences: { photo: { comment: "", videoAddonRequested: true } },
