@@ -212,7 +212,7 @@ describe("child to catalog navigation", () => {
     await waitFor(() => expect(cart.closest(".order-cart-layer")?.getAttribute("aria-hidden")).toBe("true"));
   });
 
-  it("separates the 500 ruble photo animation from the 1200 ruble AI video catalog", async () => {
+  it("keeps the 500 ruble photo animation separate from the individual AI video request", async () => {
     vi.mocked(submitPublicOrder).mockResolvedValueOnce({
       duplicate: false, updated: false, order_number: "VS-VIDEO", status: "new",
       selected_items: [{ id: "photo", name: "Первое фото", price: 850, type: "photo", video_addon_requested: true }],
@@ -226,7 +226,7 @@ describe("child to catalog navigation", () => {
     const comment = screen.getByRole("textbox", { name: /Короткий комментарий/ });
     const animation = screen.getByRole("checkbox", { name: /Оживление фото.*500/ });
     expect(comment.compareDocumentPosition(animation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByRole("button", { name: /ИИ.*видео.*1.*200 ₽.*Отдельное видео.*Выбрать/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /ИИ.*видео.*1.*200 ₽.*Заказать/ })).toBeTruthy();
     fireEvent.click(animation);
     fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
     expect(screen.getByText("Оживление фото · +500 ₽")).toBeTruthy();
@@ -236,6 +236,24 @@ describe("child to catalog navigation", () => {
     await waitFor(() => expect(submitPublicOrder).toHaveBeenCalledWith(expect.objectContaining({
       itemPreferences: { photo: { comment: "", videoAddonRequested: true } },
     })));
+  });
+
+  it("sends an individual AI video scenario with the selected photo as reference", async () => {
+    vi.mocked(submitPublicCustomRequest).mockResolvedValueOnce({
+      duplicate: false, updated: false, order_number: "VS-AI", status: "new",
+      selected_items: [], total_amount: 0, child_name: "Первый ребёнок", class_name: "1 А", public_token: "order-token",
+    });
+    render(<MemoryRouter initialEntries={["/p/test"]}><Routes><Route path="/p/:token" element={<PublicOrderPage />} /></Routes></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: /Первый ребёнок/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Добавить Первое фото в заказ" }));
+    fireEvent.click(screen.getByRole("button", { name: /ИИ.*видео.*Заказать/ }));
+    const form = screen.getByRole("dialog", { name: "Индивидуальное ИИ‑видео" });
+    fireEvent.change(within(form).getByRole("textbox"), { target: { value: "Герой скачет к башне" } });
+    fireEvent.click(within(form).getByRole("button", { name: "Отправить заявку" }));
+    expect(await within(form).findByText(/VS-AI/)).toBeTruthy();
+    expect(submitPublicCustomRequest).toHaveBeenCalledWith(expect.objectContaining({
+      childId: "first", catalogItemId: "photo", message: expect.stringContaining("Сценарий: Герой скачет к башне"),
+    }));
   });
 
   it("restores an existing order so a parent can replace or add services", async () => {
