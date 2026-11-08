@@ -226,7 +226,8 @@ describe("child to catalog navigation", () => {
     const comment = screen.getByRole("textbox", { name: /Короткий комментарий/ });
     const animation = screen.getByRole("checkbox", { name: /Оживление фото.*500/ });
     expect(comment.compareDocumentPosition(animation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByText(/Интервью.*800 ₽.*ИИ.*видео.*1.*200 ₽/)).toBeTruthy();
+    expect(screen.getByText("Для любой выбранной фотографии")).toBeTruthy();
+    expect(screen.getByText(/Оживление с вашим видео можно добавить к любому фото/)).toBeTruthy();
     fireEvent.click(animation);
     fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
     expect(screen.getByText("Оживление фото · +500 ₽")).toBeTruthy();
