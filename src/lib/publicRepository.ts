@@ -10,7 +10,18 @@ async function request<T>(path: string, body?: unknown): Promise<T> {
 }
 export async function getPublicClass(token: string): Promise<PublicClassPayload | null> {
   const payload = crm ? await request<PublicClassPayload | null>('classes/'+encodeURIComponent(token)) : await (await import('./repository')).getPublicClass(token);
-  return payload ? {...payload, catalog: payload.catalog.map(item => ({...item, preview_url: catalogPreviewUrl(item)}))} : null;
+  if (!payload) return null;
+  const referencePaths = payload.children.flatMap(child => child.orders?.flatMap(order => order.items.flatMap(item => item.reference_path ? [item.reference_path] : [])) || []);
+  let previews: Record<string, string> = {};
+  if (referencePaths.length) {
+    const { data } = await supabase.functions.invoke('submit-parent-request', { body: { action: 'signPreviews', token } });
+    previews = data?.previews || {};
+  }
+  return {
+    ...payload,
+    children: payload.children.map(child => ({...child, orders: child.orders?.map(order => ({...order, items: order.items.map(item => item.reference_path && previews[item.reference_path] ? {...item, preview_url: previews[item.reference_path]} : item)}))})),
+    catalog: payload.catalog.map(item => ({...item, preview_url: catalogPreviewUrl(item)})),
+  };
 }
 export async function getPublicOrder(token: string): Promise<PublicOrderPayload | null> {
   return crm ? request('orders/'+encodeURIComponent(token)) : (await import('./repository')).getPublicOrder(token);

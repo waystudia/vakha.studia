@@ -29,6 +29,31 @@ Deno.serve(async (req) => {
 
   let uploadedPath = "";
   try {
+    const url = Deno.env.get("SUPABASE_URL");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !serviceKey) throw new Error("Сервер вложений не настроен");
+    const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
+
+    if (req.headers.get("content-type")?.includes("application/json")) {
+      const body = await req.json().catch(() => ({})) as { action?: string; token?: string };
+      const token = String(body.token || "").trim();
+      if (body.action !== "signPreviews" || !/^[a-zA-Z0-9_-]{32,160}$/.test(token)) return json({ error: "Запрос недействителен" }, 400);
+      const { data: schoolClass, error: classError } = await admin.from("classes").select("id, owner_id, public_expires_at").eq("public_token", token).eq("status", "active").maybeSingle();
+      if (classError) throw classError;
+      if (!schoolClass || (schoolClass.public_expires_at && Date.parse(schoolClass.public_expires_at) <= Date.now())) return json({ error: "Ссылка недействительна или просрочена" }, 403);
+      const { data: orders, error: ordersError } = await admin.from("parent_orders").select("selected_items").eq("class_id", schoolClass.id).neq("status", "cancelled");
+      if (ordersError) throw ordersError;
+      const prefix = `${schoolClass.owner_id}/${schoolClass.id}/`;
+      const paths = [...new Set((orders || []).flatMap((order) => (order.selected_items as Array<Record<string, unknown>> || [])
+        .map((item) => String(item.reference_path || ""))
+        .filter((path) => path.startsWith(prefix))))];
+      const signed = await Promise.all(paths.map(async (path) => {
+        const { data } = await admin.storage.from("parent-request-references").createSignedUrl(path, 60 * 60);
+        return data?.signedUrl ? [path, data.signedUrl] as const : null;
+      }));
+      return json({ previews: Object.fromEntries(signed.filter((item): item is readonly [string, string] => Boolean(item))) });
+    }
+
     const form = await req.formData();
     const token = String(form.get("token") || "").trim();
     const childId = String(form.get("childId") || "").trim();
@@ -42,11 +67,6 @@ Deno.serve(async (req) => {
     }
     if (catalogItemId && !/^[0-9a-f-]{36}$/i.test(catalogItemId)) return json({ error: "Услуга выбрана неверно" }, 400);
     if (message.length < 3 && !catalogItemId && !(reference instanceof File)) return json({ error: "Опишите идею или прикрепите референс" }, 400);
-
-    const url = Deno.env.get("SUPABASE_URL");
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!url || !serviceKey) throw new Error("Сервер вложений не настроен");
-    const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
 
     const { data: schoolClass, error: classError } = await admin.from("classes").select("id, owner_id, public_expires_at").eq("public_token", token).eq("status", "active").maybeSingle();
     if (classError) throw classError;
