@@ -38,6 +38,15 @@ describe("fullscreen catalog journey", () => {
     expect(within(dialog).queryByRole("button", { name: "Добавить к заказу" })).toBeNull();
     expect(toggle).not.toHaveBeenCalled();
   });
+  it("turns a selected service into a direct checkout action for parents", async () => {
+    const toggle = vi.fn();
+    const checkout = vi.fn();
+    render(<MemoryRouter><CatalogViewer items={items} initialId="boy" selected={["boy"]} onToggle={toggle} onCheckout={checkout} onClose={() => {}} /></MemoryRouter>);
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Оформить заказ" }));
+    expect(checkout).toHaveBeenCalledOnce();
+    expect(toggle).not.toHaveBeenCalled();
+  });
   it("lets the general catalog hide filters over a full-screen photo and fit the entire image", async () => {
     render(<MemoryRouter><CatalogViewer immersive items={items} initialId="class" selected={[]} onToggle={() => {}} onClose={() => {}} /></MemoryRouter>);
     const dialog = await screen.findByRole("dialog");

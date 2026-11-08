@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowDown, ArrowUp, Check, Image as ImageIcon, Maximize, Plus, X, SlidersHorizontal, ChevronUp, ChevronDown, Scan } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Image as ImageIcon, Maximize, Plus, ShoppingCart, X, SlidersHorizontal, ChevronUp, ChevronDown, Scan } from "lucide-react";
 import { buildCatalogSections, type CatalogGender } from "../lib/catalogSections";
 import { catalogMediaUrl } from "../lib/mediaUrl";
 import { money } from "../lib/helpers";
@@ -76,11 +76,11 @@ function PhoneVideo({ item, active }: { item: ViewerItem; active: boolean }) {
 
 type Props = {
   items: ViewerItem[]; initialId: string; initialGender?: CatalogGender; initialCategory?: string;
-  immersive?: boolean; readOnly?: boolean; selected: string[]; onToggle: (id: string) => void; onClose: () => void;
+  immersive?: boolean; readOnly?: boolean; selected: string[]; onToggle: (id: string) => void; onClose: () => void; onCheckout?: () => void;
 };
 
 /** An overlay owns one history entry; the source page stays mounted underneath it. */
-export function CatalogViewer({ items, initialId, initialGender = "all", initialCategory = "all", selected, onToggle, onClose, immersive = false, readOnly = false }: Props) {
+export function CatalogViewer({ items, initialId, initialGender = "all", initialCategory = "all", selected, onToggle, onClose, onCheckout, immersive = false, readOnly = false }: Props) {
   const [gender, setGender] = useState<CatalogGender>(() => viewerItems(items, initialGender, initialCategory).some(item => item.id === initialId) ? initialGender : "all");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [fitted, setFitted] = useState(false);
@@ -116,6 +116,11 @@ export function CatalogViewer({ items, initialId, initialGender = "all", initial
   function close() {
     if (location.state?.catalogViewer === entry.current) navigate(-1);
     else closeCallback.current();
+  }
+  function checkout() {
+    if (!onCheckout) return;
+    onCheckout();
+    close();
   }
 
   useLayoutEffect(() => {
@@ -208,8 +213,8 @@ export function CatalogViewer({ items, initialId, initialGender = "all", initial
           {item.preview_video_url && <PhoneVideo item={item} active={item.id === activeId} />}
         </div>
         <footer className="service-gallery-footer"><span>{index + 1} / {visible.length}<small>{index < visible.length - 1 ? "Листайте вверх — следующая услуга" : "Последняя услуга"}</small></span>
-          {!readOnly && <button type="button" className={`button ${selected.includes(item.id) ? "button-secondary" : "button-primary"}`} aria-pressed={selected.includes(item.id)} onClick={() => onToggle(item.id)}>
-            {selected.includes(item.id) ? <Check size={18} /> : <Plus size={18} />}{selected.includes(item.id) ? "Добавлено" : "Добавить к заказу"}
+          {!readOnly && <button type="button" className={`button ${selected.includes(item.id) && !onCheckout ? "button-secondary" : "button-primary"}`} aria-pressed={selected.includes(item.id)} onClick={() => selected.includes(item.id) && onCheckout ? checkout() : onToggle(item.id)}>
+            {selected.includes(item.id) ? onCheckout ? <ShoppingCart size={18} /> : <Check size={18} /> : <Plus size={18} />}{selected.includes(item.id) ? onCheckout ? "Оформить заказ" : "Добавлено" : "Добавить к заказу"}
           </button>}</footer>
       </article>)}
       {!visible.length && <div className="service-gallery-empty"><h2>Нет услуг с такими фильтрами</h2><button className="button button-secondary" onClick={() => { setCategory("all"); setGender("all"); }}>Показать все услуги</button></div>}
