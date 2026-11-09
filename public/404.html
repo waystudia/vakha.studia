@@ -14,5 +14,12 @@
       })(window.location);
     </script>
   </head>
-  <body></body>
+  <body style="font-family:system-ui,sans-serif;background:#f5f7fb;color:#17243b;padding:32px;line-height:1.6">
+    <h1>Открываем страницу класса…</h1>
+    <p>Если переход задерживается, проверьте интернет. Попробуйте включить VPN; если он уже включён — выключите и включите снова.</p>
+    <p><a id="retry" href="./">Повторить переход</a></p>
+    <script>
+      document.getElementById('retry').href = location.origin + location.pathname.split('/').slice(0,2).join('/') + '/?/' + location.pathname.split('/').slice(2).join('/') + (location.search ? '&' + location.search.slice(1).replace(/&/g,'~and~') : '') + location.hash;
+    </script>
+  </body>
 </html>

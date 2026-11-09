@@ -25,8 +25,15 @@ export async function getPublicClass(token: string): Promise<PublicClassPayload 
   const referencePaths = payload.children.flatMap(child => child.orders?.flatMap(order => order.items.flatMap(item => [item.reference_path, item.parent_video_path].filter((path): path is string => Boolean(path)))) || []);
   let previews: Record<string, string> = {};
   if (referencePaths.length) {
-    const { data } = await supabase.functions.invoke('submit-parent-request', { body: { action: 'signPreviews', token } });
-    previews = data?.previews || {};
+    let previewTimer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const result = await Promise.race([
+        supabase.functions.invoke('submit-parent-request', { body: { action: 'signPreviews', token } }),
+        new Promise<null>(resolve => { previewTimer = setTimeout(() => resolve(null), 3000); }),
+      ]);
+      previews = result?.data?.previews || {};
+    } catch { /* Optional private previews must not block the class list. */ }
+    finally { clearTimeout(previewTimer); }
   }
   return {
     ...payload,
