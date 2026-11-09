@@ -30,6 +30,19 @@
     <script>
       (function () {
         var progress = 0;
+        window.setTimeout(function () {
+          var boot = document.querySelector('.kz-boot-card');
+          if (!boot) return;
+          window.clearInterval(timer);
+          var help = document.createElement('p');
+          help.textContent = 'Загрузка задерживается. Проверьте интернет. Попробуйте включить VPN. Если он уже включён, выключите и включите его снова.';
+          var retry = document.createElement('button');
+          retry.textContent = 'Повторить загрузку';
+          retry.style.cssText = 'padding:14px 20px;border:0;border-radius:12px;background:#2874e8;color:white;font-size:16px';
+          retry.onclick = function () { window.location.reload(); };
+          boot.appendChild(help);
+          boot.appendChild(retry);
+        }, 12000);
         var timer = window.setInterval(function () {
           var bar = document.getElementById("kz-boot-bar");
           var label = document.getElementById("kz-boot-percent");

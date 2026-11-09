@@ -8,7 +8,7 @@ vi.mock('./repository', () => ({ getPublicClass: loadPublicClass }));
 import { getPublicClass } from './publicRepository';
 
 describe('public parent request previews', () => {
-  beforeEach(() => { vi.clearAllMocks(); });
+  beforeEach(() => { vi.clearAllMocks(); vi.stubGlobal('fetch', vi.fn(async () => ({ok:true, json:loadPublicClass}))); });
 
   it('signs a private screenshot only inside the child order and never adds it to the catalog', async () => {
     loadPublicClass.mockResolvedValue({

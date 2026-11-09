@@ -28,6 +28,8 @@ function Protected({ session, children }: { session: Session | null; children: R
 
 export default function App() {
   const location = useLocation();
+  if (location.pathname.startsWith("/p/")) return <Routes><Route path="/p/:token" element={<PublicOrderPage />} /></Routes>;
+  if (location.pathname.startsWith("/order/")) return <Routes><Route path="/order/:token" element={<PublicOrderDetailsPage />} /></Routes>;
   // The installed public catalog must never wait for an administrator session.
   if (location.pathname === "/offline-catalog" || location.pathname.startsWith("/catalog/")) return <Routes><Route path="/offline-catalog" element={<OfflineCatalogPage />} /><Route path="/catalog/:token" element={<PublicCatalogPage />} /></Routes>;
   return <AdminApp />;

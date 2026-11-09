@@ -9,7 +9,18 @@ async function request<T>(path: string, body?: unknown): Promise<T> {
   return data;
 }
 export async function getPublicClass(token: string): Promise<PublicClassPayload | null> {
-  const payload = crm ? await request<PublicClassPayload | null>('classes/'+encodeURIComponent(token)) : await (await import('./repository')).getPublicClass(token);
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 15000);
+  let payload: PublicClassPayload | null;
+  try {
+    if (crm) payload = await request<PublicClassPayload | null>('classes/'+encodeURIComponent(token));
+    else {
+      const response = await fetch(import.meta.env.VITE_SUPABASE_URL + '/rest/v1/rpc/get_public_class', {method:'POST', headers:{apikey:import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, 'Content-Type':'application/json'}, body:JSON.stringify({p_token:token}), signal:controller.signal});
+      if (!response.ok) throw new Error('Сервер временно недоступен. Повторите загрузку.');
+      payload = await response.json();
+    }
+  } catch { throw new Error('Не удалось получить данные класса. Проверьте подключение и повторите загрузку.'); }
+  finally { window.clearTimeout(timer); }
   if (!payload) return null;
   const referencePaths = payload.children.flatMap(child => child.orders?.flatMap(order => order.items.flatMap(item => [item.reference_path, item.parent_video_path].filter((path): path is string => Boolean(path)))) || []);
   let previews: Record<string, string> = {};
