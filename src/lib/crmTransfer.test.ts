@@ -42,7 +42,7 @@ describe('CRM order transfer', () => {
     });
     expect(studentRecord({id:'crm-child',crm_source_id:'crm-child'} as Child, 'crm-class', [wishedOrder]).selectedServices[0]).toMatchObject({parentComment:'С мячом в руках',videoAddonRequested:true,parentVideoName:'interview.mp4'});
   });
-  it('builds a public class link for CRM',()=>expect(crmParentCatalogUrl('class token','https://waystudia.github.io/vakha.studia')).toBe('https://waystudia.github.io/p/class%20token'));
+  it('builds a public class link for CRM',()=>expect(crmParentCatalogUrl('class token','https://waystudia.github.io/vakha.studia')).toBe('https://waystudia.github.io/?/p/class%20token'));
 });
 
 import JSZip from 'jszip';

@@ -8,7 +8,7 @@ export function buildCrmClassLinks(school: School, classes: ClassWithStats[], or
   const links = classes.map((item) => ({
     projectId,
     classId: item.crm_source_id || "",
-    url: item.public_token ? new URL(`${import.meta.env.BASE_URL}p/${encodeURIComponent(item.public_token)}`, `${origin}/`).toString() : "",
+    url: item.public_token ? new URL(`${import.meta.env.BASE_URL}?/p/${encodeURIComponent(item.public_token)}`, `${origin}/`).toString() : "",
     token: item.public_token || ""
   })).filter((item) => item.classId && item.url);
   return { format: CRM_CLASS_LINKS_FORMAT, schemaVersion: 1, exportedAt: new Date().toISOString(), projectId, links };

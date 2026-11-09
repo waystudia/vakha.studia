@@ -8,7 +8,7 @@ describe("CRM class links export", () => {
       [{id:"local-class", crm_source_id:"crm-class", name:"4А", public_token:"public token", children_count:25}] as never,
       "https://vakha.example"
     );
-    expect(payload.links).toEqual([{projectId:"crm-project", classId:"crm-class", url:"https://vakha.example/p/public%20token", token:"public token"}]);
+    expect(payload.links).toEqual([{projectId:"crm-project", classId:"crm-class", url:"https://vakha.example/?/p/public%20token", token:"public token"}]);
     expect(JSON.stringify(payload)).not.toContain("Школа №1");
     expect(JSON.stringify(payload)).not.toContain("children_count");
   });

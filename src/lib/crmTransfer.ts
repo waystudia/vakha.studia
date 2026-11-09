@@ -12,7 +12,7 @@ function referenceFileName(name: string | undefined, contentType: string | undef
 }
 export function crmParentCatalogUrl(publicToken: string, origin = typeof window === "undefined" ? "" : window.location.origin) {
   if (!publicToken || !origin) return "";
-  return new URL(`${import.meta.env.BASE_URL}p/${encodeURIComponent(publicToken)}`, `${origin}/`).toString();
+  return new URL(`${import.meta.env.BASE_URL}?/p/${encodeURIComponent(publicToken)}`, `${origin}/`).toString();
 }
 function serviceRecord(item: CatalogItem) { return { id: item.source_id || item.id, serviceId: item.source_id || item.id, title: item.name, name: item.name, price: Number(item.price), description: item.description || item.short_description || "", shortDescription: item.short_description || "", category: item.category || "", gender: item.gender || "unisex", type: item.type || "photo", previewSrc: item.preview_url || "", previewVideoSrc: item.preview_video_url || "" }; }
 function referenceMediaId(order: ParentOrder, itemId: string, index: number) { return `parent_request_${safeName(order.id)}_${safeName(itemId)}_${index + 1}`; }
