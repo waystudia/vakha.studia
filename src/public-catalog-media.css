@@ -10,3 +10,5 @@
 .public-catalog-video-phone{max-width:none}
 .service-list .public-catalog-title strong{display:block;-webkit-line-clamp:unset}
 @media(max-width:360px){.public-catalog-title{grid-template-columns:minmax(0,1fr);gap:4px}.public-catalog-title b{justify-self:start}}
+/* Keep the viewport as the scroll container for sticky catalogue filters. */
+html, body, #root { overflow-x: clip; }
