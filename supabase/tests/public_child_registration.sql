@@ -7,6 +7,7 @@ begin
   insert into public.schools(owner_id, name, city) values(owner, 'Тест добавления — откат', 'Тест') returning id into school;
   insert into public.classes(owner_id, school_id, name, academic_year, public_token) values(owner, school, 'Тест', '2026', token) returning id into class;
   a := public.add_public_class_child(token, 'Адам', 'Семёнов');
+  if not exists(select 1 from public.children where id = (a->'child'->>'id')::uuid and crm_source_id = a->'child'->>'id') then raise exception 'Missing stable CRM identity'; end if;
   b := public.add_public_class_child(token, ' адам ', 'семенов');
   if a->'child'->>'id' <> b->'child'->>'id' or not (b->>'duplicate')::boolean then raise exception 'Normalized duplicate failed'; end if;
   b := public.add_public_class_child(token, 'Семенов', 'Адам');
