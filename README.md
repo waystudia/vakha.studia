@@ -52,3 +52,20 @@ Schools, children, services and previews are managed in CRM; no second catalog
 is imported into this deployment. The default build and legacy Supabase remain
 unchanged. The root page asks parents to use a class link; it lists no children.
 Old source: `/Users/abdulkadyrov2002/Documents/vakha-studia-preserved-20261101/source-before-crm.tar`.
+
+### Добавление детей по ссылке класса
+
+В стандартной Supabase-версии родитель или учитель может открыть ссылку класса
+и нажать «Добавить ребёнка». Достаточно фамилии и имени; регистрация и заявка
+не нужны. Похожие имена предлагаются для выбора, но новое написание разрешено.
+Точное совпадение с учётом регистра, пробелов, ё/е и перестановки полей возвращает
+существующего ребёнка. Учитель может последовательно добавить несколько детей.
+
+Проект CRM разрешено импортировать без детей: ссылки создаются для классов.
+Для возврата только ссылок используйте существующий JSON `vakha-studia-class-links`
+(v1, обновление по ID). Для переноса добавленных на сайте детей используйте полный
+ZIP проекта/класса — он включает детей без заявок с постоянными ID.
+Функция не включена в отдельной сборке `VITE_CRM_MODE=true`, где список ведёт API CRM.
+
+Проверка RPC с откатом всех тестовых данных:
+`supabase db query --linked --file supabase/tests/public_child_registration.sql`.

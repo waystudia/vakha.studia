@@ -106,3 +106,13 @@ describe('complete CRM ZIP contract', () => {
     expect(JSON.parse(await repeat.zip.file('data.json')!.async('string')).orders).toEqual(data.orders);
   });
 });
+
+it('exports a publicly added child without orders using a stable ID', async () => {
+ vi.mocked(loadSchool).mockResolvedValue({school:{id:'s',crm_source_id:'project',name:'Школа'},classes:[{id:'c',crm_source_id:'class',name:'1А',public_token:'token'}]} as never);
+ vi.mocked(loadClass).mockResolvedValue({schoolClass:{id:'c',crm_source_id:'class',name:'1А',public_token:'token'},children:[{id:'public-child',first_name:'Адам',last_name:'Алиев',public_name:'Алиев Адам'}],orders:[]} as never);
+ vi.mocked(loadCatalog).mockResolvedValue([]);
+ const {zip}=await buildCrmTransfer({kind:'school',id:'s'});
+ const data=JSON.parse(await zip.file('data.json')!.async('string'));
+ expect(data.students[0]).toMatchObject({id:'public-child',classId:'class',firstName:'Адам',lastName:'Алиев',catalogIds:[]});
+ expect(data.orders).toEqual([]);
+});

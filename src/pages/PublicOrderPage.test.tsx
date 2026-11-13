@@ -8,6 +8,7 @@ import { hasWatchedParentIntro } from "../lib/parentIntroProgress";
 vi.mock("../lib/parentIntroProgress", () => ({ hasWatchedParentIntro: vi.fn(() => true) }));
 vi.mock("../components/ParentIntro", () => ({ ParentIntro: () => null }));
 vi.mock("../lib/publicRepository", () => ({
+  supportsPublicChildRegistration: true,
   getPublicClass: vi.fn(async () => ({
     school: { name: "Школа №1" }, class: { name: "1 А", photo_session_name: "Фотосессия" },
     children: [

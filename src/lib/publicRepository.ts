@@ -2,6 +2,7 @@ import type { PublicClassPayload, PublicOrderPayload, PublicOrderResult } from '
 import { catalogPreviewUrl } from './catalogPreview';
 import { supabase } from './supabase';
 const crm = import.meta.env.VITE_CRM_MODE === 'true';
+export const supportsPublicChildRegistration = !crm;
 async function request<T>(path: string, body?: unknown): Promise<T> {
   const response = await fetch('/api/v1/public/' + path, {method: body ? 'POST' : 'GET', cache: 'no-store', credentials: 'omit', headers: body ? {'Content-Type':'application/json'} : {}, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(20000)});
   const data = await response.json();
@@ -79,4 +80,11 @@ export async function submitPublicCustomRequest(input: {token: string; childId: 
 export async function cancelPublicOrder(input: {token: string; childId: string}): Promise<PublicOrderResult> {
   if (!crm) return (await import('./repository')).cancelPublicOrder(input);
   return request('classes/'+encodeURIComponent(input.token)+'/children/'+encodeURIComponent(input.childId)+'/order/cancel', {});
+}
+
+export async function addPublicChild(input: {token: string; firstName: string; lastName: string}): Promise<{child: PublicClassPayload['children'][number]; duplicate: boolean}> {
+  if (crm) throw new Error('Добавление детей в этой версии доступно через CRM');
+  const { data, error } = await supabase.rpc('add_public_class_child', {p_token: input.token, p_first_name: input.firstName, p_last_name: input.lastName});
+  if (error) throw error;
+  return data;
 }

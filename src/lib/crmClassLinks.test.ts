@@ -13,3 +13,9 @@ describe("CRM class links export", () => {
     expect(JSON.stringify(payload)).not.toContain("children_count");
   });
 });
+
+it('exports a class link before any children are added', () => {
+ const payload = buildCrmClassLinks({crm_source_id:'project'} as never, [{crm_source_id:'class', public_token:'token', children_count:0}] as never, 'https://vakha.example');
+ expect(payload.links).toHaveLength(1);
+ expect(payload.links[0].classId).toBe('class');
+});

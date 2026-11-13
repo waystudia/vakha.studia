@@ -19,3 +19,9 @@ it('reads an actual CRM-format ZIP with manifest and data',async()=>{
  const draft=await parseCrmProjectZip(new File([new Uint8Array(data).buffer],'project.zip',{type:'application/zip'}));
  expect(draft.students[0].classId).toBe('c');expect(draft.classes[0].projectId).toBe('p');
 });
+
+it('imports classes and teacher contacts with no children', () => {
+ const draft = validateCrmProject({...base, students: []});
+ expect(draft.students).toEqual([]);
+ expect(draft.classes[0].teacher.phone).toBe('79990000000');
+});

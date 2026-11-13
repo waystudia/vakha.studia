@@ -1,0 +1,33 @@
+import { afterEach, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { PublicChildRegistration } from './PublicChildRegistration';
+import { addPublicChild } from '../lib/publicRepository';
+vi.mock('../lib/publicRepository', () => ({ addPublicChild: vi.fn() }));
+afterEach(() => { cleanup(); vi.clearAllMocks(); });
+it('offers a similar existing child and allows adding a different one without an order', async () => {
+  const onChoose = vi.fn(), onSaved = vi.fn();
+  vi.mocked(addPublicChild).mockResolvedValue({ child: { id: 'new', public_name: 'Абдулаев Адам', orders: [] }, duplicate: false });
+  render(<PublicChildRegistration token="class-token" children={[{ id: 'old', public_name: 'Абдуллаев Адам' }]} onChoose={onChoose} onSaved={onSaved}/>);
+  fireEvent.click(screen.getByText('+ Добавить ребёнка'));
+  fireEvent.change(screen.getByLabelText('Фамилия'), { target: { value: 'Абдулаев' } });
+  fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Адам' } });
+  fireEvent.click(screen.getByText('Абдуллаев Адам · Выбрать'));
+  expect(onChoose).toHaveBeenCalledWith('old');
+  expect(addPublicChild).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByText('Добавить нового ребёнка'));
+  await screen.findByText('Добавить ещё ребёнка');
+  expect(onSaved).toHaveBeenCalledWith({ id: 'new', public_name: 'Абдулаев Адам', orders: [] });
+  expect(onChoose).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByText('Добавить ещё ребёнка'));
+  expect((screen.getByLabelText('Фамилия') as HTMLInputElement).value).toBe('');
+});
+it('keeps entered names after a server error', async () => {
+  vi.mocked(addPublicChild).mockRejectedValue(new Error('Нет связи'));
+  render(<PublicChildRegistration token="class-token" children={[]} onChoose={vi.fn()} onSaved={vi.fn()}/>);
+  fireEvent.click(screen.getByText('+ Добавить ребёнка'));
+  fireEvent.change(screen.getByLabelText('Фамилия'), { target: { value: 'Гараев' } });
+  fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Иса' } });
+  fireEvent.click(screen.getByText('Добавить в список'));
+  expect((await screen.findByRole('alert')).textContent).toContain('Нет связи');
+  expect((screen.getByLabelText('Имя') as HTMLInputElement).value).toBe('Иса');
+});
