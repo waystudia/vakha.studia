@@ -82,6 +82,14 @@ export interface CatalogItem {
 }
 
 export interface SelectedOrderItem {
+  entryId?: string;
+  requestType?: string;
+  price_pending?: boolean;
+  referenceMediaId?: string;
+  parentVideoMediaId?: string;
+  videoAddonRequested?: boolean;
+  parentComment?: string;
+  withoutLamination?: boolean;
   request_key?: string;
   quantity?: number;
   comment?: string;
@@ -171,7 +179,7 @@ export interface PublicClassPayload {
     academic_year: string;
     photo_session_name: string;
   };
-  children: Array<{ id: string; public_name: string; orders?: Array<{status: OrderStatus; items: PublicSelectedOrderItem[]}> }>;
+  children: Array<{ id: string; public_name: string; orders?: Array<{revision?: number; status: OrderStatus; items: PublicSelectedOrderItem[]}> }>;
   catalog: Array<{
     id: string;
     name: string;
@@ -190,6 +198,7 @@ export interface PublicClassPayload {
 }
 
 export interface PublicOrderResult {
+  revision?: number;
   duplicate: boolean;
   updated?: boolean;
   order_number: string;

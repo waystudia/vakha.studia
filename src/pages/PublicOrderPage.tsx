@@ -1,4 +1,5 @@
 import { hasWatchedParentIntro } from "../lib/parentIntroProgress";
+import { PublicPendingRequests } from "../components/PublicPendingRequests";
 import { PublicChildRegistration } from "../components/PublicChildRegistration";
 import { ParentIntro } from "../components/ParentIntro";
 import { ArrowLeft, Camera, CheckCircle2, ImagePlus, LoaderCircle, MessageSquarePlus, Play, ShieldCheck, ShieldOff, ShoppingCart, Sparkles, Trash2, UserRound, Video, X } from "lucide-react";
@@ -7,10 +8,11 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Modal, Notice } from "../components/ui";
 import { ServiceCard } from "../components/ServiceCard";
 import { CatalogViewer } from "../components/CatalogViewer";
+import { isCustomPublicItem, publicOrderTotal } from "../lib/publicOrderPrice";
 import { humanError, money } from "../lib/helpers";
 import { buildCatalogSections, type CatalogGender } from "../lib/catalogSections";
 import { catalogMediaUrl } from "../lib/mediaUrl";
-import { attachPublicServiceVideo, cancelPublicOrder, getPublicClass, supportsPublicChildRegistration, submitPublicCustomRequest, submitPublicOrder } from "../lib/publicRepository";
+import { attachPublicServiceVideo, cancelPublicOrder, getPublicClass, isCrmPublicMode, PublicApiError, supportsPublicChildRegistration, submitPublicCustomRequest, submitPublicOrder } from "../lib/publicRepository";
 import { optimizeCatalogVideo } from "../lib/optimizeCatalogMedia";
 import { trackPublicVisit } from "../lib/visitAnalytics";
 import type { PublicClassPayload, PublicOrderResult, PublicSelectedOrderItem } from "../lib/types";
@@ -116,10 +118,10 @@ function OrderCart({ items, customItems, total, open, pending, editing, withoutL
       <section className="order-cart-sheet" data-dragging={dragY > 0} style={dragY > 0 ? { transform: `translateY(${dragY}px)` } : undefined} role="dialog" aria-modal="true" aria-labelledby="order-cart-title" onClickCapture={event => { if (suppressDragClick.current) { event.preventDefault(); event.stopPropagation(); suppressDragClick.current = false; } }} onClick={event => event.stopPropagation()} onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={finishDrag} onPointerCancel={finishDrag}>
         <div className="order-cart-handle" aria-hidden="true" />
         <header><div><span>Ваш выбор</span><h2 id="order-cart-title">Корзина</h2></div><button ref={closeButton} type="button" className="order-cart-close" aria-label="Закрыть корзину" onClick={onClose}><X /></button></header>
-        <div className="order-cart-items">{customItems.map((item, index) => <article className="order-cart-item order-cart-custom-item" key={item.id || `custom-${index}`}>
+        <div className="order-cart-items">{customItems.map((item, index) => <article className="order-cart-item order-cart-custom-item" key={`${item.entryId || item.id || "custom"}-${index}`}>
           <div className="order-cart-photo">{item.preview_url ? <img src={item.preview_url} alt={item.reference_name || item.reference_service_name || "Референс"} /> : <ImagePlus />}</div>
           <div className="order-cart-item-copy"><strong>Индивидуальный заказ</strong>{item.reference_service_name && <b>{item.reference_service_name}</b>}</div>
-          <span className="order-cart-custom-badge">{item.reference_path ? "Скрин прикреплён" : "По каталогу"}</span>
+          <span className="order-cart-custom-badge">{item.reference_path || item.referenceMediaId ? "Скрин прикреплён" : "По каталогу"}</span>
           {item.comment && <p className="order-cart-custom-comment">{item.comment}</p>}
         </article>)}{items.map(item => {
           const protectedPhoto = !withoutLamination.includes(item.id);
@@ -136,7 +138,7 @@ function OrderCart({ items, customItems, total, open, pending, editing, withoutL
           </article>;
         })}</div>
         <button type="button" className="order-cart-add-more" onClick={onClose}>+ Добавить ещё услугу из каталога</button>
-        <footer><div><span>{items.some(item => preferences[item.id]?.comment.startsWith(aiPrefix)) ? "Итого без ИИ‑видео" : "Итого"}</span><strong>{money(total)}</strong></div>{items.length > 0
+        <footer><div><span>{items.some(item => preferences[item.id]?.comment.startsWith(aiPrefix)) ? "Итого без ИИ‑видео" : customItems.some(item => item.price_pending) ? "Итого + по согласованию" : "Итого"}</span><strong>{money(total)}</strong></div>{items.length > 0
           ? <button className="button button-primary" disabled={pending} onClick={onSubmit}>{pending && <LoaderCircle className="spin" size={18} />}{editing ? "Сохранить изменения" : "Оформить заявку"}</button>
           : <button className="button button-primary" onClick={onClose}>Готово</button>}</footer>
       </section>
@@ -167,6 +169,10 @@ export function PublicOrderPage() {
   const [result, setResult] = useState<PublicOrderResult | null>(null); const [previewItem, setPreviewItem] = useState<CatalogEntry | null>(null); const [gender, setGender] = useState<CatalogGender>("all");
   const [activeCategory, setActiveCategory] = useState("all");
   const [filtersPinned, setFiltersPinned] = useState(false);
+  const orderRevision = useRef(0);
+  const optimizedVideos = useRef(new WeakMap<File, File>());
+  const acceptedOrder = useRef<{signature: string; order: PublicOrderResult} | null>(null);
+  const [conflict, setConflict] = useState(false);
   const requestKey = useRef(crypto.randomUUID());
   const categoryCardsRef = useRef<HTMLDivElement | null>(null);
   const childOrigin = useRef<{ scrollY: number; childId: string }>({ scrollY: 0, childId: "" });
@@ -178,7 +184,16 @@ export function PublicOrderPage() {
   stepRef.current = step;
 
   useEffect(() => { trackPublicVisit(token, "class"); }, [token]);
-  useEffect(() => { void (async () => { try { const payload = await getPublicClass(token); if (!payload) throw new Error("Ссылка недействительна или срок её действия истёк"); setData(payload); } catch (reason) { setError(humanError(reason)); } finally { setLoading(false); } })(); }, [token]);
+  useEffect(() => {
+    let alive = true;
+    setLoading(true); setData(null); setError(""); setStep("child");
+    void (async () => {
+      try { const payload = await getPublicClass(token); if (!payload) throw new Error("Ссылка недействительна или срок её действия истёк"); if (alive) setData(payload); }
+      catch (reason) { if (alive) setError(humanError(reason)); }
+      finally { if (alive) setLoading(false); }
+    })();
+    return () => { alive = false; };
+  }, [token]);
   useEffect(() => {
     let alive = true;
     async function refreshList() { try { const payload = await getPublicClass(token); if (alive && payload) setData(payload); } catch { /* Keep current selection during a temporary connection failure. */ } }
@@ -229,10 +244,10 @@ export function PublicOrderPage() {
   }, [location]);
   const child = data?.children.find((item) => item.id === childId);
   const sortedChildren = useMemo(() => [...(data?.children || [])].sort((left, right) => russianNameCollator.compare(left.public_name.trim(), right.public_name.trim())), [data]);
-  const editingExisting = Boolean(child?.orders?.some((order) => order.status !== "cancelled" && order.items.some((item) => Boolean(item.id && data?.catalog.some((entry) => entry.id === item.id)))));
+  const editingExisting = Boolean(child?.orders?.some((order) => order.status !== "cancelled" && order.items.some((item) => !isCustomPublicItem(item) && Boolean(item.id && data?.catalog.some((entry) => entry.id === item.id)))));
   const selectedCatalogItems = useMemo(() => data?.catalog.filter((item) => selected.includes(item.id)) || [], [data, selected]);
-  const customOrderItems = useMemo(() => child?.orders?.filter((order) => order.status !== "cancelled").flatMap((order) => order.items.filter((item) => item.type === "custom" || item.id?.startsWith("custom-request"))) || [], [child]);
-  const total = useMemo(() => data?.catalog.filter((item) => selected.includes(item.id)).reduce((sum, item) => sum + Math.max(0, Number(item.price) - (withoutLamination.includes(item.id) ? 50 : 0)) + (servicePreferences[item.id]?.videoAddonRequested ? 500 : 0), 0) || 0, [data, selected, withoutLamination, servicePreferences]);
+  const customOrderItems = useMemo(() => child?.orders?.filter((order) => order.status !== "cancelled").flatMap((order) => order.items.filter((item) => isCustomPublicItem(item))) || [], [child]);
+  const total = useMemo(() => (data?.catalog.filter((item) => selected.includes(item.id)).reduce((sum, item) => sum + Math.max(0, Number(item.price) - (withoutLamination.includes(item.id) ? 50 : 0)) + (servicePreferences[item.id]?.videoAddonRequested ? 500 : 0), 0) || 0) + customOrderItems.reduce((sum, item) => sum + Number(item.price || 0) * (item.quantity || 1), 0), [data, selected, withoutLamination, servicePreferences, customOrderItems]);
   const sections = useMemo(() => buildCatalogSections(data?.catalog || [], gender), [data, gender]);
   const prioritizedSections = useMemo(() => sections.map((section) => ({ ...section, items: [...section.items].sort((left, right) => Number(Boolean(right.popular)) - Number(Boolean(left.popular))) })), [sections]);
   const popularItems = useMemo(() => prioritizedSections.flatMap((section) => section.items.find((item) => item.popular) || []), [prioritizedSections]);
@@ -307,20 +322,23 @@ export function PublicOrderPage() {
   }
   function choosePreferenceVideo(file?: File) { if (!file) return; if (!file.type.startsWith("video/") || file.size > 120 * 1024 * 1024) { setError("Выберите видео не больше 120 МБ. Перед отправкой оно будет сжато."); return; } setError(""); setPreferenceDraft(value => ({...value, videoAddonRequested: true, videoFile: file, videoName: file.name})); }
   function savePreference() { if (!preferenceItem) return; const value = { ...preferenceDraft, comment: preferenceDraft.comment.trim().slice(0, 240) }; setServicePreferences(current => value.comment || value.videoAddonRequested ? {...current, [preferenceItem.id]: value} : Object.fromEntries(Object.entries(current).filter(([id]) => id !== preferenceItem.id))); setPreferenceItem(null); }
-  function openServices(id: string) {
-    const order = data?.children.find((item) => item.id === id)?.orders?.[0];
+  function openServices(id: string, knownChild?: PublicClassPayload["children"][number], currentData = data) {
+    const snapshot = (knownChild || currentData?.children.find((item) => item.id === id))?.orders?.[0];
+    orderRevision.current = snapshot?.revision ?? 0; acceptedOrder.current = null; setConflict(false);
+    const order = snapshot?.status === "cancelled" ? undefined : snapshot;
     const restored = order?.items.flatMap((item) => {
-      if (item.id && data?.catalog.some((entry) => entry.id === item.id)) return [item.id];
-      const named = data?.catalog.filter((entry) => entry.name === item.name) || [];
+      if (isCustomPublicItem(item)) return [];
+      if (item.id && currentData?.catalog.some((entry) => entry.id === item.id)) return [item.id];
+      const named = currentData?.catalog.filter((entry) => entry.name === item.name) || [];
       return named.length === 1 ? [named[0].id] : [];
     }) || [];
     const unprotected = order?.items.flatMap((item) => {
-      if (item.comment !== "Без ламинации (защиты)") return [];
+      if (!item.withoutLamination && !item.comment?.startsWith("Без ламинации")) return [];
       if (item.id && restored.includes(item.id)) return [item.id];
-      const named = data?.catalog.filter((entry) => entry.name === item.name) || [];
+      const named = currentData?.catalog.filter((entry) => entry.name === item.name) || [];
       return named.length === 1 ? [named[0].id] : [];
     }) || [];
-    const restoredPreferences = Object.fromEntries((order?.items || []).filter((item) => item.id && (item.parent_comment || item.video_addon_requested || item.animation_requested)).map((item) => [item.id, { comment: item.parent_comment || "", videoAddonRequested: Boolean(item.video_addon_requested || item.animation_requested), videoName: item.parent_video_name || "" }]));
+    const restoredPreferences = Object.fromEntries((order?.items || []).filter((item) => item.id && (item.parent_comment || item.video_addon_requested || item.animation_requested || item.videoAddonRequested)).map((item) => [item.id, { comment: item.parent_comment || "", videoAddonRequested: Boolean(item.video_addon_requested || item.animation_requested || item.videoAddonRequested), videoName: item.parent_video_name || (item.parentVideoMediaId ? "Видео прикреплено" : "") }]));
     childOrigin.current = { scrollY: window.scrollY, childId: id };
     servicesEntry.current = crypto.randomUUID();
     servicesArmed.current = false;
@@ -351,37 +369,56 @@ export function PublicOrderPage() {
     setPending(true); setError(""); setNotice(""); setUploadStatus("");
     try {
       if (!selected.length) {
-        await cancelPublicOrder({ token, childId });
-        setData(current => current ? {...current, children: current.children.map(item => item.id === childId ? {...item, orders: []} : item)} : current);
+        const cancelled = await cancelPublicOrder({ token, childId, revision: orderRevision.current });
+        orderRevision.current = cancelled.revision ?? orderRevision.current;
+        acceptedOrder.current = null;
+        setData(current => current ? {...current, children: current.children.map(item => item.id === childId ? {...item, orders: isCrmPublicMode ? [{status: "cancelled", revision: orderRevision.current, items: []}] : []} : item)} : current);
         setWithoutLamination([]); setServicePreferences({}); setNotice("Заявка удалена. Можно выбрать услуги заново."); restoreChildren(); return;
       }
-      let order = await submitPublicOrder({
-        token, childId, itemIds: selected,
+      const signature = JSON.stringify({childId, selected, withoutLamination, preferences: Object.entries(servicePreferences).map(([id, value]) => [id, value.comment, value.videoAddonRequested])});
+      let order = acceptedOrder.current?.signature === signature ? acceptedOrder.current.order : await submitPublicOrder({
+        token, childId, itemIds: selected, revision: orderRevision.current,
         withoutLaminationIds: withoutLamination.filter((id) => selected.includes(id)), requestKey: requestKey.current, note: "",
         itemPreferences: Object.fromEntries(Object.entries(servicePreferences).filter(([id]) => selected.includes(id)).map(([id, value]) => [id, {comment: value.comment, videoAddonRequested: value.videoAddonRequested}])),
       });
+      orderRevision.current = order.revision ?? orderRevision.current;
+      if (isCrmPublicMode) acceptedOrder.current = {signature, order};
       const videos = Object.entries(servicePreferences).filter(([id, value]) => selected.includes(id) && value.videoFile);
       for (let index = 0; index < videos.length; index += 1) {
         const [itemId, preference] = videos[index];
         setUploadStatus(`Сжимаем видео ${index + 1} из ${videos.length}…`);
-        const optimized = await optimizeCatalogVideo(preference.videoFile!);
-        if (optimized.size > 25 * 1024 * 1024) throw new Error("Видео не удалось уменьшить до 25 МБ. Обрежьте его или выберите более короткий ролик.");
-        const extension = optimized.type.includes("webm") ? "webm" : optimized.type.includes("quicktime") ? "mov" : "mp4";
-        const video = new File([optimized], `${preference.videoFile!.name.replace(/\.[^.]+$/, "")}.${extension}`, {type: optimized.type || preference.videoFile!.type});
+        let video = optimizedVideos.current.get(preference.videoFile!);
+        if (!video) {
+          const optimized = await optimizeCatalogVideo(preference.videoFile!);
+          if (optimized.size > 25 * 1024 * 1024) throw new Error("Видео не удалось уменьшить до 25 МБ. Обрежьте его или выберите более короткий ролик.");
+          const extension = optimized.type.includes("webm") ? "webm" : optimized.type.includes("quicktime") ? "mov" : "mp4";
+          video = new File([optimized], `${preference.videoFile!.name.replace(/\.[^.]+$/, "")}.${extension}`, {type: optimized.type || preference.videoFile!.type});
+          optimizedVideos.current.set(preference.videoFile!, video);
+        }
         setUploadStatus(`Отправляем видео ${index + 1} из ${videos.length}…`);
-        order = await attachPublicServiceVideo({token, childId, itemId, video});
+        order = await attachPublicServiceVideo({token, childId, itemId, video, revision: orderRevision.current});
+        orderRevision.current = order.revision ?? orderRevision.current;
+        if (isCrmPublicMode) {
+          acceptedOrder.current = {signature, order};
+          setServicePreferences(current => ({...current, [itemId]: {...current[itemId], videoFile: undefined}}));
+        }
       }
-      setData(current => current ? {...current, children: current.children.map(item => item.id === childId ? {...item, orders: [{status: order.status, items: order.selected_items}]} : item)} : current);
+      setData(current => current ? {...current, children: current.children.map(item => item.id === childId ? {...item, orders: [{status: order.status, items: order.selected_items, revision: order.revision}]} : item)} : current);
       setResult(order); setSelected(order.selected_items.map((item) => item.id));
-      setWithoutLamination(order.selected_items.filter((item) => item.comment === "Без ламинации (защиты)").map((item) => item.id));
-      setServicePreferences(Object.fromEntries(order.selected_items.filter(item => item.parent_comment || item.video_addon_requested).map(item => [item.id, {comment: item.parent_comment || "", videoAddonRequested: Boolean(item.video_addon_requested), videoName: item.parent_video_name || ""}])));
+      setWithoutLamination(order.selected_items.filter((item) => item.withoutLamination || item.comment?.startsWith("Без ламинации")).map((item) => item.id));
+      setServicePreferences(Object.fromEntries(order.selected_items.filter(item => item.parent_comment || item.video_addon_requested || item.videoAddonRequested).map(item => [item.id, {comment: item.parent_comment || "", videoAddonRequested: Boolean(item.video_addon_requested || item.videoAddonRequested), videoName: item.parent_video_name || (item.parentVideoMediaId ? "Видео прикреплено" : "")}])));
       setStep("done");
-    } catch (reason) { setError(humanError(reason)); }
+    } catch (reason) { setConflict(reason instanceof PublicApiError && reason.status === 409); setError((isCrmPublicMode && acceptedOrder.current ? 'Выбор услуг уже принят сервером. Вложения отправлены не полностью. ' : '') + humanError(reason)); }
     finally { setUploadStatus(""); setPending(false); }
   }
   function closeCustomRequest() { setCustomRequestOpen(false); setCustomReferenceFile(null); setCustomReferenceServiceId(""); setCustomServiceSearch(""); }
   function chooseCustomReferenceFile(file?: File) { if (!file) return; if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) { setError("Прикрепите JPG, PNG или WebP не больше 5 МБ."); return; } setError(""); setCustomReferenceFile(file); }
-  async function submitCustomRequest(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!childId || pending) return; const message = String(new FormData(event.currentTarget).get("message") || "").trim(); if (message.length < 3 && !customReferenceFile && !customReferenceServiceId) { setError("Опишите идею или прикрепите скрин либо услугу из каталога."); return; } setPending(true); setError(""); try { const order = await submitPublicCustomRequest({ token, childId, message, requestKey: crypto.randomUUID(), catalogItemId: customReferenceServiceId || undefined, referenceFile: customReferenceFile }); setData(current => current ? {...current, children: current.children.map(item => item.id === childId ? {...item, orders: [{status: order.status, items: order.selected_items}]} : item)} : current); closeCustomRequest(); setResult(order); setStep("done"); } catch (reason) { setError(humanError(reason)); } finally { setPending(false); } }
+  async function submitCustomRequest(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!childId || pending) return; const message = String(new FormData(event.currentTarget).get("message") || "").trim(); if (message.length < 3 && !customReferenceFile && !customReferenceServiceId) { setError("Опишите идею или прикрепите скрин либо услугу из каталога."); return; } setPending(true); setError(""); try { const order = await submitPublicCustomRequest({ token, childId, message, revision: orderRevision.current, requestKey: crypto.randomUUID(), catalogItemId: customReferenceServiceId || undefined, referenceFile: customReferenceFile }); setData(current => current ? {...current, children: current.children.map(item => item.id === childId ? {...item, orders: [{status: order.status, items: order.selected_items, revision: order.revision}]} : item)} : current); orderRevision.current = order.revision ?? orderRevision.current; acceptedOrder.current = null; closeCustomRequest(); setResult(order); setStep("done"); } catch (reason) { setError(humanError(reason)); } finally { setPending(false); } }
+  async function refreshPublicClass() {
+    const payload = await getPublicClass(token);
+    if (!payload) throw new Error('Ссылка класса недействительна');
+    setData(payload);
+  }
   function chooseAnotherChild() { requestKey.current = crypto.randomUUID(); setResult(null); setSelected([]); setWithoutLamination([]); setServicePreferences({}); setChildId(""); setError(""); setPreviewItem(null); setStep("child"); }
   function orderLink(publicToken: string) { return `${window.location.origin}${import.meta.env.BASE_URL}order/${publicToken}`; }
   function renderCard(item: CatalogEntry, previewOnly = false) { return <ServiceCard key={item.id} item={item} selected={selected.includes(item.id)} related={previewOnly} withLamination={!withoutLamination.includes(item.id)} onOpen={() => setPreviewItem(item)} onToggle={() => toggleWithPreference(item)} onLaminationChange={previewOnly ? undefined : (value) => setLamination(item.id, value)} onPreference={previewOnly ? undefined : () => openPreference(item)} />; }
@@ -390,8 +427,13 @@ export function PublicOrderPage() {
   if (!data) return null;
   return <main className="public-page"><div className="public-shell"><header className="public-header"><div className="public-logo"><span className="brand-mark">KZ</span><div><strong>Khan Zama</strong><small>Школьная фотография</small></div></div><span className="step-indicator">{step === "child" ? "Шаг 1 из 2" : step === "services" ? "Шаг 2 из 2" : "Готово"}</span></header>
     <ParentIntro watched={introClosed} onComplete={() => setIntroClosed(true)} />
+    {isCrmPublicMode && <PublicPendingRequests token={token} onRefresh={refreshPublicClass}/>}
+    {conflict && <div className="public-content"><Notice kind="error">Данные изменились. Ваш выбор сохранён на экране. Обновите список, вернитесь к ребёнку и проверьте заявку перед новой отправкой.</Notice><button className="button button-secondary" type="button" onClick={() => { void refreshPublicClass().then(() => { setConflict(false); setNotice("Список обновлён. Откройте ребёнка заново, чтобы увидеть принятую заявку."); }).catch(reason => setError(humanError(reason))); }}>Обновить список класса</button></div>}
     {step === "child" && notice && <div className="public-inline-notice"><Notice kind="info">{notice}</Notice></div>}
-    {step === "child" && <section className="public-content" id="public-catalog-start"><span className="eyebrow">{data.school.name} · {data.class.name}</span><h1>{data.class.photo_session_name}</h1><p className="public-lead">{supportsPublicChildRegistration ? "Выберите своего ребёнка или добавьте его в список" : "Выберите своего ребёнка"}</p>{supportsPublicChildRegistration && <PublicChildRegistration token={token} children={data.children} onChoose={openServices} onSaved={child => { setData(current => current ? { ...current, children: [...current.children.filter(item => item.id !== child.id), child] } : current); setChildId(child.id); }} />}{!sortedChildren.length ? <Notice kind="info">{supportsPublicChildRegistration ? "Список пока пуст. Добавьте первого ребёнка — он появится здесь." : "Список детей пока не добавлен. Обратитесь к учителю."}</Notice> : <div className="children-grid">{sortedChildren.map((item, index) => <button className={`child-choice ${childId === item.id ? "is-current" : ""}`} data-child-id={item.id} aria-pressed={childId === item.id} key={item.id} onClick={() => openServices(item.id)}><span className={`avatar avatar-${index % 3}`}><UserRound /></span><span className="child-choice-copy"><strong>{item.public_name}</strong><small>{item.orders?.length ? "Выбрал/а: " + item.orders.flatMap(order => order.items.map(service => `${service.name}${(service.quantity || 1) > 1 ? ` × ${service.quantity}` : ""}`)).join(", ") : "Пока без заявки"}</small></span><span className="child-order-previews">{item.orders?.flatMap(order => order.items).slice(0, 2).map((service, index) => { const named = data.catalog.filter(entry => entry.name === service.name); const image = data.catalog.find(entry => entry.id === service.id)?.preview_url || (named.length === 1 ? named[0].preview_url : "") || service.preview_url; return image ? <img key={`${service.id || service.name}-${index}`} src={image} alt={service.name} loading="lazy" onError={event => { const image = event.currentTarget; const named = data.catalog.filter(entry => entry.name === service.name); const fallback = named.length === 1 ? named[0].preview_url : ""; if (fallback && image.getAttribute("src") !== fallback) image.src = fallback; }} /> : null; })}</span></button>)}</div>}{childId && <div className="child-catalog-entry"><button className="button button-primary" onClick={() => openServices(childId)}>Открыть каталог фотографий</button></div>}<div className="privacy-note">Видео можно посмотреть по желанию. Каталог доступен сразу.</div></section>}
+    {step === "child" && <section className="public-content" id="public-catalog-start"><span className="eyebrow">{data.school.name} · {data.class.name}</span><h1>{data.class.photo_session_name}</h1><p className="public-lead">{supportsPublicChildRegistration ? "Выберите своего ребёнка или добавьте его в список" : "Выберите своего ребёнка"}</p>{supportsPublicChildRegistration && <PublicChildRegistration token={token} children={data.children} onChoose={(id, known) => {
+      if (!isCrmPublicMode || known?.orders) { openServices(id, known); return; }
+      void getPublicClass(token).then(payload => { if (!payload) throw new Error("Ссылка класса недействительна"); setData(payload); openServices(id, payload.children.find(child => child.id === id), payload); }).catch(reason => setError(humanError(reason)));
+    }} onSaved={child => { setData(current => current ? { ...current, children: [...current.children.filter(item => item.id !== child.id), child] } : current); setChildId(child.id); }} />}{!sortedChildren.length ? <Notice kind="info">{supportsPublicChildRegistration ? "Список пока пуст. Добавьте первого ребёнка — он появится здесь." : "Список детей пока не добавлен. Обратитесь к учителю."}</Notice> : <div className="children-grid">{sortedChildren.map((item, index) => <button className={`child-choice ${childId === item.id ? "is-current" : ""}`} data-child-id={item.id} aria-pressed={childId === item.id} key={item.id} onClick={() => openServices(item.id)}><span className={`avatar avatar-${index % 3}`}><UserRound /></span><span className="child-choice-copy"><strong>{item.public_name}</strong><small>{item.orders?.some(order => order.status !== "cancelled") ? "Выбрал/а: " + item.orders.filter(order => order.status !== "cancelled").flatMap(order => order.items.map(service => `${service.name}${(service.quantity || 1) > 1 ? ` × ${service.quantity}` : ""}`)).join(", ") : "Пока без заявки"}</small></span><span className="child-order-previews">{item.orders?.filter(order => order.status !== "cancelled").flatMap(order => order.items).slice(0, 2).map((service, index) => { const named = data.catalog.filter(entry => entry.name === service.name); const image = data.catalog.find(entry => entry.id === service.id)?.preview_url || (named.length === 1 ? named[0].preview_url : "") || service.preview_url; return image ? <img key={`${service.id || service.name}-${index}`} src={image} alt={service.name} loading="lazy" onError={event => { const image = event.currentTarget; const named = data.catalog.filter(entry => entry.name === service.name); const fallback = named.length === 1 ? named[0].preview_url : ""; if (fallback && image.getAttribute("src") !== fallback) image.src = fallback; }} /> : null; })}</span></button>)}</div>}{childId && <div className="child-catalog-entry"><button className="button button-primary" onClick={() => openServices(childId)}>Открыть каталог фотографий</button></div>}<div className="privacy-note">Видео можно посмотреть по желанию. Каталог доступен сразу.</div></section>}
     {step === "services" && <section className="public-content service-step" id="public-catalog-start">
       <button className="service-back-floating" type="button" aria-label="Назад к списку детей" onClick={closeServices}><ArrowLeft size={20} /><span>Назад</span></button>
       <span className="eyebrow">{data.school.name} · {data.class.name}</span><h1>{child?.public_name}</h1>
@@ -443,6 +485,6 @@ export function PublicOrderPage() {
     </div></Modal>}
     {uploadStatus && <div className="media-upload-status" role="status"><LoaderCircle className="spin" size={18}/>{uploadStatus}</div>}
     {customRequestOpen && <Modal title="Подобрать индивидуальный образ" className="custom-request-modal" onClose={closeCustomRequest}><form className="form-stack custom-request-form" onSubmit={submitCustomRequest}><p>Опишите идею и, если хотите, приложите скрин или выберите похожую услугу. Всё сохранится в карточке ребёнка.</p><label>Что вы хотите для {child?.public_name}?<textarea name="message" minLength={3} maxLength={1000} rows={4} autoFocus placeholder="Например: сын хочет фото в образе пожарного…"/></label><div className="custom-request-attachments"><label className="custom-request-file"><span><ImagePlus size={18}/>Скрин или референс</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => chooseCustomReferenceFile(event.currentTarget.files?.[0])}/><small>JPG, PNG или WebP до 5 МБ</small></label>{customReferencePreview && <div className="custom-request-preview"><img src={customReferencePreview} alt="Прикреплённый референс"/><button type="button" aria-label="Убрать прикреплённый скрин" onClick={() => setCustomReferenceFile(null)}><X size={16}/></button></div>}<fieldset className="custom-request-service"><legend>Похожая услуга из каталога</legend><label className="custom-request-search">Поиск услуги<input type="search" value={customServiceSearch} onChange={(event) => setCustomServiceSearch(event.currentTarget.value)} placeholder="Например: дракон, футбол…"/></label><div className="custom-request-service-list" role="radiogroup" aria-label="Услуга из каталога"><button type="button" role="radio" aria-checked={!customReferenceServiceId} className={`custom-request-service-card custom-request-service-empty${!customReferenceServiceId ? " selected" : ""}`} onClick={() => setCustomReferenceServiceId("")}><span><X size={19}/></span><strong>Без услуги</strong><small>Только текст или скрин</small></button>{customServiceResults.map((item) => <button type="button" role="radio" aria-checked={customReferenceServiceId === item.id} className={`custom-request-service-card${customReferenceServiceId === item.id ? " selected" : ""}`} key={item.id} onClick={() => setCustomReferenceServiceId(item.id)}>{item.preview_url ? <img src={item.preview_url} alt="" loading="lazy" decoding="async"/> : <span><ServiceIcon type={item.type}/></span>}<span className="custom-request-service-copy"><strong>{item.name}</strong><small>{item.category || "Услуга"}</small></span>{customReferenceServiceId === item.id && <CheckCircle2 className="custom-request-service-check" aria-hidden="true"/>}</button>)}</div>{!customServiceResults.length && <p className="custom-request-service-empty-state">Ничего не найдено. Попробуйте другое слово.</p>}</fieldset></div><div className="form-actions"><button className="button button-secondary" type="button" disabled={pending} onClick={closeCustomRequest}>Отмена</button><button className="button button-primary" type="submit" disabled={pending}>{pending && <LoaderCircle className="spin" size={17}/>}Отправить запрос</button></div></form></Modal>}
-    {step === "done" && result && <section className="success-screen"><div className="success-mark"><CheckCircle2 /></div><h1>{result.duplicate ? "Заявка уже была отправлена" : "Заявка сохранена"}</h1><span className="success-pill">Прикреплена к карточке ребёнка</span><div className="order-number">Номер заявки <strong>{result.order_number}</strong></div><div className="confirmation-card"><div><span>Ребёнок</span><strong>{result.child_name}</strong></div><div><span>Класс</span><strong>{result.class_name}</strong></div><div><span>Услуги</span><strong>{result.selected_items.map((item) => `${item.name}${(item.quantity || 1) > 1 ? ` × ${item.quantity}` : ""}${item.comment ? ` (${item.comment})` : ""}`).join(", ")}</strong></div><div><span>Итого</span><strong>{money(result.total_amount)}</strong></div></div><div className="success-items">{result.selected_items.map((item) => <div className="success-item" key={item.id}>{item.preview_url ? <img src={item.preview_url} alt="" loading="lazy" decoding="async" /> : <ServiceIcon type={item.type} />}<span>{item.name}{(item.quantity || 1) > 1 ? ` × ${item.quantity}` : ""}</span><strong>{money(item.price * (item.quantity || 1))}</strong></div>)}</div><p>Заявка сохранена в карточке ребёнка. Отправлять её в WhatsApp не нужно.</p><div className="success-actions">{import.meta.env.VITE_CRM_MODE === "true" && <a className="button button-primary" href={orderLink(result.public_token)}>Открыть мой заказ</a>}<button className="button button-secondary" onClick={() => setStep("services")}><ArrowLeft size={18}/>Назад к выбору</button>{data.children.length > 1 && <button className="button button-secondary" onClick={chooseAnotherChild}>Выбрать другого ребёнка</button>}<button className="button button-primary button-wide" onClick={chooseAnotherChild}>Готово</button></div></section>}
+    {step === "done" && result && <section className="success-screen"><div className="success-mark"><CheckCircle2 /></div><h1>{result.duplicate ? "Заявка уже была отправлена" : "Заявка сохранена"}</h1><span className="success-pill">Прикреплена к карточке ребёнка</span><div className="order-number">Номер заявки <strong>{result.order_number}</strong></div><div className="confirmation-card"><div><span>Ребёнок</span><strong>{result.child_name}</strong></div><div><span>Класс</span><strong>{result.class_name}</strong></div><div><span>Услуги</span><strong>{result.selected_items.map((item) => `${item.name}${(item.quantity || 1) > 1 ? ` × ${item.quantity}` : ""}${item.comment ? ` (${item.comment})` : ""}`).join(", ")}</strong></div><div><span>Итого</span><strong>{publicOrderTotal(result)}</strong></div></div><div className="success-items">{result.selected_items.map((item, index) => <div className="success-item" key={`${item.entryId || item.id}-${index}`}>{item.preview_url ? <img src={item.preview_url} alt="" loading="lazy" decoding="async" /> : <ServiceIcon type={item.type} />}<span>{item.name}{(item.quantity || 1) > 1 ? ` × ${item.quantity}` : ""}</span><strong>{item.price_pending ? "По согласованию" : money(item.price * (item.quantity || 1))}</strong></div>)}</div><p>Заявка сохранена в карточке ребёнка. Отправлять её в WhatsApp не нужно.</p><div className="success-actions">{import.meta.env.VITE_CRM_MODE === "true" && <a className="button button-primary" href={orderLink(result.public_token)}>Открыть мой заказ</a>}<button className="button button-secondary" onClick={() => setStep("services")}><ArrowLeft size={18}/>Назад к выбору</button>{data.children.length > 1 && <button className="button button-secondary" onClick={chooseAnotherChild}>Выбрать другого ребёнка</button>}<button className="button button-primary button-wide" onClick={chooseAnotherChild}>Готово</button></div></section>}
   </div></main>;
 }

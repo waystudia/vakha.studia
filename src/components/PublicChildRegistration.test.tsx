@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { PublicChildRegistration } from './PublicChildRegistration';
 import { addPublicChild } from '../lib/publicRepository';
-vi.mock('../lib/publicRepository', () => ({ addPublicChild: vi.fn() }));
+vi.mock('../lib/publicRepository', () => ({ addPublicChild: vi.fn(), isCrmPublicMode: false, previewPublicChild: vi.fn() }));
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 it('offers a similar existing child and allows adding a different one without an order', async () => {
   const onChoose = vi.fn(), onSaved = vi.fn();
@@ -12,7 +12,7 @@ it('offers a similar existing child and allows adding a different one without an
   fireEvent.change(screen.getByLabelText('Фамилия'), { target: { value: 'Абдулаев' } });
   fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Адам' } });
   fireEvent.click(screen.getByText('Абдуллаев Адам · Выбрать'));
-  expect(onChoose).toHaveBeenCalledWith('old');
+  expect(onChoose).toHaveBeenCalledWith('old', {id: 'old', public_name: 'Абдуллаев Адам'});
   expect(addPublicChild).not.toHaveBeenCalled();
   fireEvent.click(screen.getByText('Добавить нового ребёнка'));
   await screen.findByText('Добавить ещё ребёнка');
