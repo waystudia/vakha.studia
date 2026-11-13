@@ -1,6 +1,6 @@
 import { CatalogInquiry } from "../components/CatalogInquiry";
 import { Camera, Maximize, Play, ShoppingBag, UserRound, Video } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { OfflineCatalogControls } from "../components/OfflineCatalogControls";
 import { loadSavedCatalog } from "../lib/offlineCatalog";
@@ -49,6 +49,7 @@ export function PublicCatalogPage({ catalogToken, presentation = false, internal
   const [preview, setPreview] = useState<CatalogItem | null>(null);
   const [gender, setGender] = useState<CatalogGender>("all");
   const [activeCategory, setActiveCategory] = useState("");
+  const navigationTarget = useRef<{id: string; until: number} | null>(null);
   const [introClosed, setIntroClosed] = useState(hasWatchedParentIntro);
 
   const toggle = (id: string) => setSelected(old => old.includes(id) ? old.filter(value => value !== id) : [...old, id]);
@@ -94,17 +95,40 @@ export function PublicCatalogPage({ catalogToken, presentation = false, internal
     if (!sections.some(section => section.id === activeCategory)) setActiveCategory(sections[0].id);
   }, [activeCategory, sections]);
   useEffect(() => {
-    if (immersive || !("IntersectionObserver" in window)) return;
-    const observer = new IntersectionObserver(entries => {
-      const visible = entries.filter(entry => entry.isIntersecting).sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
-      const id = (visible?.target as HTMLElement | undefined)?.dataset.catalogSection;
-      if (id) setActiveCategory(id);
-    }, { rootMargin: "-140px 0px -48% 0px", threshold: [0.05, 0.25, 0.6] });
-    document.querySelectorAll<HTMLElement>("[data-catalog-section]").forEach(node => observer.observe(node));
-    return () => observer.disconnect();
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const nodes = Array.from(document.querySelectorAll<HTMLElement>('[data-catalog-section]'));
+      const edge = (document.querySelector('.catalog-sticky-filters')?.getBoundingClientRect().height || 90) + 16;
+      const target = navigationTarget.current;
+      if (target && Date.now() < target.until) {
+        const node = nodes.find(node => node.dataset.catalogSection === target.id);
+        if (node && Math.abs(node.getBoundingClientRect().top - edge) > 24) return;
+      }
+      navigationTarget.current = null;
+      const current = nodes.filter(node => node.getBoundingClientRect().top <= edge + 24).pop() || nodes[0];
+      if (current?.dataset.catalogSection) setActiveCategory(current.dataset.catalogSection);
+    };
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
+    const cancelNavigation = () => { navigationTarget.current = null; schedule(); };
+    window.addEventListener('scroll', schedule, {passive:true});
+    window.addEventListener('resize', schedule);
+    window.addEventListener('touchstart', cancelNavigation, {passive:true});
+    window.addEventListener('wheel', cancelNavigation, {passive:true});
+    schedule();
+    return () => { cancelAnimationFrame(frame); window.removeEventListener('scroll', schedule); window.removeEventListener('resize', schedule); window.removeEventListener('touchstart', cancelNavigation); window.removeEventListener('wheel', cancelNavigation); };
   }, [immersive, sections]);
+  useEffect(() => {
+    const nav = document.querySelector<HTMLElement>('.catalog-jump-nav');
+    const button = nav?.querySelector<HTMLElement>('[aria-current="true"]');
+    if (!nav || !button) return;
+    const left = nav.scrollLeft + button.getBoundingClientRect().left - nav.getBoundingClientRect().left - (nav.clientWidth - button.offsetWidth) / 2;
+    if (typeof nav.scrollTo === 'function') nav.scrollTo({left, behavior:'smooth'});
+    else nav.scrollLeft = left;
+  }, [activeCategory]);
 
   function scrollToCategory(id: string) {
+    navigationTarget.current = {id, until:Date.now() + 1500};
     setActiveCategory(id);
     document.querySelector<HTMLElement>(`[data-catalog-section="${id}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
