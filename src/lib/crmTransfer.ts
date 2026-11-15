@@ -81,10 +81,9 @@ export async function buildCrmTransfer(scope: TransferScope) {
   const manifest = { app: "Vakha Studio", schemaVersion: 2, exportType: scope.kind === "school" ? "project" : "class", scope: scope.kind, exportedAt: new Date().toISOString(), exportedBy: "vakha.studia", containsMedia: media.length > 0, includesParentCatalogLinks: true, includesParentRequestReferences: media.length > 0, counts: { classes: classRecords.length, students: children.length, orders: orders.length, services: services.length, parentRequestReferences: media.length } };
   const zip = new JSZip();
   if (referenceFiles.length) {
-    const { supabase } = await import("./supabase");
+    const {downloadPrivateFile}=await import("./privateMediaRepository");
     for (const file of referenceFiles) {
-      const { data: blob, error } = await supabase.storage.from("parent-request-references").download(file.storagePath);
-      if (error || !blob) throw new Error(`Не удалось добавить вложение родительской заявки в ZIP: ${error?.message || file.storagePath}`);
+      const blob=await downloadPrivateFile(file.storagePath);
       zip.file(file.path, blob);
     }
   }

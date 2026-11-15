@@ -1,3 +1,4 @@
+import {useStudioRefresh} from "../lib/useStudioRefresh";
 import { ArrowLeft, Check, Clipboard, Download, FileSpreadsheet, Link2, Pencil, Send, Trash2, UserPlus, Users } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -16,7 +17,8 @@ export function ClassPage() {
   const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [success, setSuccess] = useState("");
   const [childModal, setChildModal] = useState<Child | null | undefined>(undefined); const [pending, setPending] = useState(false);
   const importRef = useRef<HTMLInputElement>(null); const [copied, setCopied] = useState(false);
-  async function refresh() { setLoading(true); try { const data = await loadClass(classId); setSchoolClass(data.schoolClass); setSchool(data.school); setChildren(data.children); setOrders(data.orders); } catch (reason) { setError(humanError(reason)); } finally { setLoading(false); } }
+  async function refresh(showLoading = true) { if (showLoading) setLoading(true); try { const data = await loadClass(classId); setSchoolClass(data.schoolClass); setSchool(data.school); setChildren(data.children); setOrders(data.orders); } catch (reason) { setError(humanError(reason)); } finally { setLoading(false); } }
+  useStudioRefresh(() => refresh(false), pending || childModal !== undefined);
   useEffect(() => { void refresh(); }, [classId]);
   const publicUrl = schoolClass
     ? new URL(`${import.meta.env.BASE_URL}?/p/${encodeURIComponent(schoolClass.public_token)}`, window.location.origin).toString()

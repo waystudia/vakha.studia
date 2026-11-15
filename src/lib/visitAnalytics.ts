@@ -1,6 +1,7 @@
 export type PublicPageKind = "class" | "catalog";
 
 export function trackPublicVisit(token: string, pageKind: PublicPageKind) {
+  if (import.meta.env.VITE_CRM_MODE === "true") return;
   if (!token || typeof window === "undefined" || !navigator.onLine) return;
   const marker = `kz-visit:${pageKind}:${token}`;
   try {

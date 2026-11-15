@@ -1,8 +1,9 @@
-import { CatalogInquiry } from "../components/CatalogInquiry";
+
 import { Camera, Maximize, Play, ShoppingBag, UserRound, Video } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { OfflineCatalogControls } from "../components/OfflineCatalogControls";
+
+import {loadGeneralPublicCatalog} from '../lib/generalPublicCatalog';
 import { loadSavedCatalog } from "../lib/offlineCatalog";
 import { ServiceCard } from "../components/ServiceCard";
 import { CatalogViewer, viewerItems } from "../components/CatalogViewer";
@@ -10,11 +11,15 @@ import { Loader, Notice } from "../components/ui";
 import { buildCatalogSections, type CatalogGender } from "../lib/catalogSections";
 import { catalogMediaUrl } from "../lib/mediaUrl";
 import { humanError, money } from "../lib/helpers";
-import { getPublicCatalog } from "../lib/repository";
+
 import { ParentIntro } from "../components/ParentIntro";
 import { hasWatchedParentIntro } from "../lib/parentIntroProgress";
 import type { PublicCatalogPayload } from "../lib/types";
 import { trackPublicVisit } from "../lib/visitAnalytics";
+
+const CrmCatalogCheckout = lazy(() => import('../components/CrmCatalogCheckout').then(module => ({default:module.CrmCatalogCheckout})));
+const CatalogInquiry = lazy(() => import('../components/CatalogInquiry').then(module => ({default: module.CatalogInquiry})));
+const OfflineCatalogControls = lazy(() => import('../components/OfflineCatalogControls').then(module => ({default: module.OfflineCatalogControls})));
 
 type CatalogItem = PublicCatalogPayload["catalog"][number];
 
@@ -32,13 +37,13 @@ function serviceCountLabel(count: number) {
   return `${count} ${word}`;
 }
 
-export function PublicCatalogPage({ catalogToken, presentation = false, internal = false }: { catalogToken?: string; presentation?: boolean; internal?: boolean } = {}) {
+export function PublicCatalogPage({ catalogToken, presentation = false, internal = false, crmSnapshot = false }: { catalogToken?: string; presentation?: boolean; internal?: boolean; crmSnapshot?: boolean } = {}) {
   const { token: routeToken = "" } = useParams();
   const token = catalogToken || routeToken;
   const [params] = useSearchParams();
   const [online, setOnline] = useState(navigator.onLine);
   const [localCopy, setLocalCopy] = useState(false);
-  const immersive = presentation || params.get("offline") === "1";
+  const immersive = presentation || (!crmSnapshot && params.get("offline") === "1");
   const readOnly = immersive;
   const [selected, setSelected] = useState<string[]>([]);
   const [withoutLamination, setWithoutLamination] = useState<string[]>([]);
@@ -55,7 +60,7 @@ export function PublicCatalogPage({ catalogToken, presentation = false, internal
   const toggle = (id: string) => setSelected(old => old.includes(id) ? old.filter(value => value !== id) : [...old, id]);
   const setLamination = (id: string, protectedPhoto: boolean) => setWithoutLamination(old => protectedPhoto ? old.filter(value => value !== id) : old.includes(id) ? old : [...old, id]);
 
-  useEffect(() => { if (!internal && !immersive) trackPublicVisit(token, "catalog"); }, [immersive, internal, token]);
+  useEffect(() => { if (!crmSnapshot && !internal && !immersive) trackPublicVisit(token, "catalog"); }, [immersive, internal, token]);
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
     window.addEventListener("online", update); window.addEventListener("offline", update);
@@ -66,13 +71,18 @@ export function PublicCatalogPage({ catalogToken, presentation = false, internal
     setLoading(true); setError("");
     void (async () => {
       try {
+        if (crmSnapshot) {
+          const payload = await loadGeneralPublicCatalog();
+          if (alive) setData(payload);
+          return;
+        }
         const saved = await loadSavedCatalog(token).catch(() => null);
         if (saved && (params.get("offline") === "1" || !navigator.onLine)) {
           if (alive) { setData(saved.data); setLocalCopy(true); }
           return;
         }
         try {
-          const payload = await getPublicCatalog(token);
+          const payload = await (await import('../lib/repository')).getPublicCatalog(token);
           if (!payload) throw new Error("Ссылка на каталог недействительна");
           if (alive) { setData(payload); setLocalCopy(false); }
         } catch (reason) {
@@ -83,7 +93,7 @@ export function PublicCatalogPage({ catalogToken, presentation = false, internal
       finally { if (alive) setLoading(false); }
     })();
     return () => { alive = false; };
-  }, [token, params]);
+  }, [token, params, crmSnapshot]);
 
   const sections = useMemo(() => buildCatalogSections(data?.catalog || [], gender), [data, gender]);
   const prioritizedSections = useMemo(() => sections.map((section) => ({ ...section, items: [...section.items].sort((left, right) => Number(Boolean(right.popular)) - Number(Boolean(left.popular))) })), [sections]);
@@ -134,7 +144,7 @@ export function PublicCatalogPage({ catalogToken, presentation = false, internal
   }
 
   if (loading) return <main className="public-page"><Loader label="Открываем каталог…" /></main>;
-  if (error || !data) return <main className="public-page"><section className="public-error"><div className="error-illustration">!</div><h1>Каталог недоступен</h1><p>{error || "Ссылка недействительна"}</p><Link to="/offline-catalog">Сохранённые каталоги</Link></section></main>;
+  if (error || !data) return <main className="public-page"><section className="public-error"><div className="error-illustration">!</div><h1>Каталог недоступен</h1><p>{error || "Ссылка недействительна"}</p>{crmSnapshot ? <button type="button" className="button button-secondary" onClick={() => window.location.reload()}>Повторить загрузку</button> : <Link to="/offline-catalog">Сохранённые каталоги</Link>}</section></main>;
 
   const slideshowStart = viewerItems(data.catalog, gender, "all")[0];
   const renderCard = (item: CatalogItem, related = false) => <ServiceCard key={item.id} item={item} selected={selected.includes(item.id)} related={related} readOnly={readOnly} withLamination={!withoutLamination.includes(item.id)} watermark={data.watermark} onOpen={() => setPreview(item)} onToggle={() => toggle(item.id)} onLaminationChange={related || readOnly ? undefined : value => setLamination(item.id, value)} />;
@@ -142,11 +152,11 @@ export function PublicCatalogPage({ catalogToken, presentation = false, internal
   return <main className="public-page"><div className="public-shell public-catalog-shell">
     <header className="public-header"><div className="public-logo"><span className="brand-mark">KZ</span><div><strong>{data.company_name || "Khan Zama"}</strong><small>{presentation ? "Каталог для показа" : "Каталог услуг"}</small></div></div>{presentation && internal ? <span className="step-indicator"><Link to="/admin/catalog">В админку</Link></span> : null}</header>
     {!immersive && <ParentIntro watched={introClosed} onComplete={() => setIntroClosed(true)} />}
-    <section className="public-content public-catalog-content" id="public-catalog-start"><h1>Каталог услуг</h1><p className="public-lead">Выберите понравившиеся услуги и отправьте заявку в WhatsApp</p>
+    <section className="public-content public-catalog-content" id="public-catalog-start"><h1>Каталог услуг</h1><p className="public-lead">{crmSnapshot ? "Выберите понравившиеся услуги и оформите заявку." : "Выберите понравившиеся услуги и отправьте заявку в WhatsApp"}</p>
       {data.catalog.length > 0 && <div className="catalog-sticky-filters"><div className="catalog-gender-tabs" role="group" aria-label="Категория ребёнка"><button className={gender === "all" ? "active" : ""} onClick={() => setGender("all")}>Все</button><button className={gender === "boys" ? "active" : ""} onClick={() => setGender("boys")}>Мальчики</button><button className={gender === "girls" ? "active" : ""} onClick={() => setGender("girls")}>Девочки</button></div><nav className="catalog-jump-nav" aria-label="Быстрый переход по категориям">{prioritizedSections.map(section => <button type="button" key={section.id} className={activeCategory === section.id ? "active" : ""} aria-current={activeCategory === section.id ? "true" : undefined} onClick={() => scrollToCategory(section.id)}>{section.title}</button>)}</nav></div>}
       {immersive && <button type="button" className="button button-primary catalog-slideshow-start" disabled={!slideshowStart} onClick={() => { const item = data.catalog.find(entry => entry.id === slideshowStart?.id); if (item) setPreview(item); }}><Maximize size={20} />Открыть слайд-шоу</button>}
-      {immersive && <div className="offline-view-notice"><span>{!online ? "Без интернета · только просмотр" : localCopy ? "Сохранённый каталог · только просмотр" : "Только просмотр"}</span><Link to="/offline-catalog">Сохранённые каталоги</Link></div>}
-      {immersive && (readOnly && localCopy ? <details className="offline-manage"><summary>Управление сохранённой копией</summary><OfflineCatalogControls token={token} data={data} online={online} onUpdated={latest => { setData(latest); if (params.get("offline") === "1") setLocalCopy(true); }} /></details> : <OfflineCatalogControls token={token} data={data} online={online} onUpdated={latest => { setData(latest); if (params.get("offline") === "1") setLocalCopy(true); }} />)}
+      {immersive && <div className="offline-view-notice"><span>{!online ? "Без интернета · только просмотр" : localCopy ? "Сохранённый каталог · только просмотр" : "Только просмотр"}</span>{!crmSnapshot && <Link to="/offline-catalog">Сохранённые каталоги</Link>}</div>}
+      {immersive && !crmSnapshot && <Suspense fallback={null}>{readOnly && localCopy ? <details className="offline-manage"><summary>Управление сохранённой копией</summary><OfflineCatalogControls token={token} data={data} online={online} onUpdated={latest => { setData(latest); if (params.get("offline") === "1") setLocalCopy(true); }} /></details> : <OfflineCatalogControls token={token} data={data} online={online} onUpdated={latest => { setData(latest); if (params.get("offline") === "1") setLocalCopy(true); }} />}</Suspense>}
       {!immersive && prioritizedSections.length > 0 && <div className="catalog-category-cards" aria-label="Категории услуг">{prioritizedSections.map((section, index) => {
         const preferredGender = index % 2 === 0 ? "girls" : "boys";
         const dragonVideo = section.id === "video" ? section.items.find(item => /дракон/i.test(item.name) && item.preview_url) : undefined;
@@ -158,7 +168,8 @@ export function PublicCatalogPage({ catalogToken, presentation = false, internal
       {!data.catalog.length && <Notice kind="info">Каталог пока пуст.</Notice>}
     </section>
     {!immersive && selected.length > 0 && <aside className="catalog-order-dock" aria-label="Выбранные услуги"><div><strong><ShoppingBag size={17}/> Корзина · {selected.length}</strong><span>Итого: {money(total)}</span></div><button className="button button-primary" type="button" onClick={() => setInquiryOpen(true)}>Оформить заявку</button></aside>}
-    {!immersive && <CatalogInquiry token={token} items={selectedItems} whatsapp={data.whatsapp} open={inquiryOpen} onClose={() => setInquiryOpen(false)} />}
+    {!immersive && !crmSnapshot && <Suspense fallback={null}><CatalogInquiry token={token} items={selectedItems} whatsapp={data.whatsapp} open={inquiryOpen} onClose={() => setInquiryOpen(false)} /></Suspense>}
+    {crmSnapshot && inquiryOpen && <Suspense fallback={<Loader label="Открываем заявку…"/>}><CrmCatalogCheckout items={selectedItems} withoutLaminationIds={withoutLamination} onClose={() => setInquiryOpen(false)}/></Suspense>}
     {preview && <CatalogViewer immersive={immersive} readOnly={readOnly} items={data.catalog} initialId={preview.id} initialGender={gender} selected={selected} onToggle={id => { toggle(id); setPreview(null); }} onClose={() => setPreview(null)} />}
   </div></main>;
 }

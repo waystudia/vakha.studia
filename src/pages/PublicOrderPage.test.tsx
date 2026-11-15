@@ -9,6 +9,8 @@ vi.mock("../lib/parentIntroProgress", () => ({ hasWatchedParentIntro: vi.fn(() =
 vi.mock("../components/ParentIntro", () => ({ ParentIntro: () => null }));
 vi.mock("../lib/publicRepository", () => ({
   supportsPublicChildRegistration: true,
+  isCrmPublicMode: false,
+  PublicApiError: class extends Error { status = 0; },
   getPublicClass: vi.fn(async () => ({
     school: { name: "Школа №1" }, class: { name: "1 А", photo_session_name: "Фотосессия" },
     children: [
@@ -316,7 +318,7 @@ describe("child to catalog navigation", () => {
     expect(screen.getByRole("button", { name: "Убрать Первое фото из корзины" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Убрать Первое фото из корзины" }));
     fireEvent.click(screen.getByRole("button", { name: "Да, удалить" }));
-    await waitFor(() => expect(cancelPublicOrder).toHaveBeenCalledWith({ token: "test", childId: "first" }));
+    await waitFor(() => expect(cancelPublicOrder).toHaveBeenCalledWith({ token: "test", childId: "first", revision: 0 }));
     expect(await screen.findByText("Заявка удалена. Можно выбрать услуги заново.")).toBeTruthy();
     expect(screen.getByText("Пока без заявки")).toBeTruthy();
   });

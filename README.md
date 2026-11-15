@@ -65,7 +65,9 @@ Old source: `/Users/abdulkadyrov2002/Documents/vakha-studia-preserved-20261101/s
 Для возврата только ссылок используйте существующий JSON `vakha-studia-class-links`
 (v1, обновление по ID). Для переноса добавленных на сайте детей используйте полный
 ZIP проекта/класса — он включает детей без заявок с постоянными ID.
-Функция не включена в отдельной сборке `VITE_CRM_MODE=true`, где список ведёт API CRM.
+В отдельной сборке `VITE_CRM_MODE=true` добавление и preview работают через CRM API;
+серверные зависимости и ручная очередь повтора описаны в
+[контракте CRM parent API](docs/integrations/crm-parent-api-v1.md).
 
 Проверка RPC с откатом всех тестовых данных:
 `supabase db query --linked --file supabase/tests/public_child_registration.sql`.
