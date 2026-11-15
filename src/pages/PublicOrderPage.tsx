@@ -151,8 +151,9 @@ export function PublicOrderPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const [introClosed, setIntroClosed] = useState(hasWatchedParentIntro);
+  const [introOpen, setIntroOpen] = useState(false);
   const [data, setData] = useState<PublicClassPayload | null>(null);
-  const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [notice, setNotice] = useState(""); const [step, setStep] = useState<Step>("child");
+  const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [notice, setNotice] = useState(""); const [step, setStep] = useState<Step>(isCrmPublicMode ? "services" : "child");
   const [childId, setChildId] = useState(""); const [selected, setSelected] = useState<string[]>([]); const [pending, setPending] = useState(false);
   const [withoutLamination, setWithoutLamination] = useState<string[]>([]);
   const [servicePreferences, setServicePreferences] = useState<Record<string, ServicePreference>>({});
@@ -161,6 +162,7 @@ export function PublicOrderPage() {
   const [uploadStatus, setUploadStatus] = useState("");
   const [lastRemovedId, setLastRemovedId] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
+  const [childPickerOpen, setChildPickerOpen] = useState(false);
   const [customRequestOpen, setCustomRequestOpen] = useState(false);
   const [customReferenceFile, setCustomReferenceFile] = useState<File | null>(null);
   const [customReferenceServiceId, setCustomReferenceServiceId] = useState("");
@@ -180,13 +182,13 @@ export function PublicOrderPage() {
   const checkoutAfterViewer = useRef(false);
   const servicesEntry = useRef("");
   const servicesArmed = useRef(false);
-  const stepRef = useRef<Step>("child");
+  const stepRef = useRef<Step>(isCrmPublicMode ? "services" : "child");
   stepRef.current = step;
 
   useEffect(() => { trackPublicVisit(token, "class"); }, [token]);
   useEffect(() => {
     let alive = true;
-    setLoading(true); setData(null); setError(""); setStep("child");
+    setLoading(true); setData(null); setError(""); setStep(isCrmPublicMode ? "services" : "child"); setChildId(""); setSelected([]); setWithoutLamination([]); setServicePreferences({}); setChildPickerOpen(false);
     void (async () => {
       try { const payload = await getPublicClass(token); if (!payload) throw new Error("Ссылка недействительна или срок её действия истёк"); if (alive) setData(payload); }
       catch (reason) { if (alive) setError(humanError(reason)); }
@@ -345,8 +347,12 @@ export function PublicOrderPage() {
     requestKey.current = crypto.randomUUID();
     serviceScrollTarget.current = restored[0] || "";
     setLastRemovedId("");
-    setSelected([...new Set(restored)]); setWithoutLamination([...new Set(unprotected)]); setServicePreferences(restoredPreferences); setResult(null); setError("");
+    const draftIds = isCrmPublicMode && !childId ? selected : [];
+    setSelected([...new Set([...restored, ...draftIds])]);
+    setWithoutLamination([...new Set([...unprotected.filter(id => !draftIds.includes(id)), ...withoutLamination.filter(id => draftIds.includes(id))])]);
+    setServicePreferences({...restoredPreferences, ...Object.fromEntries(Object.entries(servicePreferences).filter(([id]) => draftIds.includes(id)))}); setResult(null); setError("");
     setChildId(id); setStep("services");
+    if (isCrmPublicMode) { setChildPickerOpen(false); if (draftIds.length || restored.length) setCartOpen(true); return; }
     navigate({ pathname: location.pathname, search: location.search, hash: location.hash }, { state: { ...location.state, publicOrderServices: servicesEntry.current }, preventScrollReset: true });
   }
   function restoreChildren() {
@@ -355,6 +361,7 @@ export function PublicOrderPage() {
     requestAnimationFrame(() => { window.scrollTo({ top: childOrigin.current.scrollY, left: 0, behavior: "instant" }); document.querySelector<HTMLElement>(`[data-child-id="${childOrigin.current.childId}"]`)?.focus({ preventScroll: true }); });
   }
   function closeServices() {
+    if (isCrmPublicMode) { setCartOpen(false); setChildPickerOpen(true); return; }
     if (location.state?.publicOrderServices === servicesEntry.current) navigate(-1);
     else restoreChildren();
   }
@@ -365,6 +372,7 @@ export function PublicOrderPage() {
     requestAnimationFrame(() => setCartOpen(true));
   }
   async function submit() {
+    if (isCrmPublicMode && !childId) { setCartOpen(false); setChildPickerOpen(true); return; }
     if (!childId || pending || (!selected.length && !editingExisting)) return;
     setPending(true); setError(""); setNotice(""); setUploadStatus("");
     try {
@@ -419,24 +427,26 @@ export function PublicOrderPage() {
     if (!payload) throw new Error('Ссылка класса недействительна');
     setData(payload);
   }
-  function chooseAnotherChild() { requestKey.current = crypto.randomUUID(); setResult(null); setSelected([]); setWithoutLamination([]); setServicePreferences({}); setChildId(""); setError(""); setPreviewItem(null); setStep("child"); }
+  function chooseAnotherChild() { requestKey.current = crypto.randomUUID(); setResult(null); setSelected([]); setWithoutLamination([]); setServicePreferences({}); setChildId(""); setError(""); setPreviewItem(null); setStep(isCrmPublicMode ? "services" : "child"); }
   function orderLink(publicToken: string) { return `${window.location.origin}${import.meta.env.BASE_URL}order/${publicToken}`; }
   function renderCard(item: CatalogEntry, previewOnly = false) { return <ServiceCard key={item.id} item={item} selected={selected.includes(item.id)} related={previewOnly} withLamination={!withoutLamination.includes(item.id)} onOpen={() => setPreviewItem(item)} onToggle={() => toggleWithPreference(item)} onLaminationChange={previewOnly ? undefined : (value) => setLamination(item.id, value)} onPreference={previewOnly ? undefined : () => openPreference(item)} />; }
   if (loading) return <PublicLoadingScreen />;
   if (error && !data) return <main className="public-page"><section className="public-error"><div className="error-illustration">!</div><h1>Не удалось открыть класс</h1><p>{error}</p><p>Проверьте интернет. Если сайт недоступен без VPN, включите VPN. Если VPN уже включён, выключите и включите его снова.</p><button className="button button-primary" onClick={() => window.location.reload()}>Повторить загрузку</button><p>Если сообщение о недействительной ссылке повторяется, попросите учителя проверить ссылку класса.</p></section></main>;
   if (!data) return null;
-  return <main className="public-page"><div className="public-shell"><header className="public-header"><div className="public-logo"><span className="brand-mark">KZ</span><div><strong>Khan Zama</strong><small>Школьная фотография</small></div></div><span className="step-indicator">{step === "child" ? "Шаг 1 из 2" : step === "services" ? "Шаг 2 из 2" : "Готово"}</span></header>
-    <ParentIntro watched={introClosed} onComplete={() => setIntroClosed(true)} />
+  const childSelection = (<section className="public-content">{isCrmPublicMode ? <h2>{data.school.name} · {data.class.name}</h2> : <><span className="eyebrow">{data.school.name} · {data.class.name}</span><h1>{data.class.photo_session_name}</h1></>}<p className="public-lead">{supportsPublicChildRegistration ? "Выберите своего ребёнка или добавьте его в список" : "Выберите своего ребёнка"}</p>{supportsPublicChildRegistration && <PublicChildRegistration chooseLabel={isCrmPublicMode ? "Продолжить оформление" : undefined} token={token} children={data.children} onChoose={(id, known) => {
+      if (!isCrmPublicMode || known?.orders) { openServices(id, known); return; }
+      void getPublicClass(token).then(payload => { if (!payload) throw new Error("Ссылка класса недействительна"); setData(payload); openServices(id, payload.children.find(child => child.id === id), payload); }).catch(reason => setError(humanError(reason)));
+    }} onSaved={child => { setData(current => current ? { ...current, children: [...current.children.filter(item => item.id !== child.id), child] } : current); if (!isCrmPublicMode) setChildId(child.id); }} />}{!sortedChildren.length ? <Notice kind="info">{supportsPublicChildRegistration ? "Список пока пуст. Добавьте первого ребёнка — он появится здесь." : "Список детей пока не добавлен. Обратитесь к учителю."}</Notice> : <div className="children-grid">{sortedChildren.map((item, index) => <button className={`child-choice ${childId === item.id ? "is-current" : ""}`} data-child-id={item.id} aria-pressed={childId === item.id} key={item.id} onClick={() => openServices(item.id)}><span className={`avatar avatar-${index % 3}`}><UserRound /></span><span className="child-choice-copy"><strong>{item.public_name}</strong><small>{item.orders?.some(order => order.status !== "cancelled") ? "Выбрал/а: " + item.orders.filter(order => order.status !== "cancelled").flatMap(order => order.items.map(service => `${service.name}${(service.quantity || 1) > 1 ? ` × ${service.quantity}` : ""}`)).join(", ") : "Пока без заявки"}</small></span><span className="child-order-previews">{item.orders?.filter(order => order.status !== "cancelled").flatMap(order => order.items).slice(0, 2).map((service, index) => { const named = data.catalog.filter(entry => entry.name === service.name); const image = data.catalog.find(entry => entry.id === service.id)?.preview_url || (named.length === 1 ? named[0].preview_url : "") || service.preview_url; return image ? <img key={`${service.id || service.name}-${index}`} src={image} alt={service.name} loading="lazy" onError={event => { const image = event.currentTarget; const named = data.catalog.filter(entry => entry.name === service.name); const fallback = named.length === 1 ? named[0].preview_url : ""; if (fallback && image.getAttribute("src") !== fallback) image.src = fallback; }} /> : null; })}</span></button>)}</div>}{childId && <div className="child-catalog-entry"><button className="button button-primary" onClick={() => openServices(childId)}>Открыть каталог фотографий</button></div>}<div className="privacy-note">Видео можно посмотреть по желанию. Каталог доступен сразу.</div></section>);
+  return <main className="public-page"><div className="public-shell"><header className="public-header"><div className="public-logo"><span className="brand-mark">KZ</span><div><strong>Khan Zama</strong><small>Школьная фотография</small></div></div><span className="step-indicator">{isCrmPublicMode ? (step === "done" ? "Готово" : "Каталог класса") : step === "child" ? "Шаг 1 из 2" : step === "services" ? "Шаг 2 из 2" : "Готово"}</span></header>
+    {isCrmPublicMode ? <details className="public-order-intro" onToggle={event => setIntroOpen(event.currentTarget.open)}><summary>Видео о студии и оформлении заказа</summary>{introOpen && <ParentIntro watched={introClosed} onComplete={() => setIntroClosed(true)} />}</details> : <ParentIntro watched={introClosed} onComplete={() => setIntroClosed(true)} />}
     {isCrmPublicMode && <PublicPendingRequests token={token} onRefresh={refreshPublicClass}/>}
     {conflict && <div className="public-content"><Notice kind="error">Данные изменились. Ваш выбор сохранён на экране. Обновите список, вернитесь к ребёнку и проверьте заявку перед новой отправкой.</Notice><button className="button button-secondary" type="button" onClick={() => { void refreshPublicClass().then(() => { setConflict(false); setNotice("Список обновлён. Откройте ребёнка заново, чтобы увидеть принятую заявку."); }).catch(reason => setError(humanError(reason))); }}>Обновить список класса</button></div>}
     {step === "child" && notice && <div className="public-inline-notice"><Notice kind="info">{notice}</Notice></div>}
-    {step === "child" && <section className="public-content" id="public-catalog-start"><span className="eyebrow">{data.school.name} · {data.class.name}</span><h1>{data.class.photo_session_name}</h1><p className="public-lead">{supportsPublicChildRegistration ? "Выберите своего ребёнка или добавьте его в список" : "Выберите своего ребёнка"}</p>{supportsPublicChildRegistration && <PublicChildRegistration token={token} children={data.children} onChoose={(id, known) => {
-      if (!isCrmPublicMode || known?.orders) { openServices(id, known); return; }
-      void getPublicClass(token).then(payload => { if (!payload) throw new Error("Ссылка класса недействительна"); setData(payload); openServices(id, payload.children.find(child => child.id === id), payload); }).catch(reason => setError(humanError(reason)));
-    }} onSaved={child => { setData(current => current ? { ...current, children: [...current.children.filter(item => item.id !== child.id), child] } : current); setChildId(child.id); }} />}{!sortedChildren.length ? <Notice kind="info">{supportsPublicChildRegistration ? "Список пока пуст. Добавьте первого ребёнка — он появится здесь." : "Список детей пока не добавлен. Обратитесь к учителю."}</Notice> : <div className="children-grid">{sortedChildren.map((item, index) => <button className={`child-choice ${childId === item.id ? "is-current" : ""}`} data-child-id={item.id} aria-pressed={childId === item.id} key={item.id} onClick={() => openServices(item.id)}><span className={`avatar avatar-${index % 3}`}><UserRound /></span><span className="child-choice-copy"><strong>{item.public_name}</strong><small>{item.orders?.some(order => order.status !== "cancelled") ? "Выбрал/а: " + item.orders.filter(order => order.status !== "cancelled").flatMap(order => order.items.map(service => `${service.name}${(service.quantity || 1) > 1 ? ` × ${service.quantity}` : ""}`)).join(", ") : "Пока без заявки"}</small></span><span className="child-order-previews">{item.orders?.filter(order => order.status !== "cancelled").flatMap(order => order.items).slice(0, 2).map((service, index) => { const named = data.catalog.filter(entry => entry.name === service.name); const image = data.catalog.find(entry => entry.id === service.id)?.preview_url || (named.length === 1 ? named[0].preview_url : "") || service.preview_url; return image ? <img key={`${service.id || service.name}-${index}`} src={image} alt={service.name} loading="lazy" onError={event => { const image = event.currentTarget; const named = data.catalog.filter(entry => entry.name === service.name); const fallback = named.length === 1 ? named[0].preview_url : ""; if (fallback && image.getAttribute("src") !== fallback) image.src = fallback; }} /> : null; })}</span></button>)}</div>}{childId && <div className="child-catalog-entry"><button className="button button-primary" onClick={() => openServices(childId)}>Открыть каталог фотографий</button></div>}<div className="privacy-note">Видео можно посмотреть по желанию. Каталог доступен сразу.</div></section>}
+    {step === "child" && childSelection}
+    {isCrmPublicMode && childPickerOpen && <Modal title="Для кого оформить заявку?" onClose={() => setChildPickerOpen(false)}>{childSelection}</Modal>}
     {step === "services" && <section className="public-content service-step" id="public-catalog-start">
-      <button className="service-back-floating" type="button" aria-label="Назад к списку детей" onClick={closeServices}><ArrowLeft size={20} /><span>Назад</span></button>
-      <span className="eyebrow">{data.school.name} · {data.class.name}</span><h1>{child?.public_name}</h1>
+      <button className="service-back-floating" type="button" aria-label={isCrmPublicMode ? "Выбрать ребёнка" : "Назад к списку детей"} onClick={closeServices}>{isCrmPublicMode ? <UserRound size={20}/> : <ArrowLeft size={20} />}<span>{isCrmPublicMode ? "Ребёнок" : "Назад"}</span></button>
+      <span className="eyebrow">{data.school.name} · {data.class.name}</span><h1>{child?.public_name || "Каталог фотографий"}</h1>{!childId && <p className="public-lead">Выберите фотографии. Ребёнка можно выбрать или добавить при оформлении заявки.</p>}
       {error && <Notice kind="error">{error}</Notice>}
       {prioritizedSections.length > 0 && <div className="catalog-category-cards" ref={categoryCardsRef} aria-label="Категории услуг">
         {prioritizedSections.map((section, index) => {
@@ -451,9 +461,9 @@ export function PublicOrderPage() {
           </button>;
         })}
       </div>}
-      <button type="button" className="catalog-custom-request-card" onClick={() => { setError(""); setCustomReferenceFile(null); setCustomReferenceServiceId(""); setCustomServiceSearch(""); setCustomRequestOpen(true); }}>
+      <button type="button" className="catalog-custom-request-card" onClick={() => { if (isCrmPublicMode && !childId) { setChildPickerOpen(true); return; } setError(""); setCustomReferenceFile(null); setCustomReferenceServiceId(""); setCustomServiceSearch(""); setCustomRequestOpen(true); }}>
         <img src={`${import.meta.env.BASE_URL}images/custom-photo-request-banner.webp`} alt="" loading="lazy" decoding="async" />
-        <span className="catalog-custom-request-copy"><MessageSquarePlus aria-hidden="true"/><strong>Не нашли нужный образ?</strong><small>Опишите идею — мы подберём вариант для {child?.public_name}.</small><b>Оставить заявку</b></span>
+        <span className="catalog-custom-request-copy"><MessageSquarePlus aria-hidden="true"/><strong>Не нашли нужный образ?</strong><small>Опишите идею — мы подберём вариант для {child?.public_name || "вашего ребёнка"}.</small><b>Оставить заявку</b></span>
       </button>
       {popularItems.length > 0 && <section className="catalog-popular-section" aria-label="Популярные услуги"><h2>Популярное</h2><p>Лучшие варианты — по одной услуге из каждой категории.</p><div className="service-list">{popularItems.map((item) => renderCard(item))}</div></section>}
       {data.catalog.length > 0 && <div className={`catalog-sticky-filters${filtersPinned ? " is-pinned" : ""}`}>

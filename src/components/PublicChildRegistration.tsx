@@ -5,7 +5,7 @@ import { humanError } from '../lib/helpers';
 import type { PublicClassPayload } from '../lib/types';
 import './public-child-registration.css';
 type PublicChild = PublicClassPayload['children'][number];
-export function PublicChildRegistration({ token, children, onSaved, onChoose }: { token: string; children: PublicChild[]; onSaved: (child: PublicChild) => void; onChoose: (id: string, child?: PublicChild) => void }) {
+export function PublicChildRegistration({ token, children, onSaved, onChoose, chooseLabel }: { token: string; children: PublicChild[]; onSaved: (child: PublicChild) => void; onChoose: (id: string, child?: PublicChild) => void; chooseLabel?: string }) {
   const [open, setOpen] = useState(false);
   const [first, setFirst] = useState(''); const [last, setLast] = useState('');
   const [pending, setPending] = useState(false); const [error, setError] = useState('');
@@ -37,7 +37,7 @@ export function PublicChildRegistration({ token, children, onSaved, onChoose }: 
   if (!open) return <div className="public-child-registration"><button type="button" className="button button-secondary" onClick={() => setOpen(true)}>+ Добавить ребёнка</button><p>Родитель может добавить своего ребёнка, учитель — весь класс.</p></div>;
   return <section className="public-child-registration" aria-label="Добавление ребёнка">
     <div className="registration-heading"><h2>Добавить ребёнка</h2><button type="button" className="button button-ghost" disabled={pending} onClick={() => setOpen(false)}>Закрыть</button></div>
-    {saved ? <div role="status"><p><strong>{saved.public_name}</strong> — в списке класса.</p><div className="registration-actions"><button type="button" className="button button-primary" onClick={() => onChoose(saved.id, saved)}>Выбрать ребёнка и открыть каталог</button><button type="button" className="button button-secondary" onClick={() => { setSaved(null); requestAnimationFrame(() => lastInput.current?.focus()); }}>Добавить ещё ребёнка</button></div></div> : <form onSubmit={submit}>
+    {saved ? <div role="status"><p><strong>{saved.public_name}</strong> — в списке класса.</p><div className="registration-actions"><button type="button" className="button button-primary" onClick={() => onChoose(saved.id, saved)}>{chooseLabel || "Выбрать ребёнка и открыть каталог"}</button><button type="button" className="button button-secondary" onClick={() => { setSaved(null); requestAnimationFrame(() => lastInput.current?.focus()); }}>Добавить ещё ребёнка</button></div></div> : <form onSubmit={submit}>
       <p>Укажите фамилию и имя. Заявку оформлять не обязательно.</p>
       <div className="registration-fields"><label>Фамилия<input ref={lastInput} autoFocus autoComplete="off" required maxLength={100} value={last} onChange={event => setLast(event.target.value)} placeholder="Абдуллаев" disabled={pending}/></label><label>Имя<input autoComplete="off" required maxLength={100} value={first} onChange={event => setFirst(event.target.value)} placeholder="Адам" disabled={pending}/></label></div>
       {checking && <p role="status">Проверяем список класса…</p>}
