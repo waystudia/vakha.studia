@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { supabase } from '../lib/supabase';
+import {importStudioProject} from '../lib/crmStudioRepository';
 import { currentUser } from '../lib/repository';
 import { parseCrmProjectZip, type CrmProjectDraft } from '../lib/crmProjectImport';
 import { humanError } from '../lib/helpers';
@@ -9,6 +9,8 @@ export function CrmProjectImport({onClose,onDone}:{onClose:()=>void;onDone:()=>v
  const [city,setCity]=useState(''),[year,setYear]=useState(()=>{const now=new Date(), y=now.getFullYear()-(now.getMonth()<8?1:0);return `${y}/${y+1}`;});
  async function read(next:File|undefined){setDraft(null);setFile(null);setError('');setArchiveWarning('');if(!next)return;setBusy(true);try{setDraft(await parseCrmProjectZip(next));setFile(next);}catch(e){setError(humanError(e));}finally{setBusy(false);}}
  async function apply(){if(!draft||!file)return;setBusy(true);setError('');try{
+  if(import.meta.env.VITE_CRM_MODE==='true'){setProgress('Передаём проект в CRM…');await importStudioProject(file,city.trim(),year.trim());onDone();return;}
+  const {supabase}=await import('../lib/supabase');
   const user=await currentUser();if(!user)throw Error('Войдите в аккаунт');
   setProgress('Сохраняем исходный ZIP…');
   const path=`${user.id}/${crypto.randomUUID()}.zip`;

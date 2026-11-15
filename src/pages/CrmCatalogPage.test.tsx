@@ -12,13 +12,11 @@ it('reuses legacy category covers, sticky filters and popular cards with snapsho
  mount();await screen.findByRole('heading',{name:'Популярное'});
  expect(screen.getByText('Видеоинструкция')).toBeTruthy();expect(screen.getByRole('navigation',{name:'Быстрый переход по категориям'})).toBeTruthy();
  expect(document.querySelector('.public-catalog-shell .catalog-sticky-filters')).toBeTruthy();expect(document.querySelector('.catalog-category-cards')).toBeTruthy();
- expect(fetch).toHaveBeenCalledWith('/catalog-snapshot/catalog.json',{cache:'no-cache'});
+ expect(fetch).toHaveBeenCalledWith('/api/v1/public/catalog',expect.objectContaining({credentials:'omit',cache:'no-store'}));
 });
-it('shows the same selection dock but requires the class link for CRM checkout',async()=>{
- mount();const buttons=await screen.findAllByRole('button',{name:'Добавить Пример фото в заказ'});fireEvent.click(buttons[0]);
+it('opens school and class selection instead of requiring a pasted link',async()=>{
+ vi.stubGlobal('fetch',vi.fn(async(url)=>({ok:true,json:async()=>String(url).includes('/directory')?{schools:[]}:{catalog:items}})));
+ render(<MemoryRouter><CrmCatalogPage/></MemoryRouter>);const buttons=await screen.findAllByRole('button',{name:'Добавить Пример фото в заказ'});fireEvent.click(buttons[0]);
  fireEvent.click(screen.getByRole('button',{name:'Оформить заявку'}));
- expect(screen.getByRole('dialog',{name:'Оформить заявку'})).toBeTruthy();expect(screen.getByLabelText('Ссылка класса')).toBeTruthy();
- fireEvent.change(screen.getByLabelText('Ссылка класса'),{target:{value:'https://other.test/p/'+ 'a'.repeat(32)}});
- fireEvent.submit(screen.getByRole('button',{name:'Открыть класс'}).closest('form')!);
- expect(screen.getByText('Откройте ссылку класса на этом сайте, полученную от учителя или фотографа.')).toBeTruthy();
+ expect(await screen.findByRole('dialog',{name:'Оформить заявку'})).toBeTruthy();expect(await screen.findByText(/Выберите школу, класс и ребёнка/)).toBeTruthy();expect(screen.queryByLabelText('Ссылка класса')).toBeNull();
 });

@@ -1,3 +1,4 @@
+import {useStudioRefresh} from "../lib/useStudioRefresh";
 import { CrmProjectImport } from "../components/CrmProjectImport";
 import { Building2, ChevronRight, CirclePlus, MapPin, Pencil, Users } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
@@ -16,11 +17,12 @@ export function SchoolsPage() {
   const navigate = useNavigate();
   const [importing,setImporting]=useState(false);
 
-  async function refresh() {
-    setLoading(true); setError("");
+  async function refresh(showLoading = true) {
+    if (showLoading) setLoading(true); setError("");
     try { setSchools(await loadSchools()); } catch (reason) { setError(humanError(reason)); }
     finally { setLoading(false); }
   }
+  useStudioRefresh(() => refresh(false), pending || importing || editing !== undefined);
   useEffect(() => { void refresh(); }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -40,7 +42,7 @@ export function SchoolsPage() {
   }
 
   return <div className="page">
-    <header className="page-header"><div><span className="eyebrow">АДМИНИСТРИРОВАНИЕ</span><h1>Школы</h1><p>Создавайте школы, классы и ссылки для родителей.</p></div><div className="inline-actions"><button className="button button-secondary" onClick={()=>setImporting(true)}>Импорт из CRM Photo</button><button className="button button-primary" onClick={() => setEditing(null)}><CirclePlus size={19}/>Создать школу</button></div></header>
+    <header className="page-header"><div><span className="eyebrow">АДМИНИСТРИРОВАНИЕ</span><h1>Школы</h1><p>{import.meta.env.VITE_CRM_MODE === "true" ? "Школы, классы и дети обновляются из CRM автоматически. Можно добавлять вручную." : "Создавайте школы, классы и ссылки для родителей."}</p></div><div className="inline-actions"><button className="button button-secondary" onClick={()=>setImporting(true)}>Импорт из CRM Photo</button><button className="button button-primary" onClick={() => setEditing(null)}><CirclePlus size={19}/>Создать школу</button></div></header>
     {error && <Notice kind="error">{error}</Notice>}
     {loading ? <Loader label="Загружаем школы…"/> : schools.length === 0 ? <EmptyState icon={<Building2/>} title="Школ пока нет" text="Создайте первую школу, затем добавьте класс и список детей." action={<button className="button button-primary" onClick={() => setEditing(null)}>Создать школу</button>}/> :
       <div className="school-grid">{schools.map((school) => <article className="school-card" key={school.id}>

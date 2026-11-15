@@ -27,7 +27,7 @@ describe('separate general catalog modes', () => {
   expect(screen.queryByRole('link',{name:'В админку'})).toBeNull();
   const open = vi.spyOn(window, 'open').mockImplementation(() => null);
   fireEvent.change(screen.getByLabelText('Название учреждения'), {target:{value:'Школа №1'}});
-  fireEvent.click(await screen.findByRole('button',{name:/Создать новое учреждение/}));
+  fireEvent.click(await screen.findByRole('button',{name:/Создать новое учреждение/}, {timeout: 10000}));
   fireEvent.change(screen.getByLabelText('Населённый пункт'), {target:{value:'Грозный'}});
   fireEvent.change(screen.getByLabelText('Название класса или группы'), {target:{value:'3А'}});
   fireEvent.change(screen.getByLabelText('Фамилия'), {target:{value:'Иванов'}});

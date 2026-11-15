@@ -1,3 +1,4 @@
+import {useStudioRefresh} from "../lib/useStudioRefresh";
 import { ArrowLeft, Building2, ChevronRight, ClipboardList, Download, GraduationCap, Image as ImageIcon, UserRound } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
@@ -39,8 +40,8 @@ export function OrdersPage() {
   const [classId, setClassId] = useState("");
   const [referenceUrls, setReferenceUrls] = useState<Record<string, string>>({});
 
-  async function refresh() {
-    setLoading(true);
+  async function refresh(showLoading = true) {
+    if (showLoading) setLoading(true);
     try {
       setWorkspace(await loadOrdersWorkspace());
     } catch (reason) {
@@ -50,18 +51,16 @@ export function OrdersPage() {
     }
   }
 
+  useStudioRefresh(() => refresh(false), false);
   useEffect(() => { void refresh(); }, []);
   useEffect(() => {
     let active = true;
     const paths = [...new Set(workspace.orders.flatMap((order) => order.selected_items.flatMap((item) => [item.reference_path, item.parent_video_path]).filter((path): path is string => Boolean(path))))];
     if (!paths.length) { setReferenceUrls({}); return; }
     void (async () => {
-      const { supabase } = await import("../lib/supabase");
-      const entries = await Promise.all(paths.map(async (path) => {
-        const { data, error } = await supabase.storage.from("parent-request-references").createSignedUrl(path, 60 * 60);
-        return error || !data?.signedUrl ? [path, ""] as const : [path, data.signedUrl] as const;
-      }));
-      if (active) setReferenceUrls(Object.fromEntries(entries.filter(([, url]) => url)));
+      const {privateMediaUrls}=await import('../lib/privateMediaRepository');
+      const urls=await privateMediaUrls(paths);
+      if(active)setReferenceUrls(urls);
     })().catch(() => { if (active) setReferenceUrls({}); });
     return () => { active = false; };
   }, [workspace.orders]);

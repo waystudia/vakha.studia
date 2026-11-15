@@ -5,7 +5,7 @@ import { Loader, Notice } from '../components/ui';
 import { Link } from 'react-router-dom';
 import { humanError } from '../lib/helpers';
 
-export function AdminCatalogViewPage({userId, presentation = false}: {userId: string; presentation?: boolean}) {
+function LegacyAdminCatalogViewPage({userId, presentation = false}: {userId: string; presentation?: boolean}) {
   const [token, setToken] = useState('');
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
@@ -24,4 +24,9 @@ export function AdminCatalogViewPage({userId, presentation = false}: {userId: st
   if (!token) return <Loader label="Открываем каталог…" />;
   if (!presentation) return <main className="public-page"><div className="public-shell"><Link className="back-link" to="/admin/schools">← В админку</Link><section className="section-card"><h1>Поделиться каталогом</h1><p>Общий каталог для школ, детских садов и родителей. Получателям не нужен вход в админку.</p>{error && <Notice kind="error">{error}</Notice>}<label>Ссылка на каталог<input type="url" readOnly value={publicUrl} onFocus={event => event.currentTarget.select()} style={{width:'100%',boxSizing:'border-box'}} /></label><div className="inline-actions" style={{marginTop:16}}><button className="button button-primary" onClick={() => void copy()}>{copied ? 'Ссылка скопирована' : 'Копировать ссылку'}</button><button className="button button-secondary" onClick={() => void share()}>Поделиться</button><a className="button button-secondary" href={publicUrl} target="_blank" rel="noopener noreferrer">Открыть каталог</a></div></section></div></main>;
   return <PublicCatalogPage key={`${token}-${presentation}`} catalogToken={token} presentation internal />;
+}
+
+export function AdminCatalogViewPage(props:{userId:string;presentation?:boolean}) {
+ if(import.meta.env.VITE_CRM_MODE==='true'&&props.presentation)return <PublicCatalogPage crmSnapshot presentation internal/>;
+ return <LegacyAdminCatalogViewPage {...props}/>;
 }

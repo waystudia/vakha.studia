@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Loader, Notice } from "../components/ui";
 import { humanError } from "../lib/helpers";
-import { supabase } from "../lib/supabase";
+import {loadInquiries,updateInquiryStatus} from "../lib/repository";
 
 type Inquiry = {
   id: string;
@@ -29,11 +29,9 @@ export function InquiriesPage() {
   const [pending, setPending] = useState("");
 
   useEffect(() => {
-    void supabase.from("catalog_inquiries").select("*").order("created_at", { ascending: false }).then(({ data, error: loadError }) => {
-      if (loadError) setError(humanError(loadError));
-      else setRows((data || []) as Inquiry[]);
-      setLoading(false);
-    });
+    let alive=true;
+    void loadInquiries().then(data=>{if(alive)setRows(data);}).catch(error=>{if(alive)setError(humanError(error));}).finally(()=>{if(alive)setLoading(false);});
+    return()=>{alive=false;};
   }, []);
 
   return <div className="inquiries-page">
@@ -55,9 +53,7 @@ export function InquiriesPage() {
           const status = event.target.value;
           setPending(row.id);
           setError("");
-          const { error: updateError } = await supabase.from("catalog_inquiries").update({ status }).eq("id", row.id).select("id").single();
-          if (updateError) setError(humanError(updateError));
-          else setRows(old => old.map(item => item.id === row.id ? { ...item, status } : item));
+          try{await updateInquiryStatus(row.id,status);setRows(old=>old.map(item=>item.id===row.id?{...item,status}:item));}catch(error){setError(humanError(error));}
           setPending("");
         }}><option value="new">Новая</option><option value="contacted">Связались</option><option value="closed">Закрыта</option></select></label>
       </article>)}

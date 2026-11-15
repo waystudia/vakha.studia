@@ -1,572 +1,178 @@
-import type { User } from "@supabase/supabase-js";
-import { supabase } from "./supabase";
-import { optimizeCatalogImage, optimizeCatalogVideo } from "./optimizeCatalogMedia";
-import type {
-  CatalogItem,
-  CatalogZipItem,
-  Child,
-  ClassWithStats,
-  ParentOrder,
-  OrdersWorkspace,
-  Profile,
-  PublicCatalogPayload,
-  PublicClassPayload,
-  PublicOrderPayload,
-  PublicOrderResult,
-  PublicPageVisit,
-  School,
-  SchoolClass,
-  SchoolWithStats,
-} from "./types";
-import { makePublicName } from "./helpers";
-import { activeCatalogItemIdsOutsideCrm } from "./catalogSync";
+/** Provider facade: CRM staff and legacy Supabase retain the same screen contracts. */
+import { crmStudioCall } from './crmStudioRepository';
+type Legacy = typeof import('./supabaseRepository');
+export type { CatalogInstitutionMatch, CatalogIntakeResult } from './supabaseRepository';
+const crm = import.meta.env.VITE_CRM_MODE === 'true';
 
-function fail(error: { message: string } | null) {
-  if (error) throw new Error(error.message);
+export async function currentUser(...args: Parameters<Legacy['currentUser']>): ReturnType<Legacy['currentUser']> {
+  if (crm) return crmStudioCall('currentUser', args);
+  return (await import('./supabaseRepository')).currentUser(...args);
 }
 
-export async function currentUser(): Promise<User | null> {
-  const { data, error } = await supabase.auth.getUser();
-  if (error) return null;
-  return data.user;
+export async function signIn(...args: Parameters<Legacy['signIn']>): ReturnType<Legacy['signIn']> {
+  if (crm) return crmStudioCall('signIn', args);
+  return (await import('./supabaseRepository')).signIn(...args);
 }
 
-export async function signIn(email: string, password: string) {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  fail(error);
-  return data;
+export async function signUp(...args: Parameters<Legacy['signUp']>): ReturnType<Legacy['signUp']> {
+  if (crm) return crmStudioCall('signUp', args);
+  return (await import('./supabaseRepository')).signUp(...args);
 }
 
-export async function signUp(email: string, password: string, fullName: string) {
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: { data: { full_name: fullName } },
-  });
-  fail(error);
-  return data;
+export async function signOut(...args: Parameters<Legacy['signOut']>): ReturnType<Legacy['signOut']> {
+  if (crm) return crmStudioCall('signOut', args);
+  return (await import('./supabaseRepository')).signOut(...args);
 }
 
-export async function signOut() {
-  const { error } = await supabase.auth.signOut();
-  fail(error);
+export async function getProfile(...args: Parameters<Legacy['getProfile']>): ReturnType<Legacy['getProfile']> {
+  if (crm) return crmStudioCall('getProfile', args);
+  return (await import('./supabaseRepository')).getProfile(...args);
 }
 
-export async function getProfile(userId?: string): Promise<Profile> {
-  let query = supabase.from("profiles").select("*");
-  if (userId) query = query.eq("id", userId);
-  const { data, error } = await query.maybeSingle();
-  fail(error);
-  if (data) return data as Profile;
-  const user = await currentUser();
-  if (!user) throw new Error("Профиль не найден");
-  const { data: created, error: createError } = await supabase.from("profiles").upsert({ id: user.id, full_name: user.user_metadata?.full_name || "" }).select("*").single();
-  fail(createError);
-  return created as Profile;
+export async function updateProfile(...args: Parameters<Legacy['updateProfile']>): ReturnType<Legacy['updateProfile']> {
+  if (crm) return crmStudioCall('updateProfile', args);
+  return (await import('./supabaseRepository')).updateProfile(...args);
 }
 
-export async function updateProfile(id: string, input: Partial<Pick<Profile, "company_name" | "manager_name" | "whatsapp_phone" | "whatsapp_template" | "watermark_text" | "watermark_image" | "watermark_opacity">>) {
-  const { data, error } = await supabase.from("profiles").update(input).eq("id", id).select("*").single();
-  fail(error);
-  return data as Profile;
+export async function ensureDemoData(...args: Parameters<Legacy['ensureDemoData']>): ReturnType<Legacy['ensureDemoData']> {
+  if (crm) return crmStudioCall('ensureDemoData', args);
+  return (await import('./supabaseRepository')).ensureDemoData(...args);
 }
 
-export async function ensureDemoData(userId: string) {
-  const { count, error: countError } = await supabase
-    .from("schools")
-    .select("id", { count: "exact", head: true });
-  fail(countError);
-
-  if ((count || 0) === 0) {
-    const { data: school, error: schoolError } = await supabase
-      .from("schools")
-      .insert({ owner_id: userId, name: "Лицей №12", city: "Москва" })
-      .select("*")
-      .single();
-    fail(schoolError);
-
-    const { data: schoolClass, error: classError } = await supabase
-      .from("classes")
-      .insert({
-        owner_id: userId,
-        school_id: school.id,
-        name: "3А",
-        academic_year: "2026/2027",
-        teacher_name: "",
-        photo_session_name: "Фотосессия 3А",
-      })
-      .select("*")
-      .single();
-    fail(classError);
-
-    const demoChildren = [
-      { first_name: "Адам", last_name: "Абдуллаев", public_name: "Адам А." },
-      { first_name: "Марьям", last_name: "Хасанова", public_name: "Марьям Х." },
-      { first_name: "Амина", last_name: "Магомедова", public_name: "Амина М." },
-    ].map((child) => ({ ...child, owner_id: userId, class_id: schoolClass.id }));
-    const { error: childrenError } = await supabase.from("children").insert(demoChildren);
-    fail(childrenError);
-  }
-
-  const { count: catalogCount, error: catalogCountError } = await supabase
-    .from("catalog_items")
-    .select("id", { count: "exact", head: true });
-  fail(catalogCountError);
-
-  if ((catalogCount || 0) === 0) {
-    const defaults = [
-      ["default-photo", "Обычные фото", "Классические школьные снимки", "photo", 400],
-      ["default-ai-image", "AI-образ", "Стильный цифровой портрет", "ai", 400],
-      ["default-ai-video", "AI-видео", "Короткий ролик с анимацией", "video", 300],
-      ["default-interview", "Интервью", "Несколько вопросов о мечтах и планах", "interview", 300],
-    ].map(([source_id, name, short_description, type, price], sort_order) => ({
-      owner_id: userId,
-      source_id,
-      name,
-      short_description,
-      description: short_description,
-      type,
-      category: "Базовый каталог",
-      price,
-      sort_order,
-      source: "demo",
-    }));
-    const { error } = await supabase.from("catalog_items").insert(defaults);
-    fail(error);
-  }
-
+export async function loadSchools(...args: Parameters<Legacy['loadSchools']>): ReturnType<Legacy['loadSchools']> {
+  if (crm) return crmStudioCall('loadSchools', args);
+  return (await import('./supabaseRepository')).loadSchools(...args);
 }
 
-export async function loadSchools(): Promise<SchoolWithStats[]> {
-  const [schoolsResult, classesResult, childrenResult, ordersResult] = await Promise.all([
-    supabase.from("schools").select("*").eq("status", "active").order("created_at", { ascending: false }),
-    supabase.from("classes").select("id, school_id").eq("status", "active"),
-    supabase.from("children").select("id, class_id").eq("status", "active"),
-    supabase.from("parent_orders").select("id, class_id").neq("status", "cancelled"),
-  ]);
-  [schoolsResult.error, classesResult.error, childrenResult.error, ordersResult.error].forEach(fail);
-
-  const classes = classesResult.data || [];
-  const children = childrenResult.data || [];
-  const orders = ordersResult.data || [];
-  return ((schoolsResult.data || []) as School[]).map((school) => {
-    const classIds = classes.filter((item) => item.school_id === school.id).map((item) => item.id);
-    return {
-      ...school,
-      classes_count: classIds.length,
-      children_count: children.filter((item) => classIds.includes(item.class_id)).length,
-      orders_count: orders.filter((item) => classIds.includes(item.class_id)).length,
-    };
-  });
+export async function createSchool(...args: Parameters<Legacy['createSchool']>): ReturnType<Legacy['createSchool']> {
+  if (crm) return crmStudioCall('createSchool', args);
+  return (await import('./supabaseRepository')).createSchool(...args);
 }
 
-export async function createSchool(input: Pick<School, "name" | "city" | "address" | "contact_name">) {
-  const { data, error } = await supabase.from("schools").insert(input).select("*").single();
-  fail(error);
-  return data as School;
+export async function updateSchool(...args: Parameters<Legacy['updateSchool']>): ReturnType<Legacy['updateSchool']> {
+  if (crm) return crmStudioCall('updateSchool', args);
+  return (await import('./supabaseRepository')).updateSchool(...args);
 }
 
-export async function updateSchool(id: string, input: Partial<Pick<School, "name" | "city" | "address" | "contact_name" | "status">>) {
-  const { data, error } = await supabase.from("schools").update(input).eq("id", id).select("*").single();
-  fail(error);
-  return data as School;
+export async function loadSchool(...args: Parameters<Legacy['loadSchool']>): ReturnType<Legacy['loadSchool']> {
+  if (crm) return crmStudioCall('loadSchool', args);
+  return (await import('./supabaseRepository')).loadSchool(...args);
 }
 
-export async function loadSchool(id: string): Promise<{ school: School; classes: ClassWithStats[] }> {
-  const [schoolResult, classesResult, childrenResult, ordersResult] = await Promise.all([
-    supabase.from("schools").select("*").eq("id", id).single(),
-    supabase.from("classes").select("*").eq("school_id", id).eq("status", "active").order("created_at"),
-    supabase.from("children").select("id, class_id").eq("status", "active"),
-    supabase.from("parent_orders").select("id, class_id, child_id").neq("status", "cancelled"),
-  ]);
-  [schoolResult.error, classesResult.error, childrenResult.error, ordersResult.error].forEach(fail);
-  const children = childrenResult.data || [];
-  const orders = ordersResult.data || [];
-  const classes = ((classesResult.data || []) as SchoolClass[]).map((item) => {
-    const classChildren = children.filter((child) => child.class_id === item.id);
-    const orderedChildIds = new Set(orders.filter((order) => order.class_id === item.id).map((order) => order.child_id));
-    return {
-      ...item,
-      children_count: classChildren.length,
-      orders_count: orders.filter((order) => order.class_id === item.id).length,
-      missing_orders_count: classChildren.filter((child) => !orderedChildIds.has(child.id)).length,
-    };
-  });
-  return { school: schoolResult.data as School, classes };
+export async function createClass(...args: Parameters<Legacy['createClass']>): ReturnType<Legacy['createClass']> {
+  if (crm) return crmStudioCall('createClass', args);
+  return (await import('./supabaseRepository')).createClass(...args);
 }
 
-export async function createClass(input: Pick<SchoolClass, "school_id" | "name" | "academic_year" | "teacher_name" | "photo_session_name">) {
-  const { data, error } = await supabase.from("classes").insert(input).select("*").single();
-  fail(error);
-  return data as SchoolClass;
+export async function updateClass(...args: Parameters<Legacy['updateClass']>): ReturnType<Legacy['updateClass']> {
+  if (crm) return crmStudioCall('updateClass', args);
+  return (await import('./supabaseRepository')).updateClass(...args);
 }
 
-export async function updateClass(id: string, input: Partial<Pick<SchoolClass, "name" | "academic_year" | "teacher_name" | "photo_session_name" | "status" | "public_expires_at">>) {
-  const { data, error } = await supabase.from("classes").update(input).eq("id", id).select("*").single();
-  fail(error);
-  return data as SchoolClass;
+export async function loadClass(...args: Parameters<Legacy['loadClass']>): ReturnType<Legacy['loadClass']> {
+  if (crm) return crmStudioCall('loadClass', args);
+  return (await import('./supabaseRepository')).loadClass(...args);
 }
 
-export async function loadClass(id: string): Promise<{
-  schoolClass: SchoolClass;
-  school: School;
-  children: Child[];
-  orders: ParentOrder[];
-}> {
-  const classResult = await supabase.from("classes").select("*").eq("id", id).single();
-  fail(classResult.error);
-  const schoolClass = classResult.data as SchoolClass;
-  const [schoolResult, childrenResult, ordersResult] = await Promise.all([
-    supabase.from("schools").select("*").eq("id", schoolClass.school_id).single(),
-    supabase.from("children").select("*").eq("class_id", id).eq("status", "active").order("last_name"),
-    supabase.from("parent_orders").select("*").eq("class_id", id).order("created_at", { ascending: false }),
-  ]);
-  [schoolResult.error, childrenResult.error, ordersResult.error].forEach(fail);
-  return {
-    schoolClass,
-    school: schoolResult.data as School,
-    children: (childrenResult.data || []) as Child[],
-    orders: (ordersResult.data || []) as ParentOrder[],
-  };
+export async function createChild(...args: Parameters<Legacy['createChild']>): ReturnType<Legacy['createChild']> {
+  if (crm) return crmStudioCall('createChild', args);
+  return (await import('./supabaseRepository')).createChild(...args);
 }
 
-export async function createChild(classId: string, input: { first_name: string; last_name: string; public_name?: string }) {
-  const payload = {
-    class_id: classId,
-    first_name: input.first_name.trim(),
-    last_name: input.last_name.trim(),
-    public_name: input.public_name?.trim() || makePublicName(input.first_name, input.last_name),
-  };
-  const { data, error } = await supabase.from("children").insert(payload).select("*").single();
-  fail(error);
-  return data as Child;
+export async function updateChild(...args: Parameters<Legacy['updateChild']>): ReturnType<Legacy['updateChild']> {
+  if (crm) return crmStudioCall('updateChild', args);
+  return (await import('./supabaseRepository')).updateChild(...args);
 }
 
-export async function updateChild(id: string, input: Partial<Pick<Child, "first_name" | "last_name" | "public_name" | "status">>) {
-  const { data, error } = await supabase.from("children").update(input).eq("id", id).select("*").single();
-  fail(error);
-  return data as Child;
+export async function importChildren(...args: Parameters<Legacy['importChildren']>): ReturnType<Legacy['importChildren']> {
+  if (crm) return crmStudioCall('importChildren', args);
+  return (await import('./supabaseRepository')).importChildren(...args);
 }
 
-export async function importChildren(classId: string, rows: Array<{ first_name: string; last_name: string; public_name?: string }>) {
-  let added = 0;
-  let skipped = 0;
-  for (const row of rows) {
-    try {
-      await createChild(classId, row);
-      added += 1;
-    } catch (error) {
-      if (error instanceof Error && error.message.includes("children_active_name_unique")) skipped += 1;
-      else throw error;
-    }
-  }
-  return { added, skipped };
+export async function loadCatalog(...args: Parameters<Legacy['loadCatalog']>): ReturnType<Legacy['loadCatalog']> {
+  if (crm) return crmStudioCall('loadCatalog', args);
+  return (await import('./supabaseRepository')).loadCatalog(...args);
 }
 
-export async function loadCatalog(): Promise<CatalogItem[]> {
-  const { data, error } = await supabase.from("catalog_items").select("*").order("sort_order").order("name");
-  fail(error);
-  return (data || []) as CatalogItem[];
+export async function importCatalogItems(...args: Parameters<Legacy['importCatalogItems']>): ReturnType<Legacy['importCatalogItems']> {
+  if (crm) return crmStudioCall('importCatalogItems', args);
+  return (await import('./supabaseRepository')).importCatalogItems(...args);
 }
 
-function extensionForBlob(blob: Blob, fallbackPath: string) {
-  const fromPath = fallbackPath.split(".").pop()?.replace(/[^a-z0-9]/gi, "").toLowerCase();
-  if (blob.type === "image/png") return "png";
-  if (blob.type === "image/webp") return "webp";
-  if (blob.type === "video/mp4") return "mp4";
-  if (fromPath) return fromPath;
-  return "jpg";
+export async function updateCatalogItem(...args: Parameters<Legacy['updateCatalogItem']>): ReturnType<Legacy['updateCatalogItem']> {
+  if (crm) return crmStudioCall('updateCatalogItem', args);
+  return (await import('./supabaseRepository')).updateCatalogItem(...args);
 }
 
-async function uploadCatalogAsset(userId: string, sourceId: string, kind: string, blob: Blob | undefined, originalPath: string) {
-  if (!blob) return "";
-  const safeSource = sourceId.replace(/[^a-z0-9_-]/gi, "-").slice(0, 80);
-  const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
-  const version = Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, 20);
-  const path = `${userId}/${safeSource}/${kind}-${version}.${extensionForBlob(blob, originalPath)}`;
-  const { error } = await supabase.storage.from("catalog-previews").upload(path, blob, {
-    contentType: blob.type,
-    cacheControl: "31536000",
-    upsert: true,
-  });
-  fail(error);
-  return supabase.storage.from("catalog-previews").getPublicUrl(path).data.publicUrl;
+export async function deleteCatalogItems(...args: Parameters<Legacy['deleteCatalogItems']>): ReturnType<Legacy['deleteCatalogItems']> {
+  if (crm) return crmStudioCall('deleteCatalogItems', args);
+  return (await import('./supabaseRepository')).deleteCatalogItems(...args);
 }
 
-async function uploadCatalogOriginal(userId: string, sourceId: string, blob: Blob | undefined, originalPath: string) {
-  if (!blob) return "";
-  const safeSource = sourceId.replace(/[^a-z0-9_-]/gi, "-").slice(0, 80);
-  const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
-  const version = Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, 20);
-  const path = `${userId}/${safeSource}/original-${version}.${extensionForBlob(blob, originalPath)}`;
-  const { error } = await supabase.storage.from("catalog-originals").upload(path, blob, {
-    contentType: blob.type,
-    cacheControl: "31536000",
-    upsert: true,
-  });
-  fail(error);
-  return supabase.storage.from("catalog-originals").getPublicUrl(path).data.publicUrl;
+export async function loadOrders(...args: Parameters<Legacy['loadOrders']>): ReturnType<Legacy['loadOrders']> {
+  if (crm) return crmStudioCall('loadOrders', args);
+  return (await import('./supabaseRepository')).loadOrders(...args);
 }
 
-export async function importCatalogItems(userId: string, items: CatalogZipItem[], onProgress?: (done: number, total: number) => void) {
-  const existing = await loadCatalog();
-  const existingBySource = new Map(existing.map((item) => [item.source_id, item]));
-  for (const [index, item] of items.entries()) {
-    onProgress?.(index, items.length);
-    const previous = existingBySource.get(item.sourceId);
-    const previewUrl = item.previewImage
-      ? await uploadCatalogAsset(userId, item.sourceId, "preview", await optimizeCatalogImage(item.previewImage), item.previewImagePath)
-      : previous?.preview_url || "";
-    const originalUrl = item.originalImage
-      ? await uploadCatalogOriginal(userId, item.sourceId, item.originalImage, item.originalImagePath || item.previewImagePath)
-      : previous?.original_url || "";
-    const previewVideoUrl = item.previewVideo
-      ? await uploadCatalogAsset(userId, item.sourceId, "preview-video", await optimizeCatalogVideo(item.previewVideo), item.previewVideoPath)
-      : previous?.preview_video_url || "";
-    const payload = {
-      owner_id: userId,
-      source_id: item.sourceId,
-      name: item.name,
-      description: item.description,
-      short_description: item.shortDescription,
-      type: item.type,
-      category: item.category,
-      gender: item.gender,
-      price: item.price,
-      preview_url: previewUrl,
-      original_url: originalUrl,
-      preview_video_url: previewVideoUrl,
-      parent_preview_mode: item.parentPreviewMode,
-      popular: previous?.popular ?? item.popular,
-      is_active: true,
-      sort_order: index,
-      source: "crm_photo_zip",
-    };
-    const { error } = await supabase.from("catalog_items").upsert(payload, { onConflict: "owner_id,source_id" });
-    fail(error);
-    onProgress?.(index + 1, items.length);
-  }
-  const outsideCrm = activeCatalogItemIdsOutsideCrm(existing, items);
-  if (outsideCrm.length) {
-    const { error } = await supabase.from("catalog_items").update({ is_active: false }).eq("owner_id", userId).in("id", outsideCrm);
-    fail(error);
-  }
-  return items.length;
+export async function loadOrdersWorkspace(...args: Parameters<Legacy['loadOrdersWorkspace']>): ReturnType<Legacy['loadOrdersWorkspace']> {
+  if (crm) return crmStudioCall('loadOrdersWorkspace', args);
+  return (await import('./supabaseRepository')).loadOrdersWorkspace(...args);
 }
 
-export async function updateCatalogItem(id: string, input: Partial<Pick<CatalogItem, "name" | "description" | "short_description" | "category" | "price" | "popular" | "is_active" | "sort_order">>) {
-  const { data, error } = await supabase.from("catalog_items").update(input).eq("id", id).select("*").single();
-  fail(error);
-  return data as CatalogItem;
+export async function loadVisitAnalytics(...args: Parameters<Legacy['loadVisitAnalytics']>): ReturnType<Legacy['loadVisitAnalytics']> {
+  if (crm) return crmStudioCall('loadVisitAnalytics', args);
+  return (await import('./supabaseRepository')).loadVisitAnalytics(...args);
 }
 
-async function removeCatalogAssets(items: CatalogItem[]) {
-  const paths = items.flatMap((item) => [item.preview_url, item.preview_video_url].map((url) => {
-    const marker = "/storage/v1/object/public/catalog-previews/";
-    const index = url.indexOf(marker);
-    return index >= 0 ? decodeURIComponent(url.slice(index + marker.length)) : "";
-  }).filter(Boolean));
-  if (paths.length) {
-    const { error } = await supabase.storage.from("catalog-previews").remove(paths);
-    fail(error);
-  }
-  const originalPaths = items.map((item) => {
-    const marker = "/storage/v1/object/public/catalog-originals/";
-    const index = item.original_url.indexOf(marker);
-    return index >= 0 ? decodeURIComponent(item.original_url.slice(index + marker.length)) : "";
-  }).filter(Boolean);
-  if (originalPaths.length) {
-    const { error: originalError } = await supabase.storage.from("catalog-originals").remove(originalPaths);
-    fail(originalError);
-  }
+export async function updateOrderStatus(...args: Parameters<Legacy['updateOrderStatus']>): ReturnType<Legacy['updateOrderStatus']> {
+  if (crm) return crmStudioCall('updateOrderStatus', args);
+  return (await import('./supabaseRepository')).updateOrderStatus(...args);
 }
 
-export async function deleteCatalogItems(ids: string[]) {
-  if (!ids.length) return;
-  const current = await loadCatalog();
-  const removing = current.filter((item) => ids.includes(item.id));
-  const { error } = await supabase.from("catalog_items").delete().in("id", ids);
-  fail(error);
-  await removeCatalogAssets(removing);
+export async function getPublicClass(...args: Parameters<Legacy['getPublicClass']>): ReturnType<Legacy['getPublicClass']> {
+  if (crm) return crmStudioCall('getPublicClass', args);
+  return (await import('./supabaseRepository')).getPublicClass(...args);
 }
 
-export async function loadOrders(): Promise<ParentOrder[]> {
-  const { data, error } = await supabase
-    .from("parent_orders")
-    .select("*, child:children(first_name,last_name,public_name), class:classes(name,school_id,school:schools(name))")
-    .order("created_at", { ascending: false });
-  fail(error);
-  return (data || []) as unknown as ParentOrder[];
+export async function getPublicCatalog(...args: Parameters<Legacy['getPublicCatalog']>): ReturnType<Legacy['getPublicCatalog']> {
+  if (crm) return crmStudioCall('getPublicCatalog', args);
+  return (await import('./supabaseRepository')).getPublicCatalog(...args);
 }
 
-export async function loadOrdersWorkspace(): Promise<OrdersWorkspace> {
-  const [schoolsResult, classesResult, ordersResult] = await Promise.all([
-    supabase.from("schools").select("*").eq("status", "active").order("created_at", { ascending: false }),
-    supabase.from("classes").select("*").eq("status", "active").order("name"),
-    supabase
-      .from("parent_orders")
-      .select("*, child:children(first_name,last_name,public_name), class:classes(name,school_id,school:schools(name))")
-      .order("created_at", { ascending: false }),
-  ]);
-  [schoolsResult.error, classesResult.error, ordersResult.error].forEach(fail);
-  return {
-    schools: (schoolsResult.data || []) as School[],
-    classes: (classesResult.data || []) as SchoolClass[],
-    orders: (ordersResult.data || []) as unknown as ParentOrder[],
-  };
+export async function searchCatalogInstitutions(...args: Parameters<Legacy['searchCatalogInstitutions']>): ReturnType<Legacy['searchCatalogInstitutions']> {
+  if (crm) return crmStudioCall('searchCatalogInstitutions', args);
+  return (await import('./supabaseRepository')).searchCatalogInstitutions(...args);
 }
 
-export async function loadVisitAnalytics(): Promise<PublicPageVisit[]> {
-  const { data, error } = await supabase
-    .from("public_page_visits")
-    .select("*, school:schools(name,city), class:classes(name)")
-    .order("last_seen_at", { ascending: false });
-  fail(error);
-  return (data || []) as unknown as PublicPageVisit[];
+export async function submitCatalogIntake(...args: Parameters<Legacy['submitCatalogIntake']>): ReturnType<Legacy['submitCatalogIntake']> {
+  if (crm) return crmStudioCall('submitCatalogIntake', args);
+  return (await import('./supabaseRepository')).submitCatalogIntake(...args);
 }
 
-export async function updateOrderStatus(id: string, status: ParentOrder["status"]) {
-  const { data, error } = await supabase.from("parent_orders").update({ status }).eq("id", id).select("*").single();
-  fail(error);
-  return data as ParentOrder;
+export async function submitCatalogInquiry(...args: Parameters<Legacy['submitCatalogInquiry']>): ReturnType<Legacy['submitCatalogInquiry']> {
+  if (crm) return crmStudioCall('submitCatalogInquiry', args);
+  return (await import('./supabaseRepository')).submitCatalogInquiry(...args);
 }
 
-export async function getPublicClass(token: string): Promise<PublicClassPayload | null> {
-  const { data, error } = await supabase.rpc("get_public_class", { p_token: token });
-  fail(error);
-  return data as PublicClassPayload | null;
+export async function getPublicOrder(...args: Parameters<Legacy['getPublicOrder']>): ReturnType<Legacy['getPublicOrder']> {
+  if (crm) return crmStudioCall('getPublicOrder', args);
+  return (await import('./supabaseRepository')).getPublicOrder(...args);
 }
 
-export async function getPublicCatalog(token: string): Promise<PublicCatalogPayload | null> {
-  const { data, error } = await supabase.rpc("get_public_catalog", { p_token: token });
-  fail(error);
-  return data as PublicCatalogPayload | null;
+export async function submitPublicOrder(...args: Parameters<Legacy['submitPublicOrder']>): ReturnType<Legacy['submitPublicOrder']> {
+  if (crm) return crmStudioCall('submitPublicOrder', args);
+  return (await import('./supabaseRepository')).submitPublicOrder(...args);
 }
 
-export interface CatalogInstitutionMatch {
-  id: string;
-  name: string;
-  city: string;
-  classes: Array<{ id: string; name: string; academic_year: string }>;
+export async function submitPublicCustomRequest(...args: Parameters<Legacy['submitPublicCustomRequest']>): ReturnType<Legacy['submitPublicCustomRequest']> {
+  if (crm) return crmStudioCall('submitPublicCustomRequest', args);
+  return (await import('./supabaseRepository')).submitPublicCustomRequest(...args);
 }
 
-export interface CatalogIntakeResult {
-  inquiry_id: string;
-  school_id: string;
-  class_id: string;
-  child_id: string;
-  order_id: string;
-  order_number: string;
-  institution: string;
-  city: string;
-  group_name: string;
+export async function cancelPublicOrder(...args: Parameters<Legacy['cancelPublicOrder']>): ReturnType<Legacy['cancelPublicOrder']> {
+  if (crm) return crmStudioCall('cancelPublicOrder', args);
+  return (await import('./supabaseRepository')).cancelPublicOrder(...args);
 }
-
-export async function searchCatalogInstitutions(token: string, query: string): Promise<CatalogInstitutionMatch[]> {
-  const { data, error } = await supabase.rpc("search_catalog_institutions", {
-    p_token: token,
-    p_query: query,
-  });
-  fail(error);
-  return (data || []) as CatalogInstitutionMatch[];
-}
-
-export async function submitCatalogIntake(input: {
-  token: string;
-  requestKey: string;
-  schoolId?: string;
-  institutionName: string;
-  city: string;
-  classId?: string;
-  groupName: string;
-  childFirstName: string;
-  childLastName: string;
-  phone: string;
-  itemIds: string[];
-  note: string;
-}): Promise<CatalogIntakeResult> {
-  const { data, error } = await supabase.rpc("submit_catalog_intake", {
-    p_token: input.token,
-    p_request_key: input.requestKey,
-    p_school_id: input.schoolId || null,
-    p_institution_name: input.institutionName,
-    p_city: input.city,
-    p_class_id: input.classId || null,
-    p_group_name: input.groupName,
-    p_child_first_name: input.childFirstName,
-    p_child_last_name: input.childLastName,
-    p_phone: input.phone,
-    p_item_ids: input.itemIds,
-    p_note: input.note,
-  });
-  fail(error);
-  return data as CatalogIntakeResult;
-}
-
-export async function submitCatalogInquiry(input: {
-  token: string;
-  requestKey: string;
-  institution: FormDataEntryValue | null;
-  contactName: string;
-  phone: FormDataEntryValue | null;
-  itemIds: string[];
-  note: FormDataEntryValue | null;
-}) {
-  const { data, error } = await supabase.rpc("submit_catalog_inquiry", {
-    p_token: input.token,
-    p_request_key: input.requestKey,
-    p_institution: input.institution,
-    p_contact_name: input.contactName,
-    p_phone: input.phone,
-    p_item_ids: input.itemIds,
-    p_note: input.note,
-  });
-  fail(error);
-  return data as string;
-}
-
-export async function getPublicOrder(token: string): Promise<PublicOrderPayload | null> {
-  const { data, error } = await supabase.rpc("get_public_order", { p_token: token });
-  fail(error);
-  return data as PublicOrderPayload | null;
-}
-
-export async function submitPublicOrder(input: {
-  token: string;
-  childId: string;
-  itemIds: string[];
-  withoutLaminationIds: string[];
-  requestKey: string;
-  note: string;
-  itemPreferences?: Record<string, { comment?: string; videoAddonRequested?: boolean }>;
-}): Promise<PublicOrderResult> {
-  const { data, error } = await supabase.rpc("submit_parent_order_v3", {
-    p_token: input.token,
-    p_child_id: input.childId,
-    p_item_ids: input.itemIds,
-    p_without_lamination_ids: input.withoutLaminationIds,
-    p_request_key: input.requestKey,
-    p_parent_note: input.note,
-    p_item_preferences: input.itemPreferences || {},
-  });
-  fail(error);
-  return data as PublicOrderResult;
-}
-
-export async function submitPublicCustomRequest(input: { token: string; childId: string; message: string; requestKey: string; catalogItemId?: string }): Promise<PublicOrderResult> {
-  const { data, error } = await supabase.rpc("submit_parent_custom_request", {
-    p_token: input.token,
-    p_child_id: input.childId,
-    p_message: input.message,
-    p_request_key: input.requestKey,
-    p_catalog_item_id: input.catalogItemId || null,
-  });
-  fail(error);
-  return data as PublicOrderResult;
-}
-
-export async function cancelPublicOrder(input: { token: string; childId: string }): Promise<PublicOrderResult> {
-  const { data, error } = await supabase.rpc("cancel_parent_order", { p_token: input.token, p_child_id: input.childId });
-  fail(error);
-  return data as PublicOrderResult;
-}
+export type {StudioInquiry} from './supabaseRepository';
+export async function loadInquiries():ReturnType<Legacy['loadInquiries']> {if(crm)return crmStudioCall('loadInquiries',[]);return (await import('./supabaseRepository')).loadInquiries();}
+export async function updateInquiryStatus(id:string,status:string):ReturnType<Legacy['updateInquiryStatus']> {if(crm)return crmStudioCall('updateInquiryStatus',[id,status]);return (await import('./supabaseRepository')).updateInquiryStatus(id,status);}

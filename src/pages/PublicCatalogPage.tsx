@@ -3,10 +3,11 @@ import { Camera, Maximize, Play, ShoppingBag, UserRound, Video } from "lucide-re
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
+import {loadGeneralPublicCatalog} from '../lib/generalPublicCatalog';
 import { loadSavedCatalog } from "../lib/offlineCatalog";
 import { ServiceCard } from "../components/ServiceCard";
 import { CatalogViewer, viewerItems } from "../components/CatalogViewer";
-import { Loader, Modal, Notice } from "../components/ui";
+import { Loader, Notice } from "../components/ui";
 import { buildCatalogSections, type CatalogGender } from "../lib/catalogSections";
 import { catalogMediaUrl } from "../lib/mediaUrl";
 import { humanError, money } from "../lib/helpers";
@@ -16,6 +17,7 @@ import { hasWatchedParentIntro } from "../lib/parentIntroProgress";
 import type { PublicCatalogPayload } from "../lib/types";
 import { trackPublicVisit } from "../lib/visitAnalytics";
 
+const CrmCatalogCheckout = lazy(() => import('../components/CrmCatalogCheckout').then(module => ({default:module.CrmCatalogCheckout})));
 const CatalogInquiry = lazy(() => import('../components/CatalogInquiry').then(module => ({default: module.CatalogInquiry})));
 const OfflineCatalogControls = lazy(() => import('../components/OfflineCatalogControls').then(module => ({default: module.OfflineCatalogControls})));
 
@@ -41,7 +43,7 @@ export function PublicCatalogPage({ catalogToken, presentation = false, internal
   const [params] = useSearchParams();
   const [online, setOnline] = useState(navigator.onLine);
   const [localCopy, setLocalCopy] = useState(false);
-  const immersive = !crmSnapshot && (presentation || params.get("offline") === "1");
+  const immersive = presentation || (!crmSnapshot && params.get("offline") === "1");
   const readOnly = immersive;
   const [selected, setSelected] = useState<string[]>([]);
   const [withoutLamination, setWithoutLamination] = useState<string[]>([]);
@@ -53,8 +55,6 @@ export function PublicCatalogPage({ catalogToken, presentation = false, internal
   const [gender, setGender] = useState<CatalogGender>("all");
   const [activeCategory, setActiveCategory] = useState("");
   const navigationTarget = useRef<{id: string; until: number} | null>(null);
-  const [classLink, setClassLink] = useState("");
-  const [classLinkError, setClassLinkError] = useState("");
   const [introClosed, setIntroClosed] = useState(hasWatchedParentIntro);
 
   const toggle = (id: string) => setSelected(old => old.includes(id) ? old.filter(value => value !== id) : [...old, id]);
@@ -72,10 +72,8 @@ export function PublicCatalogPage({ catalogToken, presentation = false, internal
     void (async () => {
       try {
         if (crmSnapshot) {
-          const response = await fetch(`${import.meta.env.BASE_URL}catalog-snapshot/catalog.json`, {cache: 'no-cache'});
-          if (!response.ok) throw new Error('Каталог временно недоступен. Повторите загрузку.');
-          const snapshot = await response.json();
-          if (alive) setData({company_name: 'Khan Zama', watermark: {text:'Vakha Studio', image:'', opacity:.28}, ...snapshot});
+          const payload = await loadGeneralPublicCatalog();
+          if (alive) setData(payload);
           return;
         }
         const saved = await loadSavedCatalog(token).catch(() => null);
@@ -154,11 +152,11 @@ export function PublicCatalogPage({ catalogToken, presentation = false, internal
   return <main className="public-page"><div className="public-shell public-catalog-shell">
     <header className="public-header"><div className="public-logo"><span className="brand-mark">KZ</span><div><strong>{data.company_name || "Khan Zama"}</strong><small>{presentation ? "Каталог для показа" : "Каталог услуг"}</small></div></div>{presentation && internal ? <span className="step-indicator"><Link to="/admin/catalog">В админку</Link></span> : null}</header>
     {!immersive && <ParentIntro watched={introClosed} onComplete={() => setIntroClosed(true)} />}
-    <section className="public-content public-catalog-content" id="public-catalog-start"><h1>Каталог услуг</h1><p className="public-lead">{crmSnapshot ? "Выберите услуги и оформите заявку по ссылке вашего класса." : "Выберите понравившиеся услуги и отправьте заявку в WhatsApp"}</p>
+    <section className="public-content public-catalog-content" id="public-catalog-start"><h1>Каталог услуг</h1><p className="public-lead">{crmSnapshot ? "Выберите понравившиеся услуги и оформите заявку." : "Выберите понравившиеся услуги и отправьте заявку в WhatsApp"}</p>
       {data.catalog.length > 0 && <div className="catalog-sticky-filters"><div className="catalog-gender-tabs" role="group" aria-label="Категория ребёнка"><button className={gender === "all" ? "active" : ""} onClick={() => setGender("all")}>Все</button><button className={gender === "boys" ? "active" : ""} onClick={() => setGender("boys")}>Мальчики</button><button className={gender === "girls" ? "active" : ""} onClick={() => setGender("girls")}>Девочки</button></div><nav className="catalog-jump-nav" aria-label="Быстрый переход по категориям">{prioritizedSections.map(section => <button type="button" key={section.id} className={activeCategory === section.id ? "active" : ""} aria-current={activeCategory === section.id ? "true" : undefined} onClick={() => scrollToCategory(section.id)}>{section.title}</button>)}</nav></div>}
       {immersive && <button type="button" className="button button-primary catalog-slideshow-start" disabled={!slideshowStart} onClick={() => { const item = data.catalog.find(entry => entry.id === slideshowStart?.id); if (item) setPreview(item); }}><Maximize size={20} />Открыть слайд-шоу</button>}
-      {immersive && <div className="offline-view-notice"><span>{!online ? "Без интернета · только просмотр" : localCopy ? "Сохранённый каталог · только просмотр" : "Только просмотр"}</span><Link to="/offline-catalog">Сохранённые каталоги</Link></div>}
-      {immersive && <Suspense fallback={null}>{readOnly && localCopy ? <details className="offline-manage"><summary>Управление сохранённой копией</summary><OfflineCatalogControls token={token} data={data} online={online} onUpdated={latest => { setData(latest); if (params.get("offline") === "1") setLocalCopy(true); }} /></details> : <OfflineCatalogControls token={token} data={data} online={online} onUpdated={latest => { setData(latest); if (params.get("offline") === "1") setLocalCopy(true); }} />}</Suspense>}
+      {immersive && <div className="offline-view-notice"><span>{!online ? "Без интернета · только просмотр" : localCopy ? "Сохранённый каталог · только просмотр" : "Только просмотр"}</span>{!crmSnapshot && <Link to="/offline-catalog">Сохранённые каталоги</Link>}</div>}
+      {immersive && !crmSnapshot && <Suspense fallback={null}>{readOnly && localCopy ? <details className="offline-manage"><summary>Управление сохранённой копией</summary><OfflineCatalogControls token={token} data={data} online={online} onUpdated={latest => { setData(latest); if (params.get("offline") === "1") setLocalCopy(true); }} /></details> : <OfflineCatalogControls token={token} data={data} online={online} onUpdated={latest => { setData(latest); if (params.get("offline") === "1") setLocalCopy(true); }} />}</Suspense>}
       {!immersive && prioritizedSections.length > 0 && <div className="catalog-category-cards" aria-label="Категории услуг">{prioritizedSections.map((section, index) => {
         const preferredGender = index % 2 === 0 ? "girls" : "boys";
         const dragonVideo = section.id === "video" ? section.items.find(item => /дракон/i.test(item.name) && item.preview_url) : undefined;
@@ -171,13 +169,7 @@ export function PublicCatalogPage({ catalogToken, presentation = false, internal
     </section>
     {!immersive && selected.length > 0 && <aside className="catalog-order-dock" aria-label="Выбранные услуги"><div><strong><ShoppingBag size={17}/> Корзина · {selected.length}</strong><span>Итого: {money(total)}</span></div><button className="button button-primary" type="button" onClick={() => setInquiryOpen(true)}>Оформить заявку</button></aside>}
     {!immersive && !crmSnapshot && <Suspense fallback={null}><CatalogInquiry token={token} items={selectedItems} whatsapp={data.whatsapp} open={inquiryOpen} onClose={() => setInquiryOpen(false)} /></Suspense>}
-    {crmSnapshot && inquiryOpen && <Modal title="Оформить заявку" onClose={() => setInquiryOpen(false)}><form className="form-stack" onSubmit={event => {
-      event.preventDefault(); setClassLinkError('');
-      try { const url = new URL(classLink.trim(), window.location.origin); const route = url.search.startsWith('?/p/') ? url.search.slice(1) : url.pathname;
-        if (url.origin !== window.location.origin || !/^\/p\/[A-Za-z0-9_-]{32,100}$/.test(route)) throw new Error('Откройте ссылку класса на этом сайте, полученную от учителя или фотографа.');
-        window.location.assign(route);
-      } catch (reason) { setClassLinkError(humanError(reason)); }
-    }}><p>Для заявки нужно выбрать ребёнка. Вставьте ссылку вашего класса от учителя или фотографа — там выберите ребёнка и услуги для заявки.</p><label>Ссылка класса<input type="text" inputMode="url" value={classLink} onChange={event => setClassLink(event.target.value)} required placeholder="https://zakaz.khanzama.ru/p/…"/></label>{classLinkError && <Notice kind="error">{classLinkError}</Notice>}<button type="submit" className="button button-primary">Открыть класс</button></form></Modal>}
+    {crmSnapshot && inquiryOpen && <Suspense fallback={<Loader label="Открываем заявку…"/>}><CrmCatalogCheckout items={selectedItems} withoutLaminationIds={withoutLamination} onClose={() => setInquiryOpen(false)}/></Suspense>}
     {preview && <CatalogViewer immersive={immersive} readOnly={readOnly} items={data.catalog} initialId={preview.id} initialGender={gender} selected={selected} onToggle={id => { toggle(id); setPreview(null); }} onClose={() => setPreview(null)} />}
   </div></main>;
 }

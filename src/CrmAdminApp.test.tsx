@@ -1,0 +1,10 @@
+import {afterEach,expect,it,vi} from 'vitest';
+import {cleanup,render,screen} from '@testing-library/react';
+import {MemoryRouter} from 'react-router-dom';
+const me=vi.hoisted(()=>vi.fn());vi.mock('./lib/repository',()=>({currentUser:me,signIn:vi.fn(),signUp:vi.fn(),signOut:vi.fn()}));
+vi.mock('./pages/SchoolsPage',()=>({SchoolsPage:()=> <h1>Школы CRM</h1>}));
+import CrmAdminApp from './CrmAdminApp';
+afterEach(()=>{cleanup();vi.clearAllMocks();});
+it('requires a real session before rendering school data',async()=>{me.mockResolvedValue(null);render(<MemoryRouter initialEntries={['/admin/schools']}><CrmAdminApp/></MemoryRouter>);expect(await screen.findByRole('heading',{name:'Вход администратора'})).toBeTruthy();expect(screen.queryByText('Школы CRM')).toBeNull();});
+it('renders the existing staff sidebar and school screen for an administrator',async()=>{me.mockResolvedValue({id:'admin',role:'admin',app_metadata:{role:'admin'}});render(<MemoryRouter initialEntries={['/admin/schools']}><CrmAdminApp/></MemoryRouter>);expect(await screen.findByRole('heading',{name:'Школы CRM'})).toBeTruthy();expect(screen.getByRole('link',{name:'Каталог для родителей'})).toBeTruthy();});
+it('does not allow a photographer account into staff administration',async()=>{me.mockResolvedValue({id:'photo',role:'photographer',app_metadata:{role:'photographer'}});render(<MemoryRouter initialEntries={['/admin/schools']}><CrmAdminApp/></MemoryRouter>);expect(await screen.findByText(/Этот раздел доступен администратору/)).toBeTruthy();expect(screen.queryByText('Школы CRM')).toBeNull();});
