@@ -23,7 +23,7 @@ describe('separate general catalog modes', () => {
   fireEvent.click(screen.getByRole('button',{name:/Добавить.*заказ/}));
   expect(screen.getByText(/Корзина · 1/)).toBeTruthy();
   fireEvent.click(screen.getByRole('button',{name:'Оформить заявку'}));
-  expect(screen.getByRole('dialog',{name:'Оформить заявку'})).toBeTruthy();
+  expect(await screen.findByRole('dialog',{name:'Оформить заявку'})).toBeTruthy();
   expect(screen.queryByRole('link',{name:'В админку'})).toBeNull();
   const open = vi.spyOn(window, 'open').mockImplementation(() => null);
   fireEvent.change(screen.getByLabelText('Название учреждения'), {target:{value:'Школа №1'}});
